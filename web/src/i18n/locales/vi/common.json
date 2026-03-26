@@ -711,15 +711,32 @@
     "resource": {
       "start": "Khởi động",
       "stop": "Dừng",
+      "save": "Lưu",
+      "saving": "Đang lưu...",
       "delete": "Xóa",
       "started": "Đã khởi động tài nguyên.",
       "stopped": "Đã dừng tài nguyên.",
       "deleted": "Đã xóa tài nguyên.",
+      "updated": "Đã cập nhật tài nguyên.",
       "created": "Đã triển khai tài nguyên.",
       "logTitle": "Log khởi động tài nguyên",
       "logEmpty": "Chưa có log...",
       "streaming": "Đang stream...",
-      "runFailed": "Khởi động tài nguyên thất bại."
+      "runFailed": "Khởi động tài nguyên thất bại.",
+      "editTitle": "Chi tiết tài nguyên",
+      "editPageTitle": "Chi tiết tài nguyên",
+      "editDescription": "Xem cấu hình hiện tại của tài nguyên và cập nhật biến môi trường.",
+      "backToProject": "Quay lại",
+      "back": "Trở lại",
+      "loadFailed": "Không tải được tài nguyên.",
+      "loadEnvFailed": "Không tải được biến môi trường của tài nguyên.",
+      "infoTitle": "Thông tin tài nguyên",
+      "infoDescription": "Cấu hình runtime hiện tại của tài nguyên.",
+      "envTitle": "Biến môi trường",
+      "envDescription": "Cập nhật biến môi trường runtime cho tài nguyên này.",
+      "typeLabel": "Loại",
+      "statusLabel": "Trạng thái",
+      "portsLabel": "Cổng"
     }
   },
   "databases": {

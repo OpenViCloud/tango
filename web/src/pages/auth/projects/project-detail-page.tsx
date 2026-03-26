@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useNavigate } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 import {
   ArrowLeftIcon,
   ChevronDownIcon,
@@ -61,6 +61,7 @@ const StartIcon = actionIcons.start
 const StopIcon = actionIcons.stop
 const DeleteIcon = actionIcons.delete
 const CreateIcon = actionIcons.create
+const EditIcon = actionIcons.edit
 
 // ── DB presets (shared with databases page pattern) ────────────────────────────
 
@@ -256,6 +257,14 @@ function ResourceCard({
       )}
 
       <div className="mt-auto flex items-center gap-1.5">
+        <Button asChild type="button" variant="ghost" size="sm" disabled={busy}>
+          <Link
+            to="/resources/$resourceId"
+            params={{ resourceId: resource.id }}
+          >
+            <EditIcon className="size-3.5" />
+          </Link>
+        </Button>
         {canStop ? (
           <Button
             type="button"
@@ -298,12 +307,7 @@ function ResourceCard({
 
 // ── Deploy resource sheet ─────────────────────────────────────────────────────
 
-type DeployPhase =
-  | "idle"
-  | "preset"
-  | "config"
-  | "creating"
-  | "done"
+type DeployPhase = "idle" | "preset" | "config" | "creating" | "done"
 type EnvEntry = { key: string; value: string }
 type PortEntry = { host: string; container: string }
 
@@ -437,7 +441,9 @@ function DeployResourceSheet({
       return
     }
     setNameError("")
-    const image = customMode ? customImage.trim() : (selectedPreset?.image ?? "")
+    const image = customMode
+      ? customImage.trim()
+      : (selectedPreset?.image ?? "")
     if (!image) {
       toast.error("Image is required")
       return
@@ -896,7 +902,7 @@ function ResourceRunLogSheet({
               <Skeleton className="h-4 w-5/6" />
             </div>
           ) : (
-            <pre className="min-h-[220px] whitespace-pre-wrap break-all rounded-md bg-muted p-4 font-mono text-xs leading-relaxed">
+            <pre className="min-h-[220px] rounded-md bg-muted p-4 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">
               {logs || t("projects.resource.logEmpty")}
               {connected ? <span className="animate-pulse">▌</span> : null}
               <div ref={bottomRef} />
@@ -926,7 +932,9 @@ function EnvironmentSection({
   const [open, setOpen] = useState(true)
   const [deployOpen, setDeployOpen] = useState(false)
   const [activeRun, setActiveRun] = useState<ResourceRunModel | null>(null)
-  const [activeRunResourceName, setActiveRunResourceName] = useState<string | null>(null)
+  const [activeRunResourceName, setActiveRunResourceName] = useState<
+    string | null
+  >(null)
   const startMutation = useStartResource()
   const stopMutation = useStopResource()
   const deleteMutation = useDeleteResource(projectId)
@@ -948,7 +956,9 @@ function EnvironmentSection({
   }
 
   const handleRunCompleted = () => {
-    queryClient.invalidateQueries({ queryKey: PROJECT_QUERY_KEYS.project(projectId) })
+    queryClient.invalidateQueries({
+      queryKey: PROJECT_QUERY_KEYS.project(projectId),
+    })
   }
 
   const handleStop = (id: string) => {

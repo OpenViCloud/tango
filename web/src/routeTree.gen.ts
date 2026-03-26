@@ -22,6 +22,7 @@ import { Route as AuthContainersIndexRouteImport } from './routes/_auth/containe
 import { Route as AuthChannelsIndexRouteImport } from './routes/_auth/channels/index'
 import { Route as AuthBuildsIndexRouteImport } from './routes/_auth/builds/index'
 import { Route as AuthUsersCreateRouteImport } from './routes/_auth/users/create'
+import { Route as AuthResourcesResourceIdRouteImport } from './routes/_auth/resources/$resourceId'
 import { Route as AuthProjectsProjectIdRouteImport } from './routes/_auth/projects/$projectId'
 import { Route as AuthChannelsCreateRouteImport } from './routes/_auth/channels/create'
 import { Route as AuthUsersUserIdEditRouteImport } from './routes/_auth/users/$userId/edit'
@@ -90,6 +91,11 @@ const AuthUsersCreateRoute = AuthUsersCreateRouteImport.update({
   path: '/users/create',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthResourcesResourceIdRoute = AuthResourcesResourceIdRouteImport.update({
+  id: '/resources/$resourceId',
+  path: '/resources/$resourceId',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthProjectsProjectIdRoute = AuthProjectsProjectIdRouteImport.update({
   id: '/projects/$projectId',
   path: '/projects/$projectId',
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof GuestLoginRoute
   '/channels/create': typeof AuthChannelsCreateRoute
   '/projects/$projectId': typeof AuthProjectsProjectIdRoute
+  '/resources/$resourceId': typeof AuthResourcesResourceIdRoute
   '/users/create': typeof AuthUsersCreateRoute
   '/builds/': typeof AuthBuildsIndexRoute
   '/channels/': typeof AuthChannelsIndexRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByTo {
   '/login': typeof GuestLoginRoute
   '/channels/create': typeof AuthChannelsCreateRoute
   '/projects/$projectId': typeof AuthProjectsProjectIdRoute
+  '/resources/$resourceId': typeof AuthResourcesResourceIdRoute
   '/users/create': typeof AuthUsersCreateRoute
   '/builds': typeof AuthBuildsIndexRoute
   '/channels': typeof AuthChannelsIndexRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/_guest/login': typeof GuestLoginRoute
   '/_auth/channels/create': typeof AuthChannelsCreateRoute
   '/_auth/projects/$projectId': typeof AuthProjectsProjectIdRoute
+  '/_auth/resources/$resourceId': typeof AuthResourcesResourceIdRoute
   '/_auth/users/create': typeof AuthUsersCreateRoute
   '/_auth/builds/': typeof AuthBuildsIndexRoute
   '/_auth/channels/': typeof AuthChannelsIndexRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/channels/create'
     | '/projects/$projectId'
+    | '/resources/$resourceId'
     | '/users/create'
     | '/builds/'
     | '/channels/'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/channels/create'
     | '/projects/$projectId'
+    | '/resources/$resourceId'
     | '/users/create'
     | '/builds'
     | '/channels'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/_guest/login'
     | '/_auth/channels/create'
     | '/_auth/projects/$projectId'
+    | '/_auth/resources/$resourceId'
     | '/_auth/users/create'
     | '/_auth/builds/'
     | '/_auth/channels/'
@@ -321,6 +333,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthUsersCreateRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/resources/$resourceId': {
+      id: '/_auth/resources/$resourceId'
+      path: '/resources/$resourceId'
+      fullPath: '/resources/$resourceId'
+      preLoaderRoute: typeof AuthResourcesResourceIdRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/projects/$projectId': {
       id: '/_auth/projects/$projectId'
       path: '/projects/$projectId'
@@ -356,6 +375,7 @@ interface AuthRouteChildren {
   AuthDashboardRoute: typeof AuthDashboardRoute
   AuthChannelsCreateRoute: typeof AuthChannelsCreateRoute
   AuthProjectsProjectIdRoute: typeof AuthProjectsProjectIdRoute
+  AuthResourcesResourceIdRoute: typeof AuthResourcesResourceIdRoute
   AuthUsersCreateRoute: typeof AuthUsersCreateRoute
   AuthBuildsIndexRoute: typeof AuthBuildsIndexRoute
   AuthChannelsIndexRoute: typeof AuthChannelsIndexRoute
@@ -372,6 +392,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthDashboardRoute: AuthDashboardRoute,
   AuthChannelsCreateRoute: AuthChannelsCreateRoute,
   AuthProjectsProjectIdRoute: AuthProjectsProjectIdRoute,
+  AuthResourcesResourceIdRoute: AuthResourcesResourceIdRoute,
   AuthUsersCreateRoute: AuthUsersCreateRoute,
   AuthBuildsIndexRoute: AuthBuildsIndexRoute,
   AuthChannelsIndexRoute: AuthChannelsIndexRoute,

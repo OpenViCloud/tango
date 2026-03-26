@@ -52,6 +52,9 @@ function AuthLayout() {
   } else if (pathname === "/containers") {
     section = t("shell.workspace")
     title = t("docker.page.title")
+  } else if (pathname.startsWith("/resources/")) {
+    section = t("shell.workspace")
+    title = t("projects.resource.editPageTitle")
   }
 
   return (

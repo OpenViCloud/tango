@@ -711,15 +711,32 @@
     "resource": {
       "start": "Start",
       "stop": "Stop",
+      "save": "Save",
+      "saving": "Saving...",
       "delete": "Delete",
       "started": "Resource started.",
       "stopped": "Resource stopped.",
       "deleted": "Resource deleted.",
+      "updated": "Resource updated.",
       "created": "Resource deployed.",
       "logTitle": "Start Resource Logs",
       "logEmpty": "No logs yet...",
       "streaming": "Streaming...",
-      "runFailed": "Resource start failed."
+      "runFailed": "Resource start failed.",
+      "editTitle": "Resource Details",
+      "editPageTitle": "Resource Details",
+      "editDescription": "Review the current resource configuration and update environment variables.",
+      "backToProject": "Back",
+      "back": "Go Back",
+      "loadFailed": "Could not load resource.",
+      "loadEnvFailed": "Could not load resource environment variables.",
+      "infoTitle": "Resource Information",
+      "infoDescription": "Current runtime configuration for this resource.",
+      "envTitle": "Environment Variables",
+      "envDescription": "Update runtime environment variables for this resource.",
+      "typeLabel": "Type",
+      "statusLabel": "Status",
+      "portsLabel": "Ports"
     }
   },
   "databases": {

@@ -62,10 +62,11 @@ function AuthLayout() {
 }
 
 export const Route = createFileRoute("/_auth")({
-  beforeLoad: () => {
-    const token = useAuthStore.getState().accessToken
-    if (!token) {
-      throw redirect({ to: "/login" })
+  beforeLoad: async () => {
+    const { isAuthenticated, init } = useAuthStore.getState()
+    if (!isAuthenticated) {
+      const ok = await init()
+      if (!ok) throw redirect({ to: "/login" })
     }
   },
   component: AuthLayout,

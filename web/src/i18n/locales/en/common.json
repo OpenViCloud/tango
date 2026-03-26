@@ -1057,7 +1057,8 @@
     },
     "logs": {
       "title": "Build Logs",
-      "empty": "No logs yet..."
+      "empty": "No logs yet...",
+      "streaming": "live"
     },
     "toasts": {
       "submitted": "Build job submitted.",

@@ -126,16 +126,8 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	// Store the refresh token in an httpOnly cookie so JS cannot read it.
-	c.SetCookie(
-		"refresh_token", refreshToken,
-		7*24*3600, // 7 days
-		"/api/auth",
-		"",   // domain
-		true, // secure (HTTPS only; set false for local development)
-		true, // httpOnly
-	)
-
+	c.SetCookie("access_token", accessToken, 900, "/", "", false, true)
+	c.SetCookie("refresh_token", refreshToken, 7*24*3600, "/api/auth", "", false, true)
 	response.OK(c, TokenResponse{AccessToken: accessToken})
 }
 
@@ -162,19 +154,20 @@ func (h *Handler) Refresh(c *gin.Context) {
 
 	userID := claims["user_id"].(string)
 	newAccessToken, _ := GenerateAccessToken(userID)
+	c.SetCookie("access_token", newAccessToken, 900, "/", "", false, true)
 	response.OK(c, TokenResponse{AccessToken: newAccessToken})
 }
 
 // Logout godoc
 // @Summary Logout
-// @Description Clears the refresh token cookie.
+// @Description Clears auth cookies.
 // @Tags auth
 // @Produce json
 // @Success 200 {object} MessageResponse
 // @Router /auth/logout [post]
 func (h *Handler) Logout(c *gin.Context) {
-	// Clear the cookie.
-	c.SetCookie("refresh_token", "", -1, "/api/auth", "", true, true)
+	c.SetCookie("access_token", "", -1, "/", "", false, true)
+	c.SetCookie("refresh_token", "", -1, "/api/auth", "", false, true)
 	response.OK(c, MessageResponse{Message: "Logged out"})
 }
 
@@ -182,14 +175,14 @@ func (h *Handler) Logout(c *gin.Context) {
 
 func Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if len(authHeader) < 8 || authHeader[:7] != "Bearer " {
-			_ = c.Error(response.Unauthorized("Missing bearer token"))
+		token, err := c.Cookie("access_token")
+		if err != nil || token == "" {
+			_ = c.Error(response.Unauthorized("Missing access token"))
 			c.Abort()
 			return
 		}
 
-		claims, err := VerifyToken(authHeader[7:])
+		claims, err := VerifyToken(token)
 		if err != nil {
 			_ = c.Error(response.Unauthorized("Invalid token"))
 			c.Abort()

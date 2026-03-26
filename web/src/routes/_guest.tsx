@@ -4,8 +4,8 @@ import { useAuthStore } from "@/store/auth"
 
 export const Route = createFileRoute("/_guest")({
   beforeLoad: () => {
-    const token = useAuthStore.getState().accessToken
-    if (token) {
+    const { isAuthenticated } = useAuthStore.getState()
+    if (isAuthenticated) {
       throw redirect({ to: "/dashboard" })
     }
   },

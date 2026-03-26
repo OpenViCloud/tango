@@ -154,10 +154,12 @@ func main() {
 
 	// Docker repository (optional — app starts fine if Docker is unavailable)
 	var dockerHandler *rest.DockerHandler
+	var dockerWSHandler *rest.DockerWSHandler
 	if dockerRepo, err := infradocker.NewRepository(); err != nil {
 		logger.Warn("docker unavailable, /docker endpoints disabled", "err", err)
 	} else {
 		defer func() { _ = dockerRepo.Close() }()
+		dockerWSHandler = rest.NewDockerWSHandler(dockerRepo)
 		dockerHandler = rest.NewDockerHandler(
 			query.NewListContainersHandler(dockerRepo),
 			query.NewListImagesHandler(dockerRepo),
@@ -203,6 +205,7 @@ func main() {
 	discordRuntimeHandler := rest.NewDiscordRuntimeHandler(discordRuntime)
 	roleHandler := rest.NewRoleHandler(roleService)
 	buildHandler := rest.NewBuildHandler(createBuildJobHandler, cancelBuildJobHandler, getBuildJobHandler, listBuildJobsHandler)
+	buildWSHandler := rest.NewBuildWSHandler(buildSvc, getBuildJobHandler)
 	logHandler := rest.NewLogHandler(logService)
 
 	docs.SwaggerInfo.BasePath = "/api"
@@ -234,9 +237,11 @@ func main() {
 			discordRuntimeHandler.Register(protected)
 			roleHandler.Register(protected)
 			buildHandler.Register(protected)
+			buildWSHandler.Register(protected)
 			logHandler.Register(protected)
 			if dockerHandler != nil {
 				dockerHandler.Register(protected)
+				dockerWSHandler.Register(protected)
 			}
 		}
 	}

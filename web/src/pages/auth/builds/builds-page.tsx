@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
@@ -7,10 +7,10 @@ import { useTranslation } from "react-i18next"
 import type { BuildJobModel, CreateBuildJobModel } from "@/@types/models"
 import {
   useGetBuildJobList,
-  useGetBuildJob,
   useCreateBuildJob,
   useCancelBuildJob,
 } from "@/hooks/api/use-build"
+import { useBuildLogs } from "@/hooks/api/use-build-logs"
 import { createBuildJobSchema } from "@/@types/models/build"
 import { PageHeaderCard } from "@/components/share/cards/page-header-card"
 import { SectionCard } from "@/components/share/cards/section-card"
@@ -151,22 +151,35 @@ function NewBuildSheet({
 // ── Log viewer sheet ──────────────────────────────────────────────────────────
 
 function LogSheet({
-  jobId,
+  job,
   onClose,
 }: {
-  jobId: string | null
+  job: BuildJobModel | null
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  const { data: job } = useGetBuildJob(jobId)
+  const { logs, status, connected } = useBuildLogs(job?.id ?? null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [logs])
+
+  const displayStatus = status ?? job?.status
+  const isEmpty = !logs && !connected
 
   return (
-    <Sheet open={Boolean(jobId)} onOpenChange={(v) => !v && onClose()}>
+    <Sheet open={Boolean(job)} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-full sm:max-w-2xl flex flex-col">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             {t("builds.logs.title")}
-            {job && <StatusBadge status={job.status} />}
+            {displayStatus && <StatusBadge status={displayStatus} />}
+            {connected && (
+              <span className="text-xs text-muted-foreground animate-pulse">
+                {t("builds.logs.streaming")}
+              </span>
+            )}
           </SheetTitle>
           {job && (
             <p className="text-muted-foreground text-xs font-mono truncate">{job.image_tag}</p>
@@ -174,7 +187,7 @@ function LogSheet({
         </SheetHeader>
 
         <div className="flex-1 overflow-auto mt-4">
-          {!job ? (
+          {isEmpty ? (
             <div className="flex flex-col gap-2">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
@@ -182,12 +195,9 @@ function LogSheet({
             </div>
           ) : (
             <pre className="bg-muted rounded-md p-4 text-xs font-mono whitespace-pre-wrap break-all leading-relaxed min-h-[200px]">
-              {job.logs || t("builds.logs.empty")}
-              {job.error_msg && (
-                <span className="text-destructive block mt-2">
-                  {"\n[error] "}{job.error_msg}
-                </span>
-              )}
+              {logs || t("builds.logs.empty")}
+              {connected && <span className="animate-pulse">▌</span>}
+              <div ref={bottomRef} />
             </pre>
           )}
         </div>
@@ -205,7 +215,7 @@ function JobRow({
   cancelPending,
 }: {
   job: BuildJobModel
-  onViewLogs: (id: string) => void
+  onViewLogs: (job: BuildJobModel) => void
   onCancel: (id: string) => void
   cancelPending: boolean
 }) {
@@ -238,7 +248,7 @@ function JobRow({
       </td>
       <td className="py-3 px-4">
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => onViewLogs(job.id)}>
+          <Button size="sm" variant="outline" onClick={() => onViewLogs(job)}>
             {t("builds.actions.viewLogs")}
           </Button>
           {isActive && (
@@ -264,7 +274,7 @@ export default function BuildsPage() {
   const { t } = useTranslation()
   const [pageIndex] = useState(0)
   const [showNewBuild, setShowNewBuild] = useState(false)
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
+  const [selectedJob, setSelectedJob] = useState<BuildJobModel | null>(null)
 
   const { data, isLoading, isFetching, refetch } = useGetBuildJobList({
     pageIndex,
@@ -349,7 +359,7 @@ export default function BuildsPage() {
                     <JobRow
                       key={job.id}
                       job={job}
-                      onViewLogs={setSelectedJobId}
+                      onViewLogs={setSelectedJob}
                       onCancel={handleCancel}
                       cancelPending={cancelMutation.isPending}
                     />
@@ -362,7 +372,7 @@ export default function BuildsPage() {
       </SectionCard>
 
       <NewBuildSheet open={showNewBuild} onClose={() => setShowNewBuild(false)} />
-      <LogSheet jobId={selectedJobId} onClose={() => setSelectedJobId(null)} />
+      <LogSheet job={selectedJob} onClose={() => setSelectedJob(null)} />
     </>
   )
 }

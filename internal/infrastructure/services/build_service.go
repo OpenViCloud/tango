@@ -1,16 +1,16 @@
 package services
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+	"sync"
 	"time"
 
 	"tango/internal/domain"
@@ -34,26 +34,28 @@ type BuildConfig struct {
 	CloneTimeout time.Duration
 }
 
-type buildService struct {
+// BuildService clones a git repo and calls buildctl to build + push a Docker
+// image via a remote BuildKit daemon.
+type BuildService struct {
 	cfg    BuildConfig
 	repo   domain.BuildJobRepository
 	logger *slog.Logger
+	active sync.Map // jobID → *LogBroadcaster
 }
 
-// NewBuildService creates a BuildService that clones a git repo and calls
-// buildctl to build + push a Docker image via a remote BuildKit daemon.
-func NewBuildService(cfg BuildConfig, repo domain.BuildJobRepository, logger *slog.Logger) *buildService {
+// NewBuildService creates a BuildService.
+func NewBuildService(cfg BuildConfig, repo domain.BuildJobRepository, logger *slog.Logger) *BuildService {
 	if cfg.BuildTimeout == 0 {
 		cfg.BuildTimeout = 20 * time.Minute
 	}
 	if cfg.CloneTimeout == 0 {
 		cfg.CloneTimeout = 5 * time.Minute
 	}
-	return &buildService{cfg: cfg, repo: repo, logger: logger}
+	return &BuildService{cfg: cfg, repo: repo, logger: logger}
 }
 
-// RunAsync launches the build in a background goroutine. Satisfies command.BuildService.
-func (s *buildService) RunAsync(job *domain.BuildJob) {
+// RunAsync launches the build in a background goroutine.
+func (s *BuildService) RunAsync(job *domain.BuildJob) {
 	go func() {
 		if err := s.run(job); err != nil {
 			s.logger.Error("build job failed", "job_id", job.ID, "err", err)
@@ -61,20 +63,32 @@ func (s *buildService) RunAsync(job *domain.BuildJob) {
 	}()
 }
 
-func (s *buildService) run(job *domain.BuildJob) error {
+// Subscribe returns a channel that streams log chunks for the given job and an
+// unsubscribe func. Returns a nil channel when the job is not currently running
+// (already finished or unknown).
+func (s *BuildService) Subscribe(jobID string) (<-chan []byte, func()) {
+	val, ok := s.active.Load(jobID)
+	if !ok {
+		return nil, func() {}
+	}
+	return val.(*LogBroadcaster).Subscribe()
+}
+
+func (s *BuildService) run(job *domain.BuildJob) error {
 	ctx := context.Background()
 	workDir := filepath.Join(s.cfg.WorkspaceDir, job.ID)
 
+	// Register broadcaster so WS clients can subscribe.
+	b := newLogBroadcaster()
+	s.active.Store(job.ID, b)
 	defer func() {
-		// Best-effort cleanup
+		b.closeAll()
+		s.active.Delete(job.ID)
 		_ = os.RemoveAll(workDir)
 	}()
 
-	var logBuf strings.Builder
-
-	appendLog := func(line string) {
-		logBuf.WriteString(line)
-		logBuf.WriteByte('\n')
+	log := func(line string) {
+		fmt.Fprintln(b, line) //nolint:errcheck
 	}
 
 	fail := func(msg string, err error) error {
@@ -82,22 +96,21 @@ func (s *buildService) run(job *domain.BuildJob) error {
 		if err != nil {
 			errMsg = msg + ": " + err.Error()
 		}
-		appendLog("[ERROR] " + errMsg)
+		log("[ERROR] " + errMsg)
 		now := time.Now().UTC()
 		job.Status = domain.BuildJobStatusFailed
 		job.ErrorMsg = errMsg
-		job.Logs = logBuf.String()
+		job.Logs = b.Snapshot()
 		job.FinishedAt = &now
 		if _, updateErr := s.repo.Update(ctx, job); updateErr != nil {
 			s.logger.Error("update build job on failure", "job_id", job.ID, "err", updateErr)
 		}
-		s.logger.Error("build job failed", "job_id", job.ID, "error", errMsg, "logs", logBuf.String())
 		return fmt.Errorf("%s", errMsg)
 	}
 
 	updateStatus := func(status domain.BuildJobStatus) {
 		job.Status = status
-		job.Logs = logBuf.String()
+		job.Logs = b.Snapshot()
 		if _, err := s.repo.Update(ctx, job); err != nil {
 			s.logger.Warn("update build job status", "job_id", job.ID, "status", status, "err", err)
 		}
@@ -109,7 +122,7 @@ func (s *buildService) run(job *domain.BuildJob) error {
 	updateStatus(domain.BuildJobStatusCloning)
 
 	// ── 1. Clone ──────────────────────────────────────────────────────────────
-	appendLog(fmt.Sprintf("[clone] git clone %s (branch: %s)", job.GitURL, job.GitBranch))
+	log(fmt.Sprintf("[clone] git clone %s (branch: %s)", job.GitURL, job.GitBranch))
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		return fail("create workspace dir", err)
 	}
@@ -118,17 +131,12 @@ func (s *buildService) run(job *domain.BuildJob) error {
 	defer cloneCancel()
 
 	cloneArgs := []string{"clone", "--depth", "1", "--branch", job.GitBranch, job.GitURL, workDir}
-	cloneOut, err := runCmd(cloneCtx, "", "git", cloneArgs...)
-	appendLog(cloneOut)
-	if err != nil {
-		// Retry without --branch (default branch)
-		appendLog("[clone] branch not found, retrying on default branch")
+	if err := runCmd(cloneCtx, "", b, "git", cloneArgs...); err != nil {
+		log("[clone] branch not found, retrying on default branch")
 		_ = os.RemoveAll(workDir)
 		_ = os.MkdirAll(workDir, 0o755)
 		cloneArgs = []string{"clone", "--depth", "1", job.GitURL, workDir}
-		cloneOut2, err2 := runCmd(cloneCtx, "", "git", cloneArgs...)
-		appendLog(cloneOut2)
-		if err2 != nil {
+		if err2 := runCmd(cloneCtx, "", b, "git", cloneArgs...); err2 != nil {
 			return fail("git clone failed", err2)
 		}
 	}
@@ -136,7 +144,7 @@ func (s *buildService) run(job *domain.BuildJob) error {
 	// ── 2. Detect stack ───────────────────────────────────────────────────────
 	updateStatus(domain.BuildJobStatusDetecting)
 	stack := DetectStack(workDir)
-	appendLog(fmt.Sprintf("[detect] stack detected: %s", stack))
+	log(fmt.Sprintf("[detect] stack detected: %s", stack))
 
 	if stack == StackUnknown {
 		return fail("could not detect stack — no known manifest found", nil)
@@ -145,7 +153,7 @@ func (s *buildService) run(job *domain.BuildJob) error {
 	// ── 3. Generate Dockerfile if needed ─────────────────────────────────────
 	if stack != StackDockerfile {
 		updateStatus(domain.BuildJobStatusGenerating)
-		appendLog(fmt.Sprintf("[generate] creating Dockerfile for %s stack", stack))
+		log(fmt.Sprintf("[generate] creating Dockerfile for %s stack", stack))
 		if err := GenerateDockerfile(workDir, stack); err != nil {
 			return fail("generate Dockerfile", err)
 		}
@@ -153,7 +161,7 @@ func (s *buildService) run(job *domain.BuildJob) error {
 
 	// ── 4. Build + push via buildctl ─────────────────────────────────────────
 	updateStatus(domain.BuildJobStatusBuilding)
-	appendLog(fmt.Sprintf("[build] building image %s", job.ImageTag))
+	log(fmt.Sprintf("[build] building image %s", job.ImageTag))
 
 	buildCtx, buildCancel := context.WithTimeout(ctx, s.cfg.BuildTimeout)
 	defer buildCancel()
@@ -167,8 +175,6 @@ func (s *buildService) run(job *domain.BuildJob) error {
 		"--output", fmt.Sprintf("type=image,name=%s,push=true", job.ImageTag),
 	}
 
-	// Write a docker config.json if registry credentials are provided so
-	// buildctl can authenticate when pushing.
 	if s.cfg.RegistryUsername != "" && s.cfg.RegistryPassword != "" {
 		configDir, err := writeDockerConfig(s.cfg.RegistryHost, s.cfg.RegistryUsername, s.cfg.RegistryPassword)
 		if err != nil {
@@ -178,56 +184,47 @@ func (s *buildService) run(job *domain.BuildJob) error {
 		buildArgs = append([]string{"--config", filepath.Join(configDir, "config.json")}, buildArgs...)
 	}
 
-	buildOut, err := runCmd(buildCtx, "", "buildctl", buildArgs...)
-	appendLog(buildOut)
-	if err != nil {
+	if err := runCmd(buildCtx, "", b, "buildctl", buildArgs...); err != nil {
 		return fail("buildctl build failed", err)
 	}
 
 	// ── 5. Done ───────────────────────────────────────────────────────────────
+	log(fmt.Sprintf("[done] image pushed: %s", job.ImageTag))
 	done := time.Now().UTC()
 	job.Status = domain.BuildJobStatusDone
 	job.FinishedAt = &done
-	job.Logs = logBuf.String()
+	job.Logs = b.Snapshot()
 	if _, err := s.repo.Update(ctx, job); err != nil {
 		s.logger.Error("update build job on success", "job_id", job.ID, "err", err)
 	}
-	appendLog(fmt.Sprintf("[done] image pushed: %s", job.ImageTag))
 	return nil
 }
 
-// runCmd executes a command and returns combined stdout+stderr output.
-func runCmd(ctx context.Context, dir, name string, args ...string) (string, error) {
+// runCmd executes a command and streams stdout+stderr to w in real-time.
+func runCmd(ctx context.Context, dir string, w io.Writer, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
 	if dir != "" {
 		cmd.Dir = dir
 	}
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-	err := cmd.Run()
-	return buf.String(), err
+	cmd.Stdout = w
+	cmd.Stderr = w
+	return cmd.Run()
 }
 
-// writeDockerConfig creates a temp dir with a minimal docker config.json for
-// registry authentication used by buildctl --config.
+// writeDockerConfig creates a temp dir with a minimal docker config.json.
 func writeDockerConfig(host, username, password string) (string, error) {
 	dir, err := os.MkdirTemp("", "buildkit-auth-*")
 	if err != nil {
 		return "", err
 	}
-
 	registryKey := host
 	if registryKey == "" {
 		registryKey = "https://index.docker.io/v1/"
 	}
 	authToken := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
-
 	cfg := map[string]any{
 		"auths": map[string]any{
-			registryKey: map[string]any{
-				"auth": authToken,
-			},
+			registryKey: map[string]any{"auth": authToken},
 		},
 	}
 	data, err := json.Marshal(cfg)

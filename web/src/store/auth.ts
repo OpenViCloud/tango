@@ -1,36 +1,39 @@
 import { create } from "zustand"
 import axios from "axios"
-import type { ApiResponse } from "@/@types/models/common"
-import type { AuthTokenResponse } from "@/@types/models"
-import { unwrapApiResponse } from "@/lib/api-response"
 
 interface AuthState {
-  accessToken: string | null
+  isAuthenticated: boolean
   isLoading: boolean
   error: string | null
+  init: () => Promise<boolean>
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
-  refreshToken: () => Promise<string | null>
+  refreshToken: () => Promise<boolean>
   clearError: () => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  accessToken: null,
+  isAuthenticated: false,
   isLoading: false,
   error: null,
 
-  // ── Đăng nhập ──────────────────────────────────
+  // Called on page load — tries to restore session from refresh cookie
+  init: async () => {
+    try {
+      await axios.post("/api/auth/refresh", {}, { withCredentials: true })
+      set({ isAuthenticated: true })
+      return true
+    } catch {
+      set({ isAuthenticated: false })
+      return false
+    }
+  },
+
   login: async (email, password) => {
     set({ isLoading: true, error: null })
     try {
-      const res = await axios.post<ApiResponse<AuthTokenResponse>>("/api/auth/login", {
-        email,
-        password,
-      })
-      const token = unwrapApiResponse(res.data).access_token
-      // access_token lưu trong memory (không localStorage — bảo mật hơn)
-      // refresh_token server set httpOnly cookie tự động
-      set({ accessToken: token, isLoading: false })
+      await axios.post("/api/auth/login", { email, password }, { withCredentials: true })
+      set({ isAuthenticated: true, isLoading: false })
     } catch (err: any) {
       const msg = err.response?.data?.error || "Đăng nhập thất bại"
       set({ error: msg, isLoading: false })
@@ -38,35 +41,23 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  // ── Đăng xuất ──────────────────────────────────
   logout: async () => {
     try {
-      // Xoá refresh token cookie phía server
-      await axios.post("/api/auth/logout")
+      await axios.post("/api/auth/logout", {}, { withCredentials: true })
     } finally {
-      set({ accessToken: null })
+      set({ isAuthenticated: false })
     }
   },
 
-  // ── Refresh access token ────────────────────────
-  // Gọi khi access token hết hạn (401)
-  // Server đọc httpOnly cookie refresh_token → trả access_token mới
+  // Called by the 401 interceptor — renews the access_token cookie
   refreshToken: async () => {
     try {
-      const res = await axios.post<ApiResponse<AuthTokenResponse>>(
-        "/api/auth/refresh",
-        {},
-        {
-          withCredentials: true, // gửi kèm cookie
-        }
-      )
-      const newToken = unwrapApiResponse(res.data).access_token
-      set({ accessToken: newToken })
-      return newToken
+      await axios.post("/api/auth/refresh", {}, { withCredentials: true })
+      set({ isAuthenticated: true })
+      return true
     } catch {
-      // Refresh token hết hạn → logout
-      set({ accessToken: null })
-      return null
+      set({ isAuthenticated: false })
+      return false
     }
   },
 

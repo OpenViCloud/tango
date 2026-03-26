@@ -1,9 +1,10 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
 
 import type { ContainerModel, CreateContainerModel, ImageModel, PullImageModel } from "@/@types/models"
 import { createContainerSchema, pullImageSchema } from "@/@types/models/container"
@@ -14,9 +15,10 @@ import {
   useStopContainer,
   useRemoveContainer,
   useCreateContainer,
-  usePullImage,
   useRemoveImage,
+  CONTAINER_QUERY_KEYS,
 } from "@/hooks/api/use-container"
+import { usePullImageLogs } from "@/hooks/api/use-pull-image-logs"
 import { PageHeaderCard } from "@/components/share/cards/page-header-card"
 import { SectionCard } from "@/components/share/cards/section-card"
 import { Badge } from "@/components/ui/badge"
@@ -485,44 +487,107 @@ function PullImageSheet({
   onOpenChange: (v: boolean) => void
 }) {
   const { t } = useTranslation()
-  const pullMutation = usePullImage()
+  const queryClient = useQueryClient()
+  const { headerLogs, layers, layerOrder, footerLogs, done, error, connected, pull, reset } = usePullImageLogs()
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   const form = useForm<PullImageModel>({
     resolver: zodResolver(pullImageSchema),
     defaultValues: { reference: "" },
   })
 
-  const onSubmit = form.handleSubmit((values) => {
-    pullMutation.mutate(values, {
-      onSuccess: () => {
-        toast.success(t("docker.image.pulled"))
-        form.reset()
-        onOpenChange(false)
-      },
-      onError: (err) => toast.error(err.message),
-    })
-  })
+  // Auto-scroll as logs arrive
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [footerLogs, layerOrder])
+
+  // Refresh image list when pull completes successfully
+  useEffect(() => {
+    if (done && !error) {
+      queryClient.invalidateQueries({ queryKey: CONTAINER_QUERY_KEYS.images() })
+      toast.success(t("docker.image.pulled"))
+    }
+  }, [done, error]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onSubmit = form.handleSubmit(({ reference }) => pull(reference))
+
+  const handleClose = (v: boolean) => {
+    if (!v) {
+      reset()
+      form.reset()
+    }
+    onOpenChange(v)
+  }
+
+  const isPulling = connected
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
+    <Sheet open={open} onOpenChange={handleClose}>
+      <SheetContent className="flex flex-col">
         <SheetHeader>
-          <SheetTitle>{t("docker.image.pullTitle")}</SheetTitle>
-        </SheetHeader>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4 mt-4">
-          <div className="flex flex-col gap-1.5">
-            <Label>{t("docker.image.referenceLabel")}</Label>
-            <Input placeholder="nginx:latest" {...form.register("reference")} />
-            {form.formState.errors.reference && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.reference.message}
-              </p>
+          <SheetTitle className="flex items-center gap-2">
+            {t("docker.image.pullTitle")}
+            {isPulling && (
+              <span className="text-xs text-muted-foreground animate-pulse">
+                {t("docker.actions.pulling")}
+              </span>
             )}
-          </div>
-          <Button type="submit" disabled={pullMutation.isPending}>
-            {pullMutation.isPending ? t("docker.actions.pulling") : t("docker.actions.pull")}
+          </SheetTitle>
+        </SheetHeader>
+
+        <form onSubmit={onSubmit} className="flex gap-2 mt-4">
+          <Input
+            placeholder="nginx:latest"
+            className="flex-1"
+            disabled={isPulling}
+            {...form.register("reference")}
+          />
+          <Button type="submit" disabled={isPulling}>
+            {isPulling ? t("docker.actions.pulling") : t("docker.actions.pull")}
           </Button>
         </form>
+        {form.formState.errors.reference && (
+          <p className="text-xs text-destructive -mt-2">
+            {form.formState.errors.reference.message}
+          </p>
+        )}
+
+        {(headerLogs || layerOrder.length > 0 || footerLogs || isPulling || error) && (
+          <div className="flex-1 overflow-auto mt-3 bg-muted rounded-md p-3 text-xs font-mono min-h-[200px]">
+            {/* "Pulling from library/nginx" and similar header lines */}
+            {headerLogs && (
+              <pre className="whitespace-pre-wrap break-all leading-relaxed mb-2">{headerLogs}</pre>
+            )}
+
+            {/* Per-layer progress rows */}
+            {layerOrder.length > 0 && (
+              <div className="grid gap-0.5 mb-2" style={{ gridTemplateColumns: "5rem 8rem 1fr" }}>
+                {layerOrder.map((id) => {
+                  const layer = layers.get(id)
+                  if (!layer) return null
+                  return (
+                    <div key={id} className="contents">
+                      <span className="text-muted-foreground truncate">{id}</span>
+                      <span className="truncate">{layer.status}</span>
+                      <span className="text-cyan-400 truncate">{layer.progress}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* "Digest: sha256:..." and "Status: Downloaded newer image for ..." */}
+            {footerLogs && (
+              <pre className="whitespace-pre-wrap break-all leading-relaxed">{footerLogs}</pre>
+            )}
+
+            {isPulling && !layerOrder.length && !headerLogs && (
+              <span className="animate-pulse">▌</span>
+            )}
+            {error && <span className="text-destructive block mt-1">[error] {error}</span>}
+            <div ref={bottomRef} />
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   )

@@ -1057,7 +1057,8 @@
     },
     "logs": {
       "title": "Build Logs",
-      "empty": "Chưa có logs..."
+      "empty": "Chưa có logs...",
+      "streaming": "trực tiếp"
     },
     "toasts": {
       "submitted": "Đã gửi build job.",

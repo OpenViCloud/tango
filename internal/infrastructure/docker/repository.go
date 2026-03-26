@@ -75,6 +75,16 @@ func (r *Repository) PullImage(ctx context.Context, input domain.PullImageInput)
 	return nil
 }
 
+// PullImageStream starts an image pull and returns the raw NDJSON event stream.
+// The caller is responsible for closing the returned ReadCloser.
+func (r *Repository) PullImageStream(ctx context.Context, reference string) (io.ReadCloser, error) {
+	out, err := r.client.ImagePull(ctx, reference, image.PullOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("pull image %s: %w", reference, err)
+	}
+	return out, nil
+}
+
 // RemoveImage removes an image by ID or tag.
 func (r *Repository) RemoveImage(ctx context.Context, imageID string, force bool) error {
 	_, err := r.client.ImageRemove(ctx, imageID, image.RemoveOptions{

@@ -19,9 +19,14 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: frontendPort,
+      host: true,
       // Dev: proxy API to Go server
       proxy: {
-        "/api": apiProxyTarget,
+        "/api": {
+          target: apiProxyTarget,
+          ws: true,
+          changeOrigin: true,
+        },
       },
     },
     build: {

@@ -48,6 +48,10 @@ func (h *DockerWSHandler) PullImage(c *gin.Context) {
 	}
 	defer conn.Close()
 
+	pingDone := make(chan struct{})
+	defer close(pingDone)
+	go wsPingLoop(conn, pingDone)
+
 	send := func(msg wsMsg) error {
 		data, _ := json.Marshal(msg)
 		return conn.WriteMessage(websocket.TextMessage, data)
@@ -83,4 +87,6 @@ func (h *DockerWSHandler) PullImage(c *gin.Context) {
 	}
 
 	_ = send(wsMsg{T: "done", Status: "pulled"})
+	_ = conn.WriteMessage(websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 }

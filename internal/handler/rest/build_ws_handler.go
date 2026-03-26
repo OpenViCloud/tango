@@ -3,6 +3,7 @@ package rest
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"tango/internal/application/query"
 
@@ -34,6 +35,23 @@ var wsUpgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
+const wsPingInterval = 30 * time.Second
+
+// wsPingLoop sends a ping every 30 s to keep the connection alive through
+// NAT/proxies. It stops when done is closed or a ping write fails.
+func wsPingLoop(conn *websocket.Conn, done <-chan struct{}) {
+	ticker := time.NewTicker(wsPingInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			_ = conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(5*time.Second))
+		}
+	}
+}
+
 type wsMsg struct {
 	T        string `json:"t"`
 	D        string `json:"d,omitempty"`
@@ -50,6 +68,10 @@ func (h *BuildWSHandler) StreamLogs(c *gin.Context) {
 		return // upgrade writes its own HTTP error
 	}
 	defer conn.Close()
+
+	pingDone := make(chan struct{})
+	defer close(pingDone)
+	go wsPingLoop(conn, pingDone)
 
 	send := func(msg wsMsg) error {
 		data, _ := json.Marshal(msg)
@@ -87,4 +109,6 @@ func (h *BuildWSHandler) StreamLogs(c *gin.Context) {
 		status = string(job.Status)
 	}
 	_ = send(wsMsg{T: "done", Status: status})
+	_ = conn.WriteMessage(websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 }

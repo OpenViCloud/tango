@@ -1,0 +1,7 @@
+interface:
+  display_name: "Backend"
+  short_description: "Go/Gin workflow for Tango API and CLI"
+  default_prompt: "Use $backend to work on the Go API, CLI, auth flow, and Docker packaging in this repo."
+
+policy:
+  allow_implicit_invocation: true

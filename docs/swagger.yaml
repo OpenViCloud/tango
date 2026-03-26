@@ -1,0 +1,2248 @@
+basePath: /api
+definitions:
+  auth.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  auth.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.MessageResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  auth.TokenResponse:
+    properties:
+      access_token:
+        type: string
+    type: object
+  rest.agentListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/rest.agentResponse'
+        type: array
+      pageIndex:
+        type: integer
+      pageSize:
+        type: integer
+      totalItems:
+        type: integer
+      totalPage:
+        type: integer
+    type: object
+  rest.agentProviderRequest:
+    properties:
+      llm_provider_id:
+        type: string
+      priority:
+        type: integer
+      status:
+        type: string
+    type: object
+  rest.agentProviderResponse:
+    properties:
+      id:
+        type: string
+      llm_provider_id:
+        type: string
+      priority:
+        type: integer
+      status:
+        type: string
+    type: object
+  rest.agentResponse:
+    properties:
+      budget_limit:
+        type: integer
+      budget_used:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      max_tokens:
+        type: integer
+      metadata_json:
+        type: string
+      model_override:
+        type: string
+      name:
+        type: string
+      parent_agent_id:
+        type: string
+      providers:
+        items:
+          $ref: '#/definitions/rest.agentProviderResponse'
+        type: array
+      role:
+        type: string
+      status:
+        type: string
+      system_prompt:
+        type: string
+      temperature:
+        type: number
+      type:
+        type: string
+      updated_at:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  rest.assignUserRoleRequest:
+    properties:
+      role_id:
+        type: string
+    type: object
+  rest.channelListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/rest.channelOperationResponse'
+        type: array
+      pageIndex:
+        type: integer
+      pageSize:
+        type: integer
+      totalItems:
+        type: integer
+      totalPage:
+        type: integer
+    type: object
+  rest.channelOperationResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      name:
+        type: string
+      setup_mode:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  rest.channelQRCodeResponse:
+    properties:
+      id:
+        type: string
+      qr_code:
+        type: string
+    type: object
+  rest.chatCompletionChoice:
+    properties:
+      delta:
+        $ref: '#/definitions/rest.chatCompletionMessage'
+      finish_reason:
+        type: string
+      index:
+        type: integer
+      message:
+        $ref: '#/definitions/rest.chatCompletionMessage'
+    type: object
+  rest.chatCompletionMessage:
+    properties:
+      content:
+        type: string
+      role:
+        type: string
+    type: object
+  rest.chatCompletionRequest:
+    properties:
+      conversation_id:
+        type: string
+      messages:
+        items:
+          $ref: '#/definitions/rest.chatCompletionMessage'
+        type: array
+      model:
+        type: string
+      stream:
+        type: boolean
+      workspace_id:
+        type: string
+    type: object
+  rest.chatCompletionResponse:
+    properties:
+      choices:
+        items:
+          $ref: '#/definitions/rest.chatCompletionChoice'
+        type: array
+      conversation_id:
+        type: string
+      created:
+        type: integer
+      id:
+        type: string
+      model:
+        type: string
+      object:
+        type: string
+    type: object
+  rest.conversationListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/rest.conversationResponse'
+        type: array
+      pageIndex:
+        type: integer
+      pageSize:
+        type: integer
+      totalItems:
+        type: integer
+      totalPage:
+        type: integer
+    type: object
+  rest.conversationMessageResponse:
+    properties:
+      content:
+        type: string
+      conversation_id:
+        type: string
+      created_at:
+        type: string
+      error_message:
+        type: string
+      finish_reason:
+        type: string
+      id:
+        type: string
+      message_kind:
+        type: string
+      model:
+        type: string
+      provider:
+        type: string
+      role:
+        type: string
+      sender_id:
+        type: string
+      sender_type:
+        type: string
+      sequence:
+        type: integer
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  rest.conversationResponse:
+    properties:
+      channel_id:
+        type: string
+      channel_kind:
+        type: string
+      conversation_type:
+        type: string
+      created_at:
+        type: string
+      external_chat_id:
+        type: string
+      id:
+        type: string
+      last_message_at:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  rest.createAgentRequest:
+    properties:
+      budget_limit:
+        type: integer
+      budget_used:
+        type: integer
+      id:
+        type: string
+      kind:
+        type: string
+      max_tokens:
+        type: integer
+      metadata_json:
+        type: string
+      model_override:
+        type: string
+      name:
+        type: string
+      parent_agent_id:
+        type: string
+      providers:
+        items:
+          $ref: '#/definitions/rest.agentProviderRequest'
+        type: array
+      role:
+        type: string
+      status:
+        type: string
+      system_prompt:
+        type: string
+      temperature:
+        type: number
+      type:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  rest.createChannelRequest:
+    type: object
+  rest.createLLMProviderRequest:
+    properties:
+      active:
+        type: boolean
+      api_key:
+        type: string
+      base_url:
+        type: string
+      model:
+        type: string
+      name:
+        type: string
+      primary:
+        type: boolean
+      provider:
+        type: string
+    type: object
+  rest.createRoleRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  rest.createUserRequest:
+    properties:
+      address:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      nickname:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+    type: object
+  rest.createWorkspaceRequest:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      metadata_json:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+    type: object
+  rest.discordRuntimeRequest:
+    properties:
+      allowed_user_ids:
+        items:
+          type: string
+        type: array
+      enable_message_content_intent:
+        type: boolean
+      enable_typing:
+        type: boolean
+      require_mention:
+        type: boolean
+      token:
+        type: string
+    type: object
+  rest.discordRuntimeResponse:
+    properties:
+      allowed_user_ids:
+        items:
+          type: string
+        type: array
+      channel:
+        type: string
+      enable_message_content_intent:
+        type: boolean
+      enable_typing:
+        type: boolean
+      require_mention:
+        type: boolean
+      running:
+        type: boolean
+      token_configured:
+        type: boolean
+    type: object
+  rest.errorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  rest.llmProviderListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/rest.llmProviderResponse'
+        type: array
+      pageIndex:
+        type: integer
+      pageSize:
+        type: integer
+      totalItems:
+        type: integer
+      totalPage:
+        type: integer
+    type: object
+  rest.llmProviderResponse:
+    properties:
+      active:
+        type: boolean
+      base_url:
+        type: string
+      created_at:
+        type: string
+      has_api_key:
+        type: boolean
+      id:
+        type: string
+      model:
+        type: string
+      name:
+        type: string
+      primary:
+        type: boolean
+      provider:
+        type: string
+      token_preview:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  rest.roleListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/rest.roleResponse'
+        type: array
+      pageIndex:
+        type: integer
+      pageSize:
+        type: integer
+      totalItems:
+        type: integer
+      totalPage:
+        type: integer
+    type: object
+  rest.roleResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_system:
+        type: boolean
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  rest.updateAgentRequest:
+    properties:
+      budget_limit:
+        type: integer
+      budget_used:
+        type: integer
+      kind:
+        type: string
+      max_tokens:
+        type: integer
+      metadata_json:
+        type: string
+      model_override:
+        type: string
+      name:
+        type: string
+      parent_agent_id:
+        type: string
+      providers:
+        items:
+          $ref: '#/definitions/rest.agentProviderRequest'
+        type: array
+      role:
+        type: string
+      status:
+        type: string
+      system_prompt:
+        type: string
+      temperature:
+        type: number
+      type:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  rest.updateChannelRequest:
+    type: object
+  rest.updateLLMProviderRequest:
+    properties:
+      active:
+        type: boolean
+      api_key:
+        type: string
+      base_url:
+        type: string
+      model:
+        type: string
+      name:
+        type: string
+      primary:
+        type: boolean
+      provider:
+        type: string
+    type: object
+  rest.updateRoleRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  rest.updateUserRequest:
+    properties:
+      address:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      nickname:
+        type: string
+      phone:
+        type: string
+    type: object
+  rest.updateWorkspaceRequest:
+    properties:
+      description:
+        type: string
+      metadata_json:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+    type: object
+  rest.userResponse:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      nickname:
+        type: string
+      phone:
+        type: string
+      status:
+        type: string
+    type: object
+  rest.userRoleResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_system:
+        type: boolean
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  rest.workspaceAgentIDsRequest:
+    properties:
+      agent_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  rest.workspaceChannelIDsRequest:
+    properties:
+      channel_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  rest.workspaceListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/rest.workspaceResponse'
+        type: array
+      pageIndex:
+        type: integer
+      pageSize:
+        type: integer
+      totalItems:
+        type: integer
+      totalPage:
+        type: integer
+    type: object
+  rest.workspaceResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      metadata_json:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: REST API for Tango authentication, users, and streaming endpoints.
+  title: Tango API
+  version: 0.1.0
+paths:
+  /agents:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.agentListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List agents
+      tags:
+      - agents
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Agent payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.createAgentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/rest.agentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create agent
+      tags:
+      - agents
+  /agents/{id}:
+    delete:
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete agent
+      tags:
+      - agents
+    get:
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.agentResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get agent by ID
+      tags:
+      - agents
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Agent payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.updateAgentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.agentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update agent
+      tags:
+      - agents
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns an access token. A refresh token
+        is set in an httpOnly cookie.
+      parameters:
+      - description: Credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      summary: Login
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Clears the refresh token cookie.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.MessageResponse'
+      summary: Logout
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      description: Exchanges the refresh token cookie for a new access token.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.TokenResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      summary: Refresh access token
+      tags:
+      - auth
+  /channels:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.channelListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List channels
+      tags:
+      - channels
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Channel payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.createChannelRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/rest.channelOperationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create channel
+      tags:
+      - channels
+  /channels/{id}:
+    delete:
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete channel
+      tags:
+      - channels
+    get:
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.channelOperationResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get channel by ID
+      tags:
+      - channels
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Channel payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.updateChannelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.channelOperationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update channel
+      tags:
+      - channels
+  /channels/{id}/qr-code:
+    get:
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.channelQRCodeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get channel QR code
+      tags:
+      - channels
+  /channels/{id}/restart:
+    post:
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.channelOperationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Restart channel runtime
+      tags:
+      - channels
+  /channels/{id}/start:
+    post:
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.channelOperationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Start channel runtime
+      tags:
+      - channels
+  /channels/{id}/stop:
+    post:
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.channelOperationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Stop channel runtime
+      tags:
+      - channels
+  /chat/completions:
+    post:
+      consumes:
+      - application/json
+      description: Returns a normal completion or streams assistant deltas over SSE
+        when stream=true.
+      parameters:
+      - description: Chat completion payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.chatCompletionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.chatCompletionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create chat completion
+      tags:
+      - chat
+  /conversations:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.conversationListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List conversations
+      tags:
+      - chat
+  /conversations/{id}/messages:
+    get:
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/rest.conversationMessageResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List conversation messages
+      tags:
+      - chat
+  /llm/providers:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.llmProviderListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List LLM providers
+      tags:
+      - llm
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: LLM provider payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.createLLMProviderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/rest.llmProviderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create LLM provider
+      tags:
+      - llm
+  /llm/providers/{id}:
+    delete:
+      parameters:
+      - description: Provider ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete LLM provider
+      tags:
+      - llm
+    get:
+      parameters:
+      - description: Provider ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.llmProviderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get LLM provider by ID
+      tags:
+      - llm
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Provider ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: LLM provider payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.updateLLMProviderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.llmProviderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update LLM provider
+      tags:
+      - llm
+  /roles:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.roleListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List roles
+      tags:
+      - roles
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Role payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.createRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/rest.roleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create role
+      tags:
+      - roles
+  /roles/{id}:
+    delete:
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete role
+      tags:
+      - roles
+    get:
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.roleResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get role by ID
+      tags:
+      - roles
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.updateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.roleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update role
+      tags:
+      - roles
+  /runtime/discord/restart:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.discordRuntimeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Restart Discord runtime with current config
+      tags:
+      - discord
+  /runtime/discord/start:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Discord runtime payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.discordRuntimeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.discordRuntimeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Start or reload Discord runtime
+      tags:
+      - discord
+  /runtime/discord/status:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.discordRuntimeResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Discord runtime status
+      tags:
+      - discord
+  /runtime/discord/stop:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.discordRuntimeResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Stop Discord runtime
+      tags:
+      - discord
+  /user/{id}:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.userResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - users
+  /user/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.userResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - users
+  /users:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/rest.userResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: User payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.createUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/rest.userResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create user
+      tags:
+      - users
+  /users/{id}:
+    delete:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated profile fields
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.updateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.userResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user
+      tags:
+      - users
+  /users/{id}/ban:
+    post:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Ban user
+      tags:
+      - users
+  /users/{id}/roles:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/rest.userRoleResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List roles assigned to a user
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role assignment payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.assignUserRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Assign role to user
+      tags:
+      - users
+  /users/{id}/roles/{roleId}:
+    delete:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role ID
+        in: path
+        name: roleId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove role from user
+      tags:
+      - users
+  /workspaces:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.workspaceListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List workspaces
+      tags:
+      - workspaces
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Workspace payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.createWorkspaceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/rest.workspaceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create workspace
+      tags:
+      - workspaces
+  /workspaces/{id}:
+    delete:
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete workspace
+      tags:
+      - workspaces
+    get:
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.workspaceResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get workspace by ID
+      tags:
+      - workspaces
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Workspace payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.updateWorkspaceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.workspaceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update workspace
+      tags:
+      - workspaces
+  /workspaces/{id}/agents:
+    get:
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/rest.agentResponse'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List workspace agents
+      tags:
+      - workspaces
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Workspace agent IDs payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.workspaceAgentIDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/rest.agentResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Sync workspace agents
+      tags:
+      - workspaces
+  /workspaces/{id}/channels:
+    get:
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/rest.channelOperationResponse'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List workspace channels
+      tags:
+      - workspaces
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Workspace channel IDs payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.workspaceChannelIDsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/rest.channelOperationResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Sync workspace channels
+      tags:
+      - workspaces
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -1,0 +1,45 @@
+# ── Go ───────────────────────────────────────────
+bin/
+/cli
+*.exe
+*.test
+*.out
+
+# ── Environment ──────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Node / FE ────────────────────────────────────
+web/node_modules/
+web/dist/
+web/.vite/
+
+# ── macOS ────────────────────────────────────────
+.DS_Store
+.AppleDouble
+
+# ── VS Code / Cursor ─────────────────────────────
+.vscode/
+.cursor/
+
+# ── Docker ───────────────────────────────────────
+.docker/
+
+# ── CLI credentials (không commit token user) ────
+.config/
+
+# ── Logs ─────────────────────────────────────────
+*.log
+logs/
+
+# ── Database ─────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Runtime / Uploaded Data ──────────────────────────
+data/
+
+# ── Notes ───────────────────────────────────────────
+notes/

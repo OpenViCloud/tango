@@ -1,0 +1,7 @@
+interface:
+  display_name: "Frontend"
+  short_description: "React/Vite workflow for Tango web app"
+  default_prompt: "Use $frontend to work on the React, Vite, TanStack Router, Zustand, and Tailwind frontend in this repo."
+
+policy:
+  allow_implicit_invocation: true

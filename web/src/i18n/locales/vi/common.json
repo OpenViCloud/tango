@@ -1,0 +1,1068 @@
+{
+  "shell": {
+    "appName": "Tango",
+    "workspace": "Không gian làm việc",
+    "admin": "Quản trị Tango",
+    "identity": "Định danh"
+  },
+  "auth": {
+    "login": "Đăng nhập",
+    "loginInProgress": "Đang đăng nhập...",
+    "loginDescription": "Chào mừng trở lại. Dùng tài khoản quản trị để vào dashboard.",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "emailPlaceholder": "you@example.com",
+    "passwordPlaceholder": "••••••••",
+    "emailHelp": "Dùng email quản trị đã được cấp quyền truy cập.",
+    "passwordHelp": "Mật khẩu phải có ít nhất 6 ký tự.",
+    "loginFailed": "Đăng nhập thất bại",
+    "noAccount": "Chưa có tài khoản?",
+    "contactAdmin": "Liên hệ quản trị viên"
+  },
+  "dashboard": {
+    "section": "Xây dựng ứng dụng của bạn",
+    "title": "Truy xuất dữ liệu"
+  },
+  "chat": {
+    "section": "Không gian AI",
+    "title": "Chat Playground",
+    "workspaceTitle": "Workspace Chat",
+    "pageDescription": "Giao diện chat theo kiểu AI Elements nhưng vẫn dùng endpoint stream hiện tại của backend.",
+    "workspacePageDescription": "Chat theo workspace đã chọn để test agent và orchestration trên cùng một bề mặt stream.",
+    "formTitle": "Yêu cầu",
+    "formDescription": "Gửi request stream tới `/api/chat/completions` bằng phiên đăng nhập hiện tại.",
+    "targetTypeLabel": "Mục tiêu định tuyến",
+    "targetTeamTab": "Agent Team",
+    "targetAgentTab": "Agent trực tiếp",
+    "targetRequired": "Chọn agent team hoặc agent trực tiếp trước khi gửi.",
+    "workspaceLabel": "Workspace",
+    "workspacePlaceholder": "Chọn workspace",
+    "workspaceHelp": "Chọn workspace mà agent và orchestration của nó sẽ trả lời cho cuộc chat này.",
+    "workspaceRequired": "Hãy chọn workspace trước khi gửi chat theo workspace.",
+    "workspaceNotSelected": "Chưa chọn workspace.",
+    "noWorkspacesFound": "Không tìm thấy workspace.",
+    "selectWorkspaceFirst": "Chọn workspace trước",
+    "agentLabel": "Agent",
+    "agentPlaceholder": "Chọn agent",
+    "agentHelp": "Gửi thẳng đến agent này, không qua orchestration của workspace.",
+    "agentNotSelected": "Chưa chọn agent.",
+    "noAgentsFound": "Không tìm thấy agent.",
+    "modelLabel": "Model",
+    "modelHelp": "Nhập tên model được provider đang active hỗ trợ.",
+    "systemPromptLabel": "System prompt",
+    "systemPromptPlaceholder": "You are a helpful assistant.",
+    "systemPromptHelp": "Nếu đổi model hoặc system prompt, lần gửi tiếp theo sẽ bắt đầu thread mới.",
+    "userPromptLabel": "Tin nhắn người dùng",
+    "promptPlaceholder": "Hỏi một câu, yêu cầu tóm tắt, hoặc phác thảo một kế hoạch...",
+    "send": "Gửi request",
+    "sending": "Đang stream...",
+    "newChat": "Chat mới",
+    "clearConversation": "Xóa thread",
+    "activeConversation": "Thread đang chạy",
+    "conversationTitle": "Cuộc trò chuyện",
+    "conversationDescription": "Tin nhắn được hiển thị theo kiểu chat nhưng vẫn dùng đúng contract stream hiện tại của backend.",
+    "sidebarTitle": "Tin nhắn",
+    "sidebarDescription": "Duyệt các cuộc trò chuyện trước đó và quay lại thread đang có.",
+    "searchConversationsPlaceholder": "Tìm cuộc trò chuyện",
+    "emptyConversations": "Chưa tìm thấy cuộc trò chuyện nào.",
+    "settingsTitle": "Thiết lập phiên",
+    "settingsDescription": "Điều chỉnh model và hành vi assistant trước khi gửi prompt tiếp theo.",
+    "emptyTitle": "Bắt đầu cuộc trò chuyện mới",
+    "emptyDescription": "Backend hiện tại đã hỗ trợ streaming và conversation ID, nên màn hình này giờ hoạt động gần với chat thật hơn.",
+    "copy": "Sao chép",
+    "viewTrace": "Xem trace",
+    "copied": "Đã sao chép",
+    "assistantLabel": "Assistant",
+    "userLabel": "Bạn",
+    "streamingLabel": "Đang stream",
+    "thinkingLabel": "Đang suy nghĩ…",
+    "continueDescription": "Prompt mới sẽ tiếp tục thread hiện tại cho tới khi bạn xóa thread hoặc đổi cấu hình phiên.",
+    "startDescription": "Prompt đầu tiên sẽ tạo conversation mới và lưu conversation ID trả về để dùng cho các lượt tiếp theo.",
+    "systemPromptActive": "Đang dùng system prompt",
+    "threadStatus": "Trạng thái thread",
+    "threadConnected": "Đã kết nối",
+    "threadIdle": "Chưa bắt đầu",
+    "threadConnectedDescription": "Backend đã trả về conversation ID. Các prompt mới sẽ tiếp tục thread này.",
+    "threadIdleDescription": "Chưa có conversation ID. Prompt tiếp theo sẽ bắt đầu thread mới.",
+    "outputTitle": "Phản hồi",
+    "outputDescription": "Kết quả assistant được stream từng chunk từ backend.",
+    "emptyState": "Chưa có phản hồi. Hãy gửi prompt để test API chat completions.",
+    "requestFailed": "Gửi chat thất bại",
+    "unexpectedError": "Có lỗi không mong muốn",
+    "traceTitle": "Execution trace",
+    "traceDescription": "Xem tóm tắt run và từng bước orchestration của phản hồi assistant này.",
+    "traceEmpty": "Chọn một phản hồi assistant để xem execution trace.",
+    "traceLoading": "Đang tải trace…",
+    "traceLoadFailed": "Không tải được run trace.",
+    "traceNoSteps": "Không có step nào được lưu cho run này.",
+    "traceFlow": "Luồng thực thi",
+    "traceFlowDescription": "Theo dõi đường đi của phản hồi qua orchestrator và các worker agents.",
+    "traceStepDetails": "Chi tiết step",
+    "traceStepSelected": "Chọn một node trong flow để xem payload và kết quả của step đó.",
+    "traceStepEmpty": "Chưa có step nào được chọn.",
+    "traceRunId": "Run ID",
+    "traceStatus": "Trạng thái",
+    "traceEntryAgent": "Entry agent",
+    "traceStartedAt": "Bắt đầu lúc",
+    "traceAgent": "Agent",
+    "traceInput": "Input",
+    "traceOutput": "Output",
+    "traceMetadata": "Metadata",
+    "suggestions": {
+      "greeting": "Viết một lời chào ngắn bằng tiếng Việt cho người dùng mới.",
+      "summary": "Tóm tắt các frontend conventions mới nhất trong 5 gạch đầu dòng.",
+      "plan": "Phác thảo kế hoạch thêm upload ảnh vào chat."
+    }
+  },
+  "logs": {
+    "page": {
+      "title": "Runtime logs",
+      "description": "Xem log backend với bộ lọc nhanh theo ngày, level, trace ID và nội dung."
+    },
+    "actions": {
+      "copy": "Sao chép log"
+    },
+    "filters": {
+      "title": "Bộ lọc",
+      "description": "Lọc file log hiện tại trước khi đọc hoặc sao chép các dòng cần xem.",
+      "date": "Ngày",
+      "level": "Level",
+      "lines": "Số dòng",
+      "traceId": "Trace ID",
+      "traceIdPlaceholder": "Lọc theo trace ID",
+      "contains": "Chứa",
+      "containsPlaceholder": "Tìm trong nội dung log",
+      "allLevels": "Tất cả level",
+      "lastLines": "{{count}} dòng gần nhất"
+    },
+    "levels": {
+      "error": "Error",
+      "warn": "Warn",
+      "info": "Info",
+      "debug": "Debug"
+    },
+    "results": {
+      "title": "Nội dung log",
+      "description": "Đang hiển thị các dòng từ {{filePath}}",
+      "descriptionEmpty": "Chưa cấu hình file log để đọc."
+    },
+    "loading": "Đang tải log…",
+    "empty": "Không có dòng log nào khớp bộ lọc hiện tại.",
+    "errors": {
+      "load": "Không tải được runtime logs."
+    }
+  },
+  "errors": {
+    "codes": {
+      "validation_error": "Vui lòng kiểm tra lại dữ liệu nhập và thử lại.",
+      "channel_already_exists": "Tên channel này đã tồn tại.",
+      "channel_not_found": "Không tìm thấy channel.",
+      "channel_invalid_input": "Dữ liệu channel không hợp lệ.",
+      "channel_encryption_failed": "Không thể mã hóa credentials của channel.",
+      "channel_test_connection_invalid_payload": "Payload test kết nối không hợp lệ.",
+      "channel_test_connection_unsupported_kind": "Loại channel này không hỗ trợ test kết nối.",
+      "channel_test_connection_telegram_token_required": "Bắt buộc nhập Telegram bot token.",
+      "channel_test_connection_telegram_auth_failed": "Telegram bot token không hợp lệ hoặc không thể xác minh.",
+      "channel_test_connection_discord_token_required": "Bắt buộc nhập Discord bot token.",
+      "channel_test_connection_discord_auth_failed": "Discord bot token không hợp lệ hoặc không thể xác minh.",
+      "channel_test_connection_slack_bot_token_required": "Bắt buộc nhập Slack bot token.",
+      "channel_test_connection_slack_app_token_required": "Bắt buộc nhập Slack app token.",
+      "channel_test_connection_slack_auth_failed": "Slack bot token không hợp lệ hoặc không thể xác minh.",
+      "channel_test_connection_slack_socket_mode_failed": "Slack app token không hợp lệ hoặc không thể mở Socket Mode."
+    }
+  },
+  "providers": {
+    "page": {
+      "title": "LLM providers",
+      "description": "Quản lý provider, API key và cấu hình runtime mặc định cho agents và chat."
+    },
+    "searchPlaceholder": "Tìm theo tên provider, model hoặc base URL",
+    "emptyProviders": "Không có provider nào khớp điều kiện tìm kiếm.",
+    "actions": {
+      "newProvider": "Provider mới",
+      "deleteSelected_one": "Xóa 1 provider",
+      "deleteSelected_other": "Xóa {{count}} providers"
+    },
+    "table": {
+      "selectAll": "Chọn tất cả provider trong trang này",
+      "selectRow": "Chọn {{name}}",
+      "name": "Tên",
+      "provider": "Provider",
+      "model": "Model",
+      "status": "Trạng thái",
+      "updatedAt": "Cập nhật",
+      "actions": "Thao tác"
+    },
+    "status": {
+      "active": "Đang hoạt động",
+      "inactive": "Tạm tắt",
+      "primary": "Mặc định"
+    },
+    "sort": {
+      "title": "Sắp xếp hiện tại",
+      "current": "Đang sắp xếp theo {{field}} • {{direction}}"
+    },
+    "filters": {
+      "sortBy": "Sắp xếp theo"
+    },
+    "form": {
+      "name": "Tên provider",
+      "namePlaceholder": "DeepSeek chính",
+      "provider": "Provider",
+      "selectProvider": "Chọn provider",
+      "noProvidersFound": "Không tìm thấy provider.",
+      "model": "Model",
+      "modelPlaceholder": "deepseek-chat",
+      "apiKey": "API key",
+      "apiKeyPlaceholder": "sk-...",
+      "apiKeyCodexPlaceholder": "Codex khong bat buoc API key",
+      "apiKeyOptionalPlaceholder": "Để trống nếu muốn giữ key hiện tại",
+      "apiKeyHelp": "API key là bắt buộc khi tạo provider.",
+      "apiKeyCodexHelp": "Codex có thể được tạo mà không cần API key. Để trống nếu môi trường của bạn đã có sẵn quyền truy cập.",
+      "apiKeyUpdateHelp": "Để trống nếu bạn muốn giữ nguyên API key đã được mã hóa.",
+      "baseUrl": "Base URL",
+      "baseUrlPlaceholder": "https://api.deepseek.com",
+      "active": "Kích hoạt",
+      "activeHelp": "Dùng provider này cho các request chat đang chạy.",
+      "primary": "Mặc định",
+      "primaryHelp": "Đánh dấu provider này là lựa chọn mặc định."
+    },
+    "options": {
+      "provider": {
+        "deepseek": "DeepSeek",
+        "codex": "Codex",
+        "mistral": "Mistral"
+      }
+    },
+    "sheet": {
+      "createTitle": "Tạo provider",
+      "createDescription": "Đăng ký provider LLM mới cho runtime chat.",
+      "editTitle": "Cập nhật provider",
+      "editDescription": "Điều chỉnh model hoặc cập nhật API key cho provider này.",
+      "cancel": "Hủy"
+    },
+    "errors": {
+      "loadProviders": "Không tải được danh sách provider."
+    },
+  "credentials": {
+    "title": "Provider credentials",
+    "description": "Quản lý API credential để agents dùng khi chạy runtime.",
+    "searchPlaceholder": "Tìm credential theo provider hoặc trạng thái",
+      "emptyCredentials": "Không có credential nào khớp điều kiện tìm kiếm.",
+      "actions": {
+        "newCredential": "Credential mới",
+        "deleteSelected_one": "Xóa 1 credential",
+        "deleteSelected_other": "Xóa {{count}} credentials"
+      },
+    "table": {
+      "selectAll": "Chọn tất cả credential trong trang này",
+      "selectRow": "Chọn credential {{id}}",
+      "provider": "Provider",
+        "status": "Trạng thái",
+        "primary": "Mặc định",
+        "updatedAt": "Cập nhật",
+        "actions": "Thao tác"
+    },
+    "form": {
+      "provider": "Provider",
+        "selectProvider": "Chọn provider",
+        "noProvidersFound": "Không tìm thấy provider.",
+        "apiKey": "API key",
+        "apiKeyPlaceholder": "sk-...",
+        "apiKeyOptionalPlaceholder": "Để trống nếu muốn giữ key hiện tại",
+        "apiKeyHelp": "API key là bắt buộc khi tạo credential.",
+        "apiKeyUpdateHelp": "Để trống nếu bạn muốn giữ nguyên API key đã được mã hóa.",
+        "status": "Trạng thái",
+        "statusPlaceholder": "active",
+      "primary": "Mặc định",
+      "primaryHelp": "Đánh dấu credential này là credential mặc định cho provider."
+    },
+    "sheet": {
+      "createTitle": "Tạo provider credential",
+      "createDescription": "Thêm API credential cho một LLM provider.",
+      "editTitle": "Cập nhật provider credential",
+      "editDescription": "Xoay vòng hoặc điều chỉnh credential runtime mà agents sẽ sử dụng."
+      },
+      "errors": {
+        "loadCredentials": "Không tải được danh sách credential."
+      },
+      "deleteDialog": {
+        "title": "Xóa credential đã chọn",
+        "description_one": "Bạn sắp xóa vĩnh viễn 1 credential. Hành động này không thể hoàn tác.",
+        "description_other": "Bạn sắp xóa vĩnh viễn {{count}} credentials. Hành động này không thể hoàn tác.",
+        "confirm": "Xóa credentials",
+        "cancel": "Hủy"
+      }
+    },
+    "deleteDialog": {
+      "title": "Xóa provider đã chọn",
+      "description_one": "Bạn sắp xóa vĩnh viễn 1 provider. Hành động này không thể hoàn tác.",
+      "description_other": "Bạn sắp xóa vĩnh viễn {{count}} providers. Hành động này không thể hoàn tác.",
+      "confirm": "Xóa provider",
+      "cancel": "Hủy"
+    }
+  },
+  "agents": {
+    "page": {
+      "title": "Agents",
+      "description": "Cấu hình agent, provider sử dụng, model override và giới hạn chi tiêu."
+    },
+    "createPageTitle": "Tạo agent",
+    "editPageTitle": "Cập nhật agent",
+    "createTitle": "Tạo agent mới",
+    "editTitle": "Cập nhật agent",
+    "createDescription": "Thêm agent mới và chọn LLM provider mà agent sẽ sử dụng.",
+    "editDescription": "Xem lại cấu hình hiện tại của agent và điều chỉnh hành vi runtime.",
+    "createHelper": "Giai đoạn này tập trung CRUD trước. Dashboard orchestration sẽ làm sau.",
+    "searchPlaceholder": "Tìm agent theo tên",
+    "emptyAgents": "Không có agent nào khớp điều kiện tìm kiếm.",
+    "actions": {
+      "newAgent": "Agent mới",
+      "backToAgents": "Quay lại danh sách agent",
+      "deleteSelected_one": "Xóa 1 agent",
+      "deleteSelected_other": "Xóa {{count}} agents"
+    },
+    "table": {
+      "selectAll": "Chọn tất cả agent trong trang này",
+      "selectRow": "Chọn {{name}}",
+      "name": "Tên",
+      "role": "Vai trò",
+      "kind": "Kiểu",
+      "type": "Loại",
+      "status": "Trạng thái",
+      "provider": "LLM provider",
+      "modelOverride": "Model override",
+      "budget": "Ngân sách",
+      "actions": "Thao tác"
+    },
+    "sort": {
+      "title": "Sắp xếp hiện tại",
+      "current": "Đang sắp xếp theo {{field}} • {{direction}}"
+    },
+    "filters": {
+      "sortBy": "Sắp xếp theo"
+    },
+    "form": {
+      "name": "Tên agent",
+      "namePlaceholder": "Agent phân loại hỗ trợ",
+      "role": "Vai trò",
+      "rolePlaceholder": "support-manager",
+      "kind": "Kiểu",
+      "kindPlaceholder": "Chọn kiểu agent",
+      "kindHelp": "Dùng orchestrator cho agent điều phối các agent khác trong cùng workspace.",
+      "noKindsFound": "Không có kiểu agent nào.",
+      "kindOptions": {
+        "orchestrator": "Orchestrator",
+        "worker": "Worker"
+      },
+      "type": "Loại",
+      "typePlaceholder": "support",
+      "status": "Trạng thái",
+      "statusPlaceholder": "active",
+      "llmProvider": "LLM provider",
+      "llmProviderHelp": "Chọn provider mặc định mà agent sẽ sử dụng.",
+      "selectProvider": "Chọn provider",
+      "noProvidersFound": "Không tìm thấy provider.",
+      "providers": "Chuỗi provider",
+      "providersHelp": "Provider đầu tiên là primary. Các provider tiếp theo sẽ được dùng làm fallback theo thứ tự ưu tiên.",
+      "providersNotRequired": "Providers chỉ bắt buộc với agent loại LLM.",
+      "providerPriority": "Ưu tiên {{priority}}",
+      "addProvider": "Thêm provider",
+      "noProvidersConfigured": "Chưa cấu hình provider nào.",
+      "modelOverride": "Model override",
+      "modelOverridePlaceholder": "gpt-4.1-mini",
+      "modelOverrideHelp": "Để trống nếu muốn dùng model mặc định của provider.",
+      "systemPrompt": "System prompt",
+      "systemPromptPlaceholder": "Mô tả hành vi, giọng điệu và ràng buộc của agent.",
+      "temperature": "Temperature",
+      "temperaturePlaceholder": "0.7",
+      "maxTokens": "Max tokens",
+      "maxTokensPlaceholder": "1024",
+      "parentAgent": "Parent agent",
+      "parentAgentHelp": "Tùy chọn. Dùng khi agent này nằm dưới một agent khác.",
+      "noParentAgent": "Không có parent agent",
+      "noParentAgentsFound": "Không tìm thấy parent agent.",
+      "budgetLimit": "Giới hạn ngân sách",
+      "budgetLimitPlaceholder": "500",
+      "budgetUsed": "Đã dùng",
+      "metadataJson": "Metadata JSON",
+      "metadataJsonPlaceholder": "{\n  \"channel\": \"support\"\n}",
+      "metadataJsonHelp": "JSON metadata tùy chọn được lưu cùng agent."
+    },
+    "errors": {
+      "loadAgents": "Không tải được danh sách agent.",
+      "loadAgent": "Không tải được thông tin agent này.",
+      "loadProviders": "Không tải được danh sách provider."
+    },
+    "skills": {
+      "title": "Skills đã liên kết",
+      "description": "Chọn các skill mà agent này có thể dùng trong orchestration.",
+      "save": "Lưu skills",
+      "searchPlaceholder": "Tìm skill theo tên hoặc file name",
+      "empty": "Không có skill nào khớp điều kiện tìm kiếm."
+    },
+    "mcpServers": {
+      "title": "MCP Servers đã liên kết",
+      "description": "Chọn các MCP server mà agent này có thể kết nối trong orchestration.",
+      "save": "Lưu MCP servers",
+      "searchPlaceholder": "Tìm MCP server theo tên",
+      "empty": "Không có MCP server nào khớp điều kiện tìm kiếm."
+    },
+    "deleteDialog": {
+      "title": "Xóa agent đã chọn",
+      "description_one": "Bạn sắp xóa vĩnh viễn 1 agent. Hành động này không thể hoàn tác.",
+      "description_other": "Bạn sắp xóa vĩnh viễn {{count}} agents. Hành động này không thể hoàn tác.",
+      "confirm": "Xóa agent",
+      "cancel": "Hủy"
+    }
+  },
+  "skills": {
+    "page": {
+      "title": "Skills",
+      "description": "Quản lý các file markdown skill mà agent có thể gắn vào và dùng khi orchestration."
+    },
+    "createPageTitle": "Tạo skill",
+    "editPageTitle": "Cập nhật skill",
+    "createTitle": "Tạo skill mới",
+    "editTitle": "Cập nhật thông tin skill",
+    "createDescription": "Đăng ký file markdown skill cho agents.",
+    "editDescription": "Xem lại nội dung skill và cập nhật metadata của nó.",
+    "createHelper": "Mỗi skill lưu tên file markdown, nội dung file, trạng thái và metadata JSON tùy chọn.",
+    "searchPlaceholder": "Tìm theo tên skill, file name hoặc trạng thái",
+    "emptySkills": "Không có skill nào khớp điều kiện tìm kiếm.",
+    "actions": {
+      "newSkill": "Skill mới",
+      "uploadArchive": "Tải archive",
+      "backToSkills": "Quay lại danh sách skills",
+      "deleteSelected_one": "Xóa 1 skill",
+      "deleteSelected_other": "Xóa {{count}} skills"
+    },
+    "table": {
+      "selectAll": "Chọn tất cả skill trong trang này",
+      "selectRow": "Chọn {{name}}",
+      "name": "Tên",
+      "fileName": "File name",
+      "status": "Trạng thái",
+      "updatedAt": "Cập nhật",
+      "actions": "Thao tác"
+    },
+    "sort": {
+      "title": "Sắp xếp hiện tại",
+      "current": "Đang sắp xếp theo {{field}} • {{direction}}"
+    },
+    "filters": {
+      "sortBy": "Sắp xếp theo"
+    },
+    "status": {
+      "active": "Đang hoạt động",
+      "paused": "Tạm dừng",
+      "archived": "Lưu trữ"
+    },
+    "form": {
+      "name": "Tên skill",
+      "namePlaceholder": "Knowledge retrieval",
+      "description": "Mô tả",
+      "descriptionPlaceholder": "Mô tả skill này sẽ giúp agent làm gì.",
+      "fileName": "Tên file markdown",
+      "fileNamePlaceholder": "knowledge-retrieval.md",
+      "fileNameHelp": "Hãy dùng đuôi `.md` vì backend lưu skill dưới dạng file markdown.",
+      "uploadFile": "File skill",
+      "uploadFileCreate": "Kéo thả file markdown hoặc zip vào đây, hoặc bấm để chọn file",
+      "uploadFileUpdate": "Kéo thả file markdown để thay thế skill này hoặc bấm để chọn file",
+      "uploadFileHelp": "Chọn file chỉ để đính kèm vào form. Bấm lưu thì mới tạo, cập nhật hoặc import.",
+      "uploadFileCta": "Trang tạo mới hỗ trợ .md hoặc .zip. Trang cập nhật chỉ hỗ trợ .md.",
+      "selectedFile": "File đã chọn: {{fileName}}",
+      "uploading": "Đang áp dụng file...",
+      "status": "Trạng thái",
+      "content": "Nội dung markdown",
+      "contentPlaceholder": "# Knowledge Retrieval\n\nMô tả cách agent nên tìm kiếm tài liệu nội bộ.",
+      "contentHelp": "Phần markdown này được lưu trên disk và trả về ở màn hình chi tiết.",
+      "metadataJson": "Metadata JSON",
+      "metadataJsonPlaceholder": "{\n  \"category\": \"knowledge\"\n}",
+      "metadataJsonHelp": "JSON metadata tùy chọn được lưu cùng skill."
+    },
+    "errors": {
+      "loadSkills": "Không tải được danh sách skills.",
+      "loadSkill": "Không tải được skill này.",
+      "invalidArchive": "Vui lòng chọn file archive .zip.",
+      "invalidUploadFile": "Vui lòng chọn file .md hoặc file archive .zip.",
+      "archiveUploadOnlyOnCreate": "Chỉ hỗ trợ upload file zip khi tạo skill mới."
+    },
+    "deleteDialog": {
+      "title": "Xóa skills đã chọn",
+      "description_one": "Bạn sắp xóa vĩnh viễn 1 skill. Hành động này không thể hoàn tác.",
+      "description_other": "Bạn sắp xóa vĩnh viễn {{count}} skills. Hành động này không thể hoàn tác.",
+      "confirm": "Xóa skills",
+      "cancel": "Hủy"
+    }
+  },
+  "mcpServers": {
+    "page": {
+      "title": "MCP Servers",
+      "description": "Quản lý các kết nối MCP server mà agent có thể dùng như tool trong orchestration."
+    },
+    "createPageTitle": "Tạo MCP server",
+    "editPageTitle": "Cập nhật MCP server",
+    "createTitle": "Tạo MCP server mới",
+    "editTitle": "Cập nhật MCP server",
+    "createDescription": "Đăng ký một MCP server để agent kết nối.",
+    "editDescription": "Xem lại và cập nhật thông tin kết nối MCP server.",
+    "searchPlaceholder": "Tìm theo tên hoặc transport",
+    "emptyMCPServers": "Không có MCP server nào khớp điều kiện tìm kiếm.",
+    "actions": {
+      "newMCPServer": "MCP server mới",
+      "backToMCPServers": "Quay lại danh sách MCP servers",
+      "deleteSelected_one": "Xóa 1 MCP server",
+      "deleteSelected_other": "Xóa {{count}} MCP servers"
+    },
+    "table": {
+      "selectAll": "Chọn tất cả MCP server trong trang này",
+      "selectRow": "Chọn {{name}}",
+      "name": "Tên",
+      "transport": "Transport",
+      "url": "URL",
+      "hasApiKey": "API key",
+      "updatedAt": "Cập nhật",
+      "actions": "Thao tác"
+    },
+    "transport": {
+      "stdio": "stdio",
+      "sse": "SSE",
+      "http": "HTTP"
+    },
+    "form": {
+      "name": "Tên",
+      "namePlaceholder": "My MCP server",
+      "description": "Mô tả",
+      "descriptionPlaceholder": "Mô tả MCP server này cung cấp gì.",
+      "transport": "Transport",
+      "url": "URL",
+      "urlPlaceholder": "https://mcp.example.com",
+      "apiKey": "API key",
+      "apiKeyPlaceholder": "Để trống để giữ nguyên key hiện tại",
+      "apiKeyHelp": "API key sẽ được mã hóa trước khi lưu. Để trống khi cập nhật để giữ nguyên key hiện tại."
+    },
+    "errors": {
+      "loadMCPServers": "Không tải được danh sách MCP servers.",
+      "loadMCPServer": "Không tải được MCP server này."
+    },
+    "deleteDialog": {
+      "title": "Xóa MCP servers đã chọn",
+      "description_one": "Bạn sắp xóa vĩnh viễn 1 MCP server. Hành động này không thể hoàn tác.",
+      "description_other": "Bạn sắp xóa vĩnh viễn {{count}} MCP servers. Hành động này không thể hoàn tác.",
+      "confirm": "Xóa MCP servers",
+      "cancel": "Hủy"
+    }
+  },
+  "workspaces": {
+    "page": {
+      "title": "Workspaces",
+      "description": "Quản lý bản ghi workspace, trạng thái vòng đời và metadata dùng cho channels và agents."
+    },
+    "editPageTitle": "Cập nhật workspace",
+    "editTitle": "Cập nhật workspace",
+    "editDescription": "Điều chỉnh thông tin workspace và kiểm soát agents/channels thuộc về nó.",
+    "searchPlaceholder": "Tìm workspace theo tên hoặc mô tả",
+    "emptyWorkspaces": "Không có workspace nào khớp điều kiện tìm kiếm.",
+    "actions": {
+      "newWorkspace": "Workspace mới",
+      "backToWorkspaces": "Quay lại danh sách workspace",
+      "deleteSelected_one": "Xóa 1 workspace",
+      "deleteSelected_other": "Xóa {{count}} workspaces"
+    },
+    "table": {
+      "selectAll": "Chọn tất cả workspace trong trang này",
+      "selectRow": "Chọn {{name}}",
+      "name": "Tên",
+      "description": "Mô tả",
+      "status": "Trạng thái",
+      "updatedAt": "Cập nhật",
+      "actions": "Thao tác"
+    },
+    "status": {
+      "active": "Đang hoạt động",
+      "paused": "Tạm dừng",
+      "archived": "Lưu trữ"
+    },
+    "sort": {
+      "title": "Sắp xếp hiện tại",
+      "current": "Đang sắp xếp theo {{field}} • {{direction}}"
+    },
+    "filters": {
+      "sortBy": "Sắp xếp theo"
+    },
+    "form": {
+      "name": "Tên workspace",
+      "namePlaceholder": "Vận hành cốt lõi",
+      "description": "Mô tả",
+      "descriptionPlaceholder": "Mô tả workspace này được dùng cho mục đích gì.",
+      "status": "Trạng thái",
+      "metadataJson": "Metadata JSON",
+      "metadataJsonPlaceholder": "{\n  \"region\": \"apac\"\n}",
+      "metadataJsonHelp": "JSON metadata tùy chọn được lưu cùng workspace.",
+      "linkedAgents": "Agents đã liên kết",
+      "linkedChannels": "Channels đã liên kết",
+      "searchAgentsPlaceholder": "Tìm agents",
+      "searchChannelsPlaceholder": "Tìm channels",
+      "noAgentsFound": "Không tìm thấy agent nào.",
+      "noChannelsFound": "Không tìm thấy channel nào.",
+      "loadingAssignments": "Đang tải dữ liệu liên kết..."
+    },
+    "sheet": {
+      "createTitle": "Tạo workspace",
+      "createDescription": "Thêm workspace mới để tổ chức channels và agents.",
+      "editTitle": "Cập nhật workspace",
+      "editDescription": "Điều chỉnh thông tin, trạng thái hoặc metadata của workspace.",
+      "cancel": "Hủy"
+    },
+    "errors": {
+      "loadWorkspaces": "Không tải được danh sách workspace.",
+      "loadWorkspace": "Không tải được workspace này."
+    },
+    "deleteDialog": {
+      "title": "Xóa workspace đã chọn",
+      "description_one": "Bạn sắp xóa vĩnh viễn 1 workspace. Hành động này không thể hoàn tác.",
+      "description_other": "Bạn sắp xóa vĩnh viễn {{count}} workspaces. Hành động này không thể hoàn tác.",
+      "confirm": "Xóa workspace",
+      "cancel": "Hủy"
+    }
+  },
+  "admin": {
+    "title": "Danh bạ người dùng",
+    "backToDashboard": "Quay về Dashboard",
+    "signOut": "Đăng xuất",
+    "totalUsers": "Tổng người dùng",
+    "activeAccounts": "Tài khoản hoạt động",
+    "bannedAccounts": "Tài khoản bị khóa",
+    "liveDirectory": "Dữ liệu danh bạ trực tiếp từ endpoint bảo vệ `/api/users`.",
+    "activeAccountsHelp": "Các tài khoản hiện có thể đăng nhập.",
+    "bannedAccountsHelp": "Người dùng bị chặn khỏi các route được bảo vệ.",
+    "createUser": "Tạo người dùng",
+    "createUserDescription": "Các trường bắt buộc: email, tên, họ, mật khẩu."
+  },
+  "sidebar": {
+    "platform": "Nền tảng",
+    "identity": "Định danh",
+    "workspace": "Không gian làm việc",
+    "workspaces": "Workspaces",
+    "workspaceList": "Danh sách workspace",
+    "workspaceChat": "Workspace chat",
+    "agentTeams": "Agent Teams",
+    "agentTeamList": "Danh sách Agent Team",
+    "agentTeamChat": "Agent Team chat",
+    "overview": "Tổng quan",
+    "administration": "Quản trị",
+    "users": "Người dùng",
+    "userList": "Danh sách user",
+    "createUser": "Tạo user",
+    "channelList": "Danh sách kênh",
+    "roles": "Vai trò",
+    "roleList": "Danh sách role",
+    "channels": "Kênh",
+    "chat": "Chat",
+    "providers": "Providers",
+    "providerList": "Danh sách provider",
+    "agents": "Agents",
+    "agentList": "Danh sách agent",
+    "skills": "Skills",
+    "mcpServers": "MCP Servers",
+    "mcpServerList": "Danh sách MCP Server",
+    "skillList": "Danh sách skill",
+    "playground": "Playground",
+    "whatsapp": "WhatsApp",
+    "telegram": "Telegram",
+    "discord": "Discord",
+    "knowledge": "Tài liệu",
+    "docs": "Tài liệu",
+    "settings": "Cài đặt",
+    "general": "Tổng quát",
+    "builds": "Builds",
+    "buildList": "Build Jobs",
+    "containers": "Docker",
+    "containerList": "Docker"
+  },
+  "identity": {
+    "page": {
+      "eyebrow": "Identity Directory",
+      "title": "Quản lý người dùng",
+      "description": "Quản lý thành viên trong nhóm và quyền truy cập tài khoản tại đây."
+    },
+    "usersTitle": "Người dùng",
+    "rolesTitle": "Vai trò",
+    "rolesDescription": "Phần quản lý role sẽ được nối tiếp ở bước sau.",
+    "rolesComingSoon": "Đã gắn mục Role ở sidebar, còn màn hình chi tiết sẽ làm sau.",
+    "roles": {
+      "page": {
+        "title": "Quản lý vai trò",
+        "description": "Tạo, cập nhật và tổ chức các vai trò truy cập cho workspace."
+      },
+      "searchPlaceholder": "Tìm theo tên role hoặc mô tả",
+      "emptyRoles": "Không có role nào khớp điều kiện tìm kiếm.",
+      "actions": {
+        "newRole": "Role mới",
+        "deleteSelected_one": "Xóa 1 role",
+        "deleteSelected_other": "Xóa {{count}} role"
+      },
+      "table": {
+        "selectAll": "Chọn tất cả role trong trang này",
+        "selectRow": "Chọn {{name}}",
+        "name": "Tên role",
+        "description": "Mô tả",
+        "updatedAt": "Cập nhật",
+        "actions": "Thao tác"
+      },
+      "filters": {
+        "sortBy": "Sắp xếp theo"
+      },
+      "form": {
+        "name": "Tên role",
+        "namePlaceholder": "Quản trị viên",
+        "description": "Mô tả",
+        "descriptionPlaceholder": "Mô tả quyền truy cập của role này"
+      },
+      "sheet": {
+        "createTitle": "Tạo role",
+        "createDescription": "Thêm role mới để gán quyền sau này.",
+        "editTitle": "Cập nhật role",
+        "editDescription": "Điều chỉnh tên role và phần mô tả.",
+        "cancel": "Hủy"
+      },
+      "errors": {
+        "loadRoles": "Không tải được danh sách role."
+      },
+      "deleteDialog": {
+        "title": "Xóa role đã chọn",
+        "description_one": "Bạn sắp xóa vĩnh viễn 1 role. Hành động này không thể hoàn tác.",
+        "description_other": "Bạn sắp xóa vĩnh viễn {{count}} role. Hành động này không thể hoàn tác.",
+        "confirm": "Xóa role",
+        "cancel": "Hủy"
+      }
+    },
+    "directoryTitle": "Danh bạ người dùng",
+    "directoryDescription": "Xem danh sách user hiện tại, tìm nhanh và đi tới màn hình cập nhật.",
+    "searchPlaceholder": "Tìm theo tên, email, số điện thoại hoặc địa chỉ",
+    "emptyUsers": "Không có user nào khớp điều kiện tìm kiếm.",
+    "createPageTitle": "Tạo user",
+    "editPageTitle": "Cập nhật user",
+    "createTitle": "Tạo người dùng mới",
+    "editTitle": "Cập nhật thông tin người dùng",
+    "createDescription": "Tạo tài khoản mới trong nhóm định danh.",
+    "editDescription": "Xem lại hồ sơ người dùng và cập nhật các trường profile.",
+    "createHelper": "Email và mật khẩu chỉ nhập khi tạo mới. Các trường profile có thể chỉnh sửa sau.",
+    "backToDashboard": "Quay về Dashboard",
+    "signOut": "Đăng xuất",
+    "stats": {
+      "totalUsers": "Tổng người dùng",
+      "activeUsers": "Tài khoản hoạt động",
+      "bannedUsers": "Tài khoản bị khóa"
+    },
+    "actions": {
+      "newUser": "User mới",
+      "save": "Lưu",
+      "saveAndContinue": "Lưu và tiếp tục",
+      "createUser": "Tạo user",
+      "saveChanges": "Lưu thay đổi",
+      "edit": "Chỉnh sửa",
+      "remove": "Xóa",
+      "backToUsers": "Quay lại danh sách user",
+      "deleteSelected_one": "Xóa 1 user",
+      "deleteSelected_other": "Xóa {{count}} user"
+    },
+    "table": {
+      "selectAll": "Chọn tất cả user trong trang này",
+      "selectRow": "Chọn {{name}}",
+      "name": "Họ tên",
+      "email": "Email",
+      "phone": "Số điện thoại",
+      "status": "Trạng thái",
+      "actions": "Thao tác"
+    },
+    "sort": {
+      "email": "Email",
+      "createdAt": "Ngày tạo",
+      "firstName": "Tên",
+      "lastName": "Họ",
+      "status": "Trạng thái",
+      "ascending": "Tăng dần",
+      "descending": "Giảm dần",
+      "current": "Đang sắp xếp theo {{field}} • {{direction}}"
+    },
+    "toolbar": {
+      "refresh": "Làm mới",
+      "filters": "Bộ lọc",
+      "columns": "Cột",
+      "toggleColumns": "Ẩn hoặc hiện cột"
+    },
+    "filters": {
+      "sortBy": "Sắp xếp theo",
+      "direction": "Chiều sắp xếp"
+    },
+    "pagination": {
+      "pageSize": "Số dòng",
+      "page": "Trang",
+      "of": "/ {{totalPage}}",
+      "perPage": "{{count}} / trang",
+      "previous": "Trang trước",
+      "next": "Trang sau",
+      "refreshing": "Đang tải lại",
+      "summary": "Trang {{currentPage}} / {{totalPage}} • {{totalItems}} người dùng",
+      "rangeSummary": "{{from}}-{{to}} / {{totalItems}}",
+      "selected_one": "Đã chọn 1",
+      "selected_other": "Đã chọn {{count}}"
+    },
+    "form": {
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Mật khẩu",
+      "passwordPlaceholder": "Ít nhất 6 ký tự",
+      "passwordHelp": "Mật khẩu chỉ được thiết lập khi tạo mới.",
+      "firstName": "Tên",
+      "lastName": "Họ",
+      "phone": "Số điện thoại",
+      "address": "Địa chỉ",
+      "statusLabel": "Trạng thái"
+    },
+    "errors": {
+      "invalidInput": "Dữ liệu chưa hợp lệ",
+      "loadUsers": "Không tải được danh sách người dùng.",
+      "loadUser": "Không tải được thông tin người dùng này.",
+      "createUser": "Tạo người dùng thất bại.",
+      "updateUser": "Cập nhật người dùng thất bại."
+    },
+    "deleteDialog": {
+      "title": "Xóa người dùng đã chọn",
+      "description_one": "Bạn sắp xóa vĩnh viễn 1 người dùng. Hành động này không thể hoàn tác.",
+      "description_other": "Bạn sắp xóa vĩnh viễn {{count}} người dùng. Hành động này không thể hoàn tác.",
+      "confirm": "Xóa người dùng",
+      "cancel": "Hủy"
+    }
+  },
+  "channels": {
+    "listPageTitle": "Kênh",
+    "createPageTitle": "Tạo kênh",
+    "editPageTitle": "Cập nhật kênh",
+    "page": {
+      "title": "Quản lý kênh",
+      "description": "Quản lý bản ghi kênh nhắn tin và cấu hình runtime của chúng."
+    },
+    "searchPlaceholder": "Tìm theo tên kênh, loại kênh hoặc trạng thái",
+    "emptyChannels": "Không có kênh nào khớp điều kiện tìm kiếm.",
+    "createTitle": "Tạo kênh mới",
+    "editTitle": "Cập nhật thông tin kênh",
+    "createDescription": "Tạo bản ghi kênh và chuẩn bị cấu hình runtime.",
+    "editDescription": "Xem lại metadata kênh và cập nhật cấu hình runtime.",
+    "createHelper": "Cấu hình hồ sơ kênh trước. Credentials sẽ được nhập bằng các trường phù hợp rồi tự động chuyển thành JSON đúng contract backend.",
+    "actions": {
+      "newChannel": "Kênh mới",
+      "backToChannels": "Quay lại danh sách kênh",
+      "testConnection": "Kiểm tra kết nối",
+      "testingConnection": "Đang kiểm tra...",
+      "start": "Start",
+      "stop": "Stop",
+      "restart": "Restart",
+      "deleteSelected_one": "Xóa 1 kênh",
+      "deleteSelected_other": "Xóa {{count}} kênh"
+    },
+    "table": {
+      "selectAll": "Chọn tất cả kênh trong trang này",
+      "selectRow": "Chọn {{name}}",
+      "name": "Tên kênh",
+      "kind": "Loại kênh",
+      "setupMode": "Chế độ thiết lập",
+      "status": "Trạng thái",
+      "actions": "Thao tác"
+    },
+    "filters": {
+      "sortBy": "Sắp xếp theo"
+    },
+    "form": {
+      "name": "Tên kênh",
+      "namePlaceholder": "Discord chính",
+      "kind": "Loại kênh",
+      "status": "Trạng thái",
+      "setupMode": "Chế độ thiết lập",
+      "requireMention": "Yêu cầu mention",
+      "requireMentionHelp": "Chỉ phản hồi khi bot được mention trực tiếp.",
+      "enableTyping": "Bật trạng thái typing",
+      "enableTypingHelp": "Cho phép runtime hiển thị đang gõ khi agent chuẩn bị phản hồi.",
+      "allowedUserIds": "Allowed user IDs",
+      "allowedUserIdsPlaceholder": "Nhấn Enter để thêm user id",
+      "allowedUserIdsHelp": "Giới hạn kênh cho một số user nhất định. Để trống nếu muốn cho phép tất cả.",
+      "credentialsPreserved": "Credentials hiện tại sẽ được giữ nguyên cho tới khi bạn bật thay thế.",
+      "replaceCredentials": "Thay credentials đang lưu",
+      "replaceCredentialsHelp": "Bật mục này trước khi gửi bộ credentials mới.",
+      "telegramToken": "Telegram token",
+      "telegramTokenPlaceholder": "telegram-token",
+      "telegramTokenHelp": "Giá trị này sẽ được gửi thành `token` cho backend.",
+      "discordToken": "Discord bot token",
+      "discordTokenPlaceholder": "discord-token",
+      "discordTokenHelp": "Giá trị này sẽ được gửi thành `token` cho backend.",
+      "slackBotToken": "Slack bot token",
+      "slackBotTokenPlaceholder": "xoxb-...",
+      "slackBotTokenHelp": "Giá trị này sẽ được gửi thành `bot_token` cho backend.",
+      "slackAppToken": "Slack app token",
+      "slackAppTokenPlaceholder": "xapp-...",
+      "slackAppTokenHelp": "Giá trị này sẽ được gửi thành `app_token` cho backend.",
+      "whatsappCreateHelp": "Hãy tạo kênh WhatsApp trước, sau đó mở trang chỉnh sửa để quét mã QR.",
+      "whatsappEditHelp": "Dùng khung QR bên dưới để kết nối kênh WhatsApp này bằng mã mới nhất.",
+      "noCredentialsRequired": "Loại kênh này không cần nhập credentials thủ công trong form.",
+      "routingTarget": "Đích nhận tin nhắn",
+      "routingTargetHelp": "Chọn kênh này chuyển tin nhắn đến Agent Team (qua orchestrator) hay trực tiếp đến một Agent.",
+      "routingTeam": "Agent Team",
+      "routingAgent": "Agent trực tiếp",
+      "targetTeam": "Agent Team",
+      "targetTeamPlaceholder": "Chọn một team",
+      "targetTeamEmpty": "Không tìm thấy team.",
+      "targetTeamHelp": "Tin nhắn được xử lý bởi orchestrator và các agent trong team.",
+      "targetAgent": "Agent",
+      "targetAgentPlaceholder": "Chọn một agent",
+      "targetAgentEmpty": "Không tìm thấy agent.",
+      "targetAgentHelp": "Tin nhắn được chuyển thẳng đến agent này, bỏ qua orchestrator của team."
+    },
+    "qr": {
+      "title": "Mã QR WhatsApp",
+      "description": "Quét mã này từ WhatsApp để liên kết runtime của kênh.",
+      "alt": "Mã QR WhatsApp",
+      "help": "Nếu mã QR hết hạn, hãy refresh hoặc restart runtime của kênh để lấy mã mới.",
+      "empty": "Chưa có mã QR. Hãy start hoặc cấu hình runtime của kênh trước."
+    },
+    "options": {
+      "kind": {
+        "discord": "Discord",
+        "telegram": "Telegram",
+        "whatsapp": "WhatsApp",
+        "slack": "Slack",
+        "web": "Web"
+      },
+      "status": {
+        "pending": "Chờ xử lý",
+        "active": "Đang hoạt động",
+        "disabled": "Đã tắt"
+      },
+      "setupMode": {
+        "later": "Làm sau",
+        "configured": "Đã cấu hình"
+      }
+    },
+    "errors": {
+      "loadChannels": "Không tải được danh sách kênh.",
+      "loadChannel": "Không tải được thông tin kênh này."
+    },
+    "deleteDialog": {
+      "title": "Xóa kênh đã chọn",
+      "description_one": "Bạn sắp xóa vĩnh viễn 1 kênh. Hành động này không thể hoàn tác.",
+      "description_other": "Bạn sắp xóa vĩnh viễn {{count}} kênh. Hành động này không thể hoàn tác.",
+      "confirm": "Xóa kênh",
+      "cancel": "Hủy"
+    }
+  },
+  "userMenu": {
+    "loading": "Đang tải...",
+    "upgrade": "Nâng cấp Pro",
+    "account": "Tài khoản",
+    "billing": "Thanh toán",
+    "notifications": "Thông báo",
+    "logout": "Đăng xuất"
+  },
+  "validation": {
+    "required": "Trường này là bắt buộc.",
+    "email": "Email không hợp lệ.",
+    "passwordMin": "Mật khẩu phải có ít nhất 6 ký tự.",
+    "jsonObject": "Hãy nhập JSON object hợp lệ.",
+    "skillFileName": "Tên file phải kết thúc bằng .md.",
+    "agentType": "Loại phải là một trong các giá trị: llm, bash, http.",
+    "agentStatus": "Trạng thái phải là một trong các giá trị: active, paused, archived."
+  },
+  "docker": {
+    "page": {
+      "title": "Docker",
+      "description": "Quản lý container và image đang chạy trên Docker daemon."
+    },
+    "tabs": {
+      "containers": "Containers",
+      "images": "Images"
+    },
+    "container": {
+      "empty": "Không có container nào.",
+      "showAllBtn": "Hiện tất cả",
+      "hideStoppedBtn": "Ẩn đã dừng",
+      "createBtn": "Tạo mới",
+      "createTitle": "Tạo Container",
+      "imageLabel": "Image",
+      "nameLabel": "Tên",
+      "namePlaceholder": "my-container (tùy chọn)",
+      "created": "Đã tạo container.",
+      "started": "Đã khởi động container.",
+      "stopped": "Đã dừng container.",
+      "removed": "Đã xóa container.",
+      "col": {
+        "name": "Tên",
+        "image": "Image",
+        "ports": "Port(s)",
+        "actions": "Thao tác"
+      }
+    },
+    "image": {
+      "empty": "Không có image nào.",
+      "pullBtn": "Pull Image",
+      "pullTitle": "Pull Image",
+      "referenceLabel": "Reference",
+      "inUse": "{{count}} đang dùng",
+      "pulled": "Đã pull image.",
+      "removed": "Đã xóa image.",
+      "col": {
+        "tag": "Tag",
+        "id": "ID",
+        "size": "Dung lượng",
+        "actions": "Thao tác"
+      }
+    },
+    "actions": {
+      "start": "Khởi động",
+      "stop": "Dừng",
+      "create": "Tạo",
+      "creating": "Đang tạo...",
+      "pull": "Pull",
+      "pulling": "Đang pull..."
+    }
+  },
+  "builds": {
+    "page": {
+      "title": "Build Jobs",
+      "description": "Build Docker image từ Git repository và đẩy lên container registry."
+    },
+    "form": {
+      "title": "Build mới",
+      "gitUrl": "Git Repository URL",
+      "gitBranch": "Branch",
+      "imageTag": "Image Tag",
+      "optional": "tùy chọn",
+      "submit": "Bắt đầu Build",
+      "submitting": "Đang gửi...",
+      "cancel": "Hủy"
+    },
+    "table": {
+      "id": "Job ID",
+      "status": "Trạng thái",
+      "gitUrl": "Repository",
+      "imageTag": "Image Tag",
+      "createdAt": "Tạo lúc",
+      "actions": "Thao tác"
+    },
+    "actions": {
+      "newBuild": "Build mới",
+      "refresh": "Làm mới",
+      "viewLogs": "Xem Logs",
+      "cancel": "Hủy"
+    },
+    "logs": {
+      "title": "Build Logs",
+      "empty": "Chưa có logs..."
+    },
+    "toasts": {
+      "submitted": "Đã gửi build job.",
+      "canceled": "Đã hủy build job."
+    },
+    "empty": "Chưa có build job nào."
+  }
+}

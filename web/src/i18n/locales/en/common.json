@@ -1,0 +1,1068 @@
+{
+  "shell": {
+    "appName": "Tango",
+    "workspace": "Workspace",
+    "admin": "Tango Admin",
+    "identity": "Identity"
+  },
+  "auth": {
+    "login": "Sign in",
+    "loginInProgress": "Signing in...",
+    "loginDescription": "Welcome back. Use your administrator account to access the dashboard.",
+    "email": "Email",
+    "password": "Password",
+    "emailPlaceholder": "you@example.com",
+    "passwordPlaceholder": "••••••••",
+    "emailHelp": "Use the administrator email that has been granted access.",
+    "passwordHelp": "Password must be at least 6 characters.",
+    "loginFailed": "Login failed",
+    "noAccount": "Need an account?",
+    "contactAdmin": "Contact an administrator"
+  },
+  "dashboard": {
+    "section": "Build Your Application",
+    "title": "Data Fetching"
+  },
+  "chat": {
+    "section": "AI Workspace",
+    "title": "Chat Playground",
+    "workspaceTitle": "Workspace Chat",
+    "pageDescription": "An AI Elements-style chat surface powered by the current streaming backend endpoint.",
+    "workspacePageDescription": "Chat against a selected workspace to test agent and orchestration behavior with the same streaming surface.",
+    "formTitle": "Request",
+    "formDescription": "Send a streaming request to `/api/chat/completions` using your current authenticated session.",
+    "targetTypeLabel": "Routing target",
+    "targetTeamTab": "Agent Team",
+    "targetAgentTab": "Direct Agent",
+    "targetRequired": "Select an agent team or direct agent before sending.",
+    "workspaceLabel": "Workspace",
+    "workspacePlaceholder": "Select a workspace",
+    "workspaceHelp": "Pick the workspace whose agents and orchestration runtime should answer this chat.",
+    "workspaceRequired": "Select a workspace before sending a workspace chat request.",
+    "workspaceNotSelected": "No workspace selected.",
+    "noWorkspacesFound": "No workspaces found.",
+    "selectWorkspaceFirst": "Select workspace first",
+    "agentLabel": "Agent",
+    "agentPlaceholder": "Select an agent",
+    "agentHelp": "Route directly to this agent, bypassing workspace orchestration.",
+    "agentNotSelected": "No agent selected.",
+    "noAgentsFound": "No agents found.",
+    "modelLabel": "Model",
+    "modelHelp": "Use any model identifier supported by the active provider.",
+    "systemPromptLabel": "System prompt",
+    "systemPromptPlaceholder": "You are a helpful assistant.",
+    "systemPromptHelp": "Changing the model or system prompt starts a fresh thread on the next send.",
+    "userPromptLabel": "User message",
+    "promptPlaceholder": "Ask a question, request a summary, or sketch a plan...",
+    "send": "Send request",
+    "sending": "Streaming...",
+    "newChat": "New chat",
+    "clearConversation": "Clear thread",
+    "activeConversation": "Live thread",
+    "conversationTitle": "Conversation",
+    "conversationDescription": "Messages are rendered in a chat-first layout while still using the current backend stream contract.",
+    "sidebarTitle": "Messages",
+    "sidebarDescription": "Browse previous conversations and jump back into an existing thread.",
+    "searchConversationsPlaceholder": "Search conversations",
+    "emptyConversations": "No conversations found.",
+    "settingsTitle": "Session settings",
+    "settingsDescription": "Tune the active model and assistant behavior before you send the next prompt.",
+    "emptyTitle": "Start a new conversation",
+    "emptyDescription": "The current backend already supports streaming and conversation IDs, so this view now behaves more like a real chat thread.",
+    "copy": "Copy",
+    "viewTrace": "View trace",
+    "copied": "Copied",
+    "assistantLabel": "Assistant",
+    "userLabel": "You",
+    "streamingLabel": "Streaming",
+    "thinkingLabel": "Thinking…",
+    "continueDescription": "New prompts continue the current conversation until you clear the thread or change the session settings.",
+    "startDescription": "The first prompt creates a conversation and stores the returned conversation ID for the next turns.",
+    "systemPromptActive": "System prompt active",
+    "threadStatus": "Thread status",
+    "threadConnected": "Connected",
+    "threadIdle": "Idle",
+    "threadConnectedDescription": "The backend returned a conversation ID. New prompts will continue this thread.",
+    "threadIdleDescription": "No conversation ID yet. Your next prompt will start a fresh thread.",
+    "outputTitle": "Response",
+    "outputDescription": "Assistant output is streamed chunk by chunk from the backend.",
+    "emptyState": "No response yet. Submit a prompt to test the chat completions API.",
+    "requestFailed": "Chat request failed",
+    "unexpectedError": "Unexpected error",
+    "traceTitle": "Execution trace",
+    "traceDescription": "Inspect the run summary and individual orchestration steps for this assistant reply.",
+    "traceEmpty": "Select an assistant reply to inspect its execution trace.",
+    "traceLoading": "Loading trace…",
+    "traceLoadFailed": "Could not load the run trace.",
+    "traceNoSteps": "No steps were recorded for this run.",
+    "traceFlow": "Execution flow",
+    "traceFlowDescription": "Trace the path the reply took across orchestrator and worker agents.",
+    "traceStepDetails": "Step details",
+    "traceStepSelected": "Select any node in the flow to inspect its payload and result.",
+    "traceStepEmpty": "No step is selected yet.",
+    "traceRunId": "Run ID",
+    "traceStatus": "Status",
+    "traceEntryAgent": "Entry agent",
+    "traceStartedAt": "Started at",
+    "traceAgent": "Agent",
+    "traceInput": "Input",
+    "traceOutput": "Output",
+    "traceMetadata": "Metadata",
+    "suggestions": {
+      "greeting": "Write a short Vietnamese greeting for a new user.",
+      "summary": "Summarize the latest frontend conventions in 5 bullets.",
+      "plan": "Draft a rollout plan for adding image upload to chat."
+    }
+  },
+  "logs": {
+    "page": {
+      "title": "Runtime logs",
+      "description": "Inspect backend logs with quick filters for date, level, trace ID, and message text."
+    },
+    "actions": {
+      "copy": "Copy logs"
+    },
+    "filters": {
+      "title": "Filters",
+      "description": "Narrow the current log file before reading or copying lines.",
+      "date": "Date",
+      "level": "Level",
+      "lines": "Lines",
+      "traceId": "Trace ID",
+      "traceIdPlaceholder": "Filter by trace ID",
+      "contains": "Contains",
+      "containsPlaceholder": "Search log text",
+      "allLevels": "All levels",
+      "lastLines": "Last {{count}} lines"
+    },
+    "levels": {
+      "error": "Error",
+      "warn": "Warn",
+      "info": "Info",
+      "debug": "Debug"
+    },
+    "results": {
+      "title": "Log output",
+      "description": "Showing lines from {{filePath}}",
+      "descriptionEmpty": "No log file is configured for reading yet."
+    },
+    "loading": "Loading logs…",
+    "empty": "No log lines matched the current filters.",
+    "errors": {
+      "load": "Could not load runtime logs."
+    }
+  },
+  "errors": {
+    "codes": {
+      "validation_error": "Please review the highlighted input and try again.",
+      "channel_already_exists": "A channel with this name already exists.",
+      "channel_not_found": "Channel not found.",
+      "channel_invalid_input": "Channel input is invalid.",
+      "channel_encryption_failed": "Channel credentials could not be encrypted.",
+      "channel_test_connection_invalid_payload": "Connection test payload is invalid.",
+      "channel_test_connection_unsupported_kind": "This channel type does not support connection testing.",
+      "channel_test_connection_telegram_token_required": "Telegram bot token is required.",
+      "channel_test_connection_telegram_auth_failed": "Telegram bot token is invalid or could not be verified.",
+      "channel_test_connection_discord_token_required": "Discord bot token is required.",
+      "channel_test_connection_discord_auth_failed": "Discord bot token is invalid or could not be verified.",
+      "channel_test_connection_slack_bot_token_required": "Slack bot token is required.",
+      "channel_test_connection_slack_app_token_required": "Slack app token is required.",
+      "channel_test_connection_slack_auth_failed": "Slack bot token is invalid or could not be verified.",
+      "channel_test_connection_slack_socket_mode_failed": "Slack app token is invalid or Socket Mode could not be opened."
+    }
+  },
+  "providers": {
+    "page": {
+      "title": "LLM providers",
+      "description": "Manage provider records, API keys, and runtime defaults for agents and chat."
+    },
+    "searchPlaceholder": "Search by provider name, model, or base URL",
+    "emptyProviders": "No providers match the current search.",
+    "actions": {
+      "newProvider": "New provider",
+      "deleteSelected_one": "Delete 1 provider",
+      "deleteSelected_other": "Delete {{count}} providers"
+    },
+    "table": {
+      "selectAll": "Select all providers on this page",
+      "selectRow": "Select {{name}}",
+      "name": "Name",
+      "provider": "Provider",
+      "model": "Model",
+      "status": "Status",
+      "updatedAt": "Updated",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "primary": "Primary"
+    },
+    "sort": {
+      "title": "Current sort",
+      "current": "Sorted by {{field}} • {{direction}}"
+    },
+    "filters": {
+      "sortBy": "Sort by"
+    },
+    "form": {
+      "name": "Provider name",
+      "namePlaceholder": "Primary DeepSeek",
+      "provider": "Provider",
+      "selectProvider": "Select a provider",
+      "noProvidersFound": "No providers found.",
+      "model": "Model",
+      "modelPlaceholder": "deepseek-chat",
+      "apiKey": "API key",
+      "apiKeyPlaceholder": "sk-...",
+      "apiKeyCodexPlaceholder": "Optional for Codex",
+      "apiKeyOptionalPlaceholder": "Leave blank to keep the current key",
+      "apiKeyHelp": "The API key is required when creating a provider.",
+      "apiKeyCodexHelp": "Codex can be created without an API key. Leave this blank if your environment already provides access.",
+      "apiKeyUpdateHelp": "Leave this blank if you want to keep the current encrypted API key.",
+      "baseUrl": "Base URL",
+      "baseUrlPlaceholder": "https://api.deepseek.com",
+      "active": "Active",
+      "activeHelp": "Use this provider for live chat requests.",
+      "primary": "Primary",
+      "primaryHelp": "Mark this provider as the default option."
+    },
+    "options": {
+      "provider": {
+        "deepseek": "DeepSeek",
+        "codex": "Codex",
+        "mistral": "Mistral"
+      }
+    },
+    "sheet": {
+      "createTitle": "Create provider",
+      "createDescription": "Register a new LLM provider for runtime chat requests.",
+      "editTitle": "Update provider",
+      "editDescription": "Adjust model settings or update the API key for this provider.",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "loadProviders": "Could not load the provider list."
+    },
+  "credentials": {
+    "title": "Provider credentials",
+    "description": "Manage API credentials that agents use at runtime.",
+    "searchPlaceholder": "Search credentials by provider or status",
+      "emptyCredentials": "No provider credentials match the current search.",
+      "actions": {
+        "newCredential": "New credential",
+        "deleteSelected_one": "Delete 1 credential",
+        "deleteSelected_other": "Delete {{count}} credentials"
+      },
+    "table": {
+      "selectAll": "Select all credentials on this page",
+      "selectRow": "Select credential {{id}}",
+      "provider": "Provider",
+        "status": "Status",
+        "primary": "Primary",
+        "updatedAt": "Updated",
+        "actions": "Actions"
+    },
+    "form": {
+      "provider": "Provider",
+        "selectProvider": "Select a provider",
+        "noProvidersFound": "No providers found.",
+        "apiKey": "API key",
+        "apiKeyPlaceholder": "sk-...",
+        "apiKeyOptionalPlaceholder": "Leave blank to keep the current key",
+        "apiKeyHelp": "The API key is required when creating a credential.",
+        "apiKeyUpdateHelp": "Leave this blank if you want to keep the current encrypted API key.",
+        "status": "Status",
+        "statusPlaceholder": "active",
+      "primary": "Primary",
+      "primaryHelp": "Mark this credential as the default credential for this provider."
+    },
+    "sheet": {
+      "createTitle": "Create provider credential",
+      "createDescription": "Add an API credential for an LLM provider.",
+      "editTitle": "Update provider credential",
+      "editDescription": "Rotate or adjust the runtime credential used by agents."
+      },
+      "errors": {
+        "loadCredentials": "Could not load the provider credential list."
+      },
+      "deleteDialog": {
+        "title": "Delete selected credentials",
+        "description_one": "This will permanently delete 1 credential. This action cannot be undone.",
+        "description_other": "This will permanently delete {{count}} credentials. This action cannot be undone.",
+        "confirm": "Delete credentials",
+        "cancel": "Cancel"
+      }
+    },
+    "deleteDialog": {
+      "title": "Delete selected providers",
+      "description_one": "This will permanently delete 1 provider. This action cannot be undone.",
+      "description_other": "This will permanently delete {{count}} providers. This action cannot be undone.",
+      "confirm": "Delete providers",
+      "cancel": "Cancel"
+    }
+  },
+  "agents": {
+    "page": {
+      "title": "Agents",
+      "description": "Configure agent personas, provider assignments, model overrides, and spending controls."
+    },
+    "createPageTitle": "Create agent",
+    "editPageTitle": "Update agent",
+    "createTitle": "Create a new agent",
+    "editTitle": "Update agent",
+    "createDescription": "Add a new agent and choose which LLM provider it should use.",
+    "editDescription": "Review the current agent configuration and adjust runtime behavior.",
+    "createHelper": "Agents are CRUD-first for now. Orchestration and workflow dashboards will be added later.",
+    "searchPlaceholder": "Search agents by name",
+    "emptyAgents": "No agents match the current search.",
+    "actions": {
+      "newAgent": "New agent",
+      "backToAgents": "Back to agents",
+      "deleteSelected_one": "Delete 1 agent",
+      "deleteSelected_other": "Delete {{count}} agents"
+    },
+    "table": {
+      "selectAll": "Select all agents on this page",
+      "selectRow": "Select {{name}}",
+      "name": "Name",
+      "role": "Role",
+      "kind": "Kind",
+      "type": "Type",
+      "status": "Status",
+      "provider": "LLM provider",
+      "modelOverride": "Model override",
+      "budget": "Budget",
+      "actions": "Actions"
+    },
+    "sort": {
+      "title": "Current sort",
+      "current": "Sorted by {{field}} • {{direction}}"
+    },
+    "filters": {
+      "sortBy": "Sort by"
+    },
+    "form": {
+      "name": "Agent name",
+      "namePlaceholder": "Support triage agent",
+      "role": "Role",
+      "rolePlaceholder": "support-manager",
+      "kind": "Kind",
+      "kindPlaceholder": "Select an agent kind",
+      "kindHelp": "Use orchestrator for the agent that coordinates other agents in the same workspace.",
+      "noKindsFound": "No agent kinds found.",
+      "kindOptions": {
+        "orchestrator": "Orchestrator",
+        "worker": "Worker"
+      },
+      "type": "Type",
+      "typePlaceholder": "support",
+      "status": "Status",
+      "statusPlaceholder": "active",
+      "llmProvider": "LLM provider",
+      "llmProviderHelp": "Choose which provider this agent should use by default.",
+      "selectProvider": "Select a provider",
+      "noProvidersFound": "No providers found.",
+      "providers": "Provider chain",
+      "providersHelp": "The first provider is primary. Additional providers are used as fallbacks in priority order.",
+      "providersNotRequired": "Providers are only required for LLM agents.",
+      "providerPriority": "Priority {{priority}}",
+      "addProvider": "Add provider",
+      "noProvidersConfigured": "No providers configured yet.",
+      "modelOverride": "Model override",
+      "modelOverridePlaceholder": "gpt-4.1-mini",
+      "modelOverrideHelp": "Leave blank to use the provider default model.",
+      "systemPrompt": "System prompt",
+      "systemPromptPlaceholder": "Describe the agent behavior, tone, and constraints.",
+      "temperature": "Temperature",
+      "temperaturePlaceholder": "0.7",
+      "maxTokens": "Max tokens",
+      "maxTokensPlaceholder": "1024",
+      "parentAgent": "Parent agent",
+      "parentAgentHelp": "Optional. Use this when the agent belongs under another agent.",
+      "noParentAgent": "No parent agent",
+      "noParentAgentsFound": "No parent agents found.",
+      "budgetLimit": "Budget limit",
+      "budgetLimitPlaceholder": "500",
+      "budgetUsed": "Budget used",
+      "metadataJson": "Metadata JSON",
+      "metadataJsonPlaceholder": "{\n  \"channel\": \"support\"\n}",
+      "metadataJsonHelp": "Optional JSON metadata stored with the agent."
+    },
+    "errors": {
+      "loadAgents": "Could not load the agent list.",
+      "loadAgent": "Could not load this agent.",
+      "loadProviders": "Could not load provider options."
+    },
+    "skills": {
+      "title": "Linked skills",
+      "description": "Choose which skills this agent can access during orchestration.",
+      "save": "Save skills",
+      "searchPlaceholder": "Search skills by name or file name",
+      "empty": "No skills match the current search."
+    },
+    "mcpServers": {
+      "title": "Linked MCP servers",
+      "description": "Choose which MCP servers this agent can connect to during orchestration.",
+      "save": "Save MCP servers",
+      "searchPlaceholder": "Search MCP servers by name",
+      "empty": "No MCP servers match the current search."
+    },
+    "deleteDialog": {
+      "title": "Delete selected agents",
+      "description_one": "This will permanently delete 1 agent. This action cannot be undone.",
+      "description_other": "This will permanently delete {{count}} agents. This action cannot be undone.",
+      "confirm": "Delete agents",
+      "cancel": "Cancel"
+    }
+  },
+  "skills": {
+    "page": {
+      "title": "Skills",
+      "description": "Manage markdown skill files that agents can attach and execute during orchestration."
+    },
+    "createPageTitle": "Create skill",
+    "editPageTitle": "Update skill",
+    "createTitle": "Create a new skill",
+    "editTitle": "Update skill information",
+    "createDescription": "Register a markdown skill file for agents.",
+    "editDescription": "Review the skill content and update its metadata.",
+    "createHelper": "Each skill stores a markdown filename, file content, status, and optional metadata JSON.",
+    "searchPlaceholder": "Search by skill name, file name, or status",
+    "emptySkills": "No skills match the current search.",
+    "actions": {
+      "newSkill": "New skill",
+      "uploadArchive": "Upload archive",
+      "backToSkills": "Back to skills",
+      "deleteSelected_one": "Delete 1 skill",
+      "deleteSelected_other": "Delete {{count}} skills"
+    },
+    "table": {
+      "selectAll": "Select all skills on this page",
+      "selectRow": "Select {{name}}",
+      "name": "Name",
+      "fileName": "File name",
+      "status": "Status",
+      "updatedAt": "Updated",
+      "actions": "Actions"
+    },
+    "sort": {
+      "title": "Current sort",
+      "current": "Sorted by {{field}} • {{direction}}"
+    },
+    "filters": {
+      "sortBy": "Sort by"
+    },
+    "status": {
+      "active": "Active",
+      "paused": "Paused",
+      "archived": "Archived"
+    },
+    "form": {
+      "name": "Skill name",
+      "namePlaceholder": "Knowledge retrieval",
+      "description": "Description",
+      "descriptionPlaceholder": "Describe what this skill should help the agent do.",
+      "fileName": "Markdown file name",
+      "fileNamePlaceholder": "knowledge-retrieval.md",
+      "fileNameHelp": "Use a `.md` filename because the backend stores the skill as a markdown file.",
+      "uploadFile": "Skill file",
+      "uploadFileCreate": "Drag and drop a markdown file or zip archive, or click to choose one",
+      "uploadFileUpdate": "Drag and drop a markdown file to replace this skill, or click to choose one",
+      "uploadFileHelp": "Selecting a file only attaches it to the form. Click save to create, update, or import.",
+      "uploadFileCta": "Create supports .md or .zip. Edit supports only .md.",
+      "selectedFile": "Selected file: {{fileName}}",
+      "uploading": "Applying file...",
+      "status": "Status",
+      "content": "Markdown content",
+      "contentPlaceholder": "# Knowledge Retrieval\n\nExplain how the agent should search internal docs.",
+      "contentHelp": "The markdown body is stored on disk and returned on detail view.",
+      "metadataJson": "Metadata JSON",
+      "metadataJsonPlaceholder": "{\n  \"category\": \"knowledge\"\n}",
+      "metadataJsonHelp": "Optional JSON metadata stored alongside the skill."
+    },
+    "errors": {
+      "loadSkills": "Could not load the skill list.",
+      "loadSkill": "Could not load this skill.",
+      "invalidArchive": "Please choose a .zip archive.",
+      "invalidUploadFile": "Please choose a .md file or a .zip archive.",
+      "archiveUploadOnlyOnCreate": "Zip archive upload is only supported when creating skills."
+    },
+    "deleteDialog": {
+      "title": "Delete selected skills",
+      "description_one": "This will permanently delete 1 skill. This action cannot be undone.",
+      "description_other": "This will permanently delete {{count}} skills. This action cannot be undone.",
+      "confirm": "Delete skills",
+      "cancel": "Cancel"
+    }
+  },
+  "mcpServers": {
+    "page": {
+      "title": "MCP Servers",
+      "description": "Manage MCP server connections that agents can use as tools during orchestration."
+    },
+    "createPageTitle": "Create MCP server",
+    "editPageTitle": "Update MCP server",
+    "createTitle": "Create a new MCP server",
+    "editTitle": "Update MCP server",
+    "createDescription": "Register an MCP server for agents to connect to.",
+    "editDescription": "Review and update MCP server connection details.",
+    "searchPlaceholder": "Search by name or transport",
+    "emptyMCPServers": "No MCP servers match the current search.",
+    "actions": {
+      "newMCPServer": "New MCP server",
+      "backToMCPServers": "Back to MCP servers",
+      "deleteSelected_one": "Delete 1 MCP server",
+      "deleteSelected_other": "Delete {{count}} MCP servers"
+    },
+    "table": {
+      "selectAll": "Select all MCP servers on this page",
+      "selectRow": "Select {{name}}",
+      "name": "Name",
+      "transport": "Transport",
+      "url": "URL",
+      "hasApiKey": "API key",
+      "updatedAt": "Updated",
+      "actions": "Actions"
+    },
+    "transport": {
+      "stdio": "stdio",
+      "sse": "SSE",
+      "http": "HTTP"
+    },
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "My MCP server",
+      "description": "Description",
+      "descriptionPlaceholder": "Describe what this MCP server provides.",
+      "transport": "Transport",
+      "url": "URL",
+      "urlPlaceholder": "https://mcp.example.com",
+      "apiKey": "API key",
+      "apiKeyPlaceholder": "Leave empty to keep existing key",
+      "apiKeyHelp": "The API key is encrypted before being stored. Leave blank on update to keep the current key."
+    },
+    "errors": {
+      "loadMCPServers": "Could not load the MCP server list.",
+      "loadMCPServer": "Could not load this MCP server."
+    },
+    "deleteDialog": {
+      "title": "Delete selected MCP servers",
+      "description_one": "This will permanently delete 1 MCP server. This action cannot be undone.",
+      "description_other": "This will permanently delete {{count}} MCP servers. This action cannot be undone.",
+      "confirm": "Delete MCP servers",
+      "cancel": "Cancel"
+    }
+  },
+  "workspaces": {
+    "page": {
+      "title": "Workspaces",
+      "description": "Manage workspace records, lifecycle status, and metadata used across channels and agents."
+    },
+    "editPageTitle": "Update workspace",
+    "editTitle": "Update workspace",
+    "editDescription": "Adjust workspace details and control which agents and channels belong to it.",
+    "searchPlaceholder": "Search workspaces by name or description",
+    "emptyWorkspaces": "No workspaces match the current search.",
+    "actions": {
+      "newWorkspace": "New workspace",
+      "backToWorkspaces": "Back to workspaces",
+      "deleteSelected_one": "Delete 1 workspace",
+      "deleteSelected_other": "Delete {{count}} workspaces"
+    },
+    "table": {
+      "selectAll": "Select all workspaces on this page",
+      "selectRow": "Select {{name}}",
+      "name": "Name",
+      "description": "Description",
+      "status": "Status",
+      "updatedAt": "Updated",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "paused": "Paused",
+      "archived": "Archived"
+    },
+    "sort": {
+      "title": "Current sort",
+      "current": "Sorted by {{field}} • {{direction}}"
+    },
+    "filters": {
+      "sortBy": "Sort by"
+    },
+    "form": {
+      "name": "Workspace name",
+      "namePlaceholder": "Core operations",
+      "description": "Description",
+      "descriptionPlaceholder": "Describe what this workspace is used for.",
+      "status": "Status",
+      "metadataJson": "Metadata JSON",
+      "metadataJsonPlaceholder": "{\n  \"region\": \"apac\"\n}",
+      "metadataJsonHelp": "Optional JSON metadata stored with the workspace.",
+      "linkedAgents": "Linked agents",
+      "linkedChannels": "Linked channels",
+      "searchAgentsPlaceholder": "Search agents",
+      "searchChannelsPlaceholder": "Search channels",
+      "noAgentsFound": "No agents found.",
+      "noChannelsFound": "No channels found.",
+      "loadingAssignments": "Loading linked records..."
+    },
+    "sheet": {
+      "createTitle": "Create workspace",
+      "createDescription": "Add a new workspace record to organize channels and agents.",
+      "editTitle": "Update workspace",
+      "editDescription": "Adjust workspace details, status, or metadata.",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "loadWorkspaces": "Could not load the workspace list.",
+      "loadWorkspace": "Could not load this workspace."
+    },
+    "deleteDialog": {
+      "title": "Delete selected workspaces",
+      "description_one": "This will permanently delete 1 workspace. This action cannot be undone.",
+      "description_other": "This will permanently delete {{count}} workspaces. This action cannot be undone.",
+      "confirm": "Delete workspaces",
+      "cancel": "Cancel"
+    }
+  },
+  "admin": {
+    "title": "User Directory",
+    "backToDashboard": "Back to Dashboard",
+    "signOut": "Sign out",
+    "totalUsers": "Total users",
+    "activeAccounts": "Active accounts",
+    "bannedAccounts": "Banned accounts",
+    "liveDirectory": "Live directory data from the protected `/api/users` endpoint.",
+    "activeAccountsHelp": "Accounts currently available to sign in.",
+    "bannedAccountsHelp": "Users blocked from accessing protected routes.",
+    "createUser": "Create user",
+    "createUserDescription": "Required fields: email, first name, last name, password."
+  },
+  "sidebar": {
+    "platform": "Platform",
+    "identity": "Identity",
+    "workspace": "Workspace",
+    "workspaces": "Workspaces",
+    "workspaceList": "Workspace list",
+    "workspaceChat": "Workspace chat",
+    "agentTeams": "Agent Teams",
+    "agentTeamList": "Agent Team list",
+    "agentTeamChat": "Agent Team chat",
+    "overview": "Overview",
+    "administration": "Administration",
+    "users": "Users",
+    "userList": "User list",
+    "createUser": "Create user",
+    "channelList": "Channel list",
+    "roles": "Roles",
+    "roleList": "Role list",
+    "channels": "Channels",
+    "chat": "Chat",
+    "providers": "Providers",
+    "providerList": "Provider list",
+    "agents": "Agents",
+    "agentList": "Agent list",
+    "skills": "Skills",
+    "mcpServers": "MCP Servers",
+    "mcpServerList": "MCP Server list",
+    "skillList": "Skill list",
+    "playground": "Playground",
+    "whatsapp": "WhatsApp",
+    "telegram": "Telegram",
+    "discord": "Discord",
+    "knowledge": "Knowledge",
+    "docs": "Docs",
+    "settings": "Settings",
+    "general": "General",
+    "builds": "Builds",
+    "buildList": "Build Jobs",
+    "containers": "Docker",
+    "containerList": "Docker"
+  },
+  "identity": {
+    "page": {
+      "eyebrow": "Identity Directory",
+      "title": "User management",
+      "description": "Manage your team members and their account permissions here."
+    },
+    "usersTitle": "Users",
+    "rolesTitle": "Roles",
+    "rolesDescription": "Role management will be attached in the next step.",
+    "rolesComingSoon": "This section is ready in the sidebar, but the role screens are still pending.",
+    "roles": {
+      "page": {
+        "title": "Role management",
+        "description": "Create, update, and organize access roles for your workspace."
+      },
+      "searchPlaceholder": "Search by role name or description",
+      "emptyRoles": "No roles match the current search.",
+      "actions": {
+        "newRole": "New role",
+        "deleteSelected_one": "Delete 1 role",
+        "deleteSelected_other": "Delete {{count}} roles"
+      },
+      "table": {
+        "selectAll": "Select all roles on this page",
+        "selectRow": "Select {{name}}",
+        "name": "Role name",
+        "description": "Description",
+        "updatedAt": "Updated",
+        "actions": "Actions"
+      },
+      "filters": {
+        "sortBy": "Sort by"
+      },
+      "form": {
+        "name": "Role name",
+        "namePlaceholder": "Administrator",
+        "description": "Description",
+        "descriptionPlaceholder": "Describe what this role can access"
+      },
+      "sheet": {
+        "createTitle": "Create role",
+        "createDescription": "Add a new role for permission mapping.",
+        "editTitle": "Update role",
+        "editDescription": "Adjust the role name and description.",
+        "cancel": "Cancel"
+      },
+      "errors": {
+        "loadRoles": "Could not load the role list."
+      },
+      "deleteDialog": {
+        "title": "Delete selected roles",
+        "description_one": "This will permanently delete 1 role. This action cannot be undone.",
+        "description_other": "This will permanently delete {{count}} roles. This action cannot be undone.",
+        "confirm": "Delete roles",
+        "cancel": "Cancel"
+      }
+    },
+    "directoryTitle": "User directory",
+    "directoryDescription": "Browse the current user list, search quickly, and jump into edit mode.",
+    "searchPlaceholder": "Search by name, email, phone, or address",
+    "emptyUsers": "No users match the current search.",
+    "createPageTitle": "Create user",
+    "editPageTitle": "Update user",
+    "createTitle": "Create a new user",
+    "editTitle": "Update user information",
+    "createDescription": "Create a new account in the identity group.",
+    "editDescription": "Review the user record and update profile fields.",
+    "createHelper": "Email and password are only entered during account creation. Profile fields can be edited later.",
+    "backToDashboard": "Back to Dashboard",
+    "signOut": "Sign out",
+    "stats": {
+      "totalUsers": "Total users",
+      "activeUsers": "Active users",
+      "bannedUsers": "Banned users"
+    },
+    "actions": {
+      "newUser": "New user",
+      "save": "Save",
+      "saveAndContinue": "Save and continue",
+      "createUser": "Create user",
+      "saveChanges": "Save changes",
+      "edit": "Edit",
+      "remove": "Remove",
+      "backToUsers": "Back to users",
+      "deleteSelected_one": "Delete 1 user",
+      "deleteSelected_other": "Delete {{count}} users"
+    },
+    "table": {
+      "selectAll": "Select all users on this page",
+      "selectRow": "Select {{name}}",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "sort": {
+      "email": "Email",
+      "createdAt": "Created",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "status": "Status",
+      "ascending": "Ascending",
+      "descending": "Descending",
+      "current": "Sorted by {{field}} • {{direction}}"
+    },
+    "toolbar": {
+      "refresh": "Refresh",
+      "filters": "Filters",
+      "columns": "Columns",
+      "toggleColumns": "Show or hide columns"
+    },
+    "filters": {
+      "sortBy": "Sort by",
+      "direction": "Direction"
+    },
+    "pagination": {
+      "pageSize": "Rows",
+      "page": "Page",
+      "of": "of {{totalPage}}",
+      "perPage": "{{count}} per page",
+      "previous": "Previous",
+      "next": "Next",
+      "refreshing": "Refreshing",
+      "summary": "Page {{currentPage}} / {{totalPage}} • {{totalItems}} users",
+      "rangeSummary": "{{from}}-{{to}} of {{totalItems}}",
+      "selected_one": "1 selected",
+      "selected_other": "{{count}} selected"
+    },
+    "form": {
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "At least 6 characters",
+      "passwordHelp": "Password is only set during creation.",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Phone",
+      "address": "Address",
+      "statusLabel": "Status"
+    },
+    "errors": {
+      "invalidInput": "Invalid input",
+      "loadUsers": "Could not load the user list.",
+      "loadUser": "Could not load this user.",
+      "createUser": "Create user failed.",
+      "updateUser": "Update user failed."
+    },
+    "deleteDialog": {
+      "title": "Delete selected users",
+      "description_one": "This will permanently delete 1 user. This action cannot be undone.",
+      "description_other": "This will permanently delete {{count}} users. This action cannot be undone.",
+      "confirm": "Delete users",
+      "cancel": "Cancel"
+    }
+  },
+  "channels": {
+    "listPageTitle": "Channels",
+    "createPageTitle": "Create channel",
+    "editPageTitle": "Update channel",
+    "page": {
+      "title": "Channel management",
+      "description": "Manage messaging channel records and their runtime setup."
+    },
+    "searchPlaceholder": "Search by channel name, kind, or status",
+    "emptyChannels": "No channels match the current search.",
+    "createTitle": "Create a new channel",
+    "editTitle": "Update channel information",
+    "createDescription": "Create a channel record and prepare its runtime settings.",
+    "editDescription": "Review channel metadata and update runtime configuration.",
+    "createHelper": "Configure the channel profile first. Credentials are collected with typed fields and sent as JSON to match the backend contract.",
+    "actions": {
+      "newChannel": "New channel",
+      "backToChannels": "Back to channels",
+      "testConnection": "Test connection",
+      "testingConnection": "Testing connection...",
+      "start": "Start",
+      "stop": "Stop",
+      "restart": "Restart",
+      "deleteSelected_one": "Delete 1 channel",
+      "deleteSelected_other": "Delete {{count}} channels"
+    },
+    "table": {
+      "selectAll": "Select all channels on this page",
+      "selectRow": "Select {{name}}",
+      "name": "Name",
+      "kind": "Kind",
+      "setupMode": "Setup mode",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "filters": {
+      "sortBy": "Sort by"
+    },
+    "form": {
+      "name": "Channel name",
+      "namePlaceholder": "Primary Discord",
+      "kind": "Channel kind",
+      "status": "Status",
+      "setupMode": "Setup mode",
+      "requireMention": "Require mention",
+      "requireMentionHelp": "Only respond when the bot is explicitly mentioned.",
+      "enableTyping": "Enable typing indicator",
+      "enableTypingHelp": "Allow the runtime to show typing activity while the agent is responding.",
+      "allowedUserIds": "Allowed user IDs",
+      "allowedUserIdsPlaceholder": "Press Enter to add a user id",
+      "allowedUserIdsHelp": "Restrict the channel to specific users. Leave empty to allow everyone.",
+      "credentialsPreserved": "Existing credentials are kept until you enable replacement.",
+      "replaceCredentials": "Replace stored credentials",
+      "replaceCredentialsHelp": "Enable this before sending a new credentials payload.",
+      "telegramToken": "Telegram token",
+      "telegramTokenPlaceholder": "telegram-token",
+      "telegramTokenHelp": "Paste the Telegram token that will be serialized as `token`.",
+      "discordToken": "Discord bot token",
+      "discordTokenPlaceholder": "discord-token",
+      "discordTokenHelp": "Paste the Discord bot token that will be serialized as `token`.",
+      "slackBotToken": "Slack bot token",
+      "slackBotTokenPlaceholder": "xoxb-...",
+      "slackBotTokenHelp": "This becomes `bot_token` in the backend payload.",
+      "slackAppToken": "Slack app token",
+      "slackAppTokenPlaceholder": "xapp-...",
+      "slackAppTokenHelp": "This becomes `app_token` in the backend payload.",
+      "whatsappCreateHelp": "Create the WhatsApp channel first, then open the edit page to scan its QR code.",
+      "whatsappEditHelp": "Use the QR panel below to connect this WhatsApp channel by scanning the latest code.",
+      "noCredentialsRequired": "This channel kind does not require manual credentials in this form.",
+      "routingTarget": "Routing target",
+      "routingTargetHelp": "Choose whether this channel routes messages to an Agent Team (with orchestrator) or directly to a single Agent.",
+      "routingTeam": "Agent Team",
+      "routingAgent": "Direct Agent",
+      "targetTeam": "Agent Team",
+      "targetTeamPlaceholder": "Select a team",
+      "targetTeamEmpty": "No teams found.",
+      "targetTeamHelp": "Messages are handled by the team orchestrator and its agents.",
+      "targetAgent": "Agent",
+      "targetAgentPlaceholder": "Select an agent",
+      "targetAgentEmpty": "No agents found.",
+      "targetAgentHelp": "Messages are routed directly to this agent, bypassing the team orchestrator."
+    },
+    "qr": {
+      "title": "WhatsApp QR code",
+      "description": "Scan this code from WhatsApp to link the channel runtime.",
+      "alt": "WhatsApp QR code",
+      "help": "If the QR code expires, refresh or restart the channel runtime to request a new one.",
+      "empty": "No QR code is available yet. Start or configure the channel runtime first."
+    },
+    "options": {
+      "kind": {
+        "discord": "Discord",
+        "telegram": "Telegram",
+        "whatsapp": "WhatsApp",
+        "slack": "Slack",
+        "web": "Web"
+      },
+      "status": {
+        "pending": "Pending",
+        "active": "Active",
+        "disabled": "Disabled"
+      },
+      "setupMode": {
+        "later": "Later",
+        "configured": "Configured"
+      }
+    },
+    "errors": {
+      "loadChannels": "Could not load the channel list.",
+      "loadChannel": "Could not load this channel."
+    },
+    "deleteDialog": {
+      "title": "Delete selected channels",
+      "description_one": "This will permanently delete 1 channel. This action cannot be undone.",
+      "description_other": "This will permanently delete {{count}} channels. This action cannot be undone.",
+      "confirm": "Delete channels",
+      "cancel": "Cancel"
+    }
+  },
+  "userMenu": {
+    "loading": "Loading...",
+    "upgrade": "Upgrade to Pro",
+    "account": "Account",
+    "billing": "Billing",
+    "notifications": "Notifications",
+    "logout": "Log out"
+  },
+  "validation": {
+    "required": "This field is required.",
+    "email": "Invalid email address.",
+    "passwordMin": "Password must be at least 6 characters.",
+    "jsonObject": "Enter a valid JSON object.",
+    "skillFileName": "File name must end with .md.",
+    "agentType": "Type must be one of: llm, bash, http.",
+    "agentStatus": "Status must be one of: active, paused, archived."
+  },
+  "docker": {
+    "page": {
+      "title": "Docker",
+      "description": "Manage containers and images running on the Docker daemon."
+    },
+    "tabs": {
+      "containers": "Containers",
+      "images": "Images"
+    },
+    "container": {
+      "empty": "No containers found.",
+      "showAllBtn": "Show All",
+      "hideStoppedBtn": "Hide Stopped",
+      "createBtn": "Create",
+      "createTitle": "Create Container",
+      "imageLabel": "Image",
+      "nameLabel": "Name",
+      "namePlaceholder": "my-container (optional)",
+      "created": "Container created.",
+      "started": "Container started.",
+      "stopped": "Container stopped.",
+      "removed": "Container removed.",
+      "col": {
+        "name": "Name",
+        "image": "Image",
+        "ports": "Port(s)",
+        "actions": "Actions"
+      }
+    },
+    "image": {
+      "empty": "No images found.",
+      "pullBtn": "Pull Image",
+      "pullTitle": "Pull Image",
+      "referenceLabel": "Reference",
+      "inUse": "{{count}} in use",
+      "pulled": "Image pulled.",
+      "removed": "Image removed.",
+      "col": {
+        "tag": "Tag",
+        "id": "ID",
+        "size": "Size",
+        "actions": "Actions"
+      }
+    },
+    "actions": {
+      "start": "Start",
+      "stop": "Stop",
+      "create": "Create",
+      "creating": "Creating...",
+      "pull": "Pull",
+      "pulling": "Pulling..."
+    }
+  },
+  "builds": {
+    "page": {
+      "title": "Build Jobs",
+      "description": "Build Docker images from a Git repository and push them to a container registry."
+    },
+    "form": {
+      "title": "New Build",
+      "gitUrl": "Git Repository URL",
+      "gitBranch": "Branch",
+      "imageTag": "Image Tag",
+      "optional": "optional",
+      "submit": "Start Build",
+      "submitting": "Submitting...",
+      "cancel": "Cancel"
+    },
+    "table": {
+      "id": "Job ID",
+      "status": "Status",
+      "gitUrl": "Repository",
+      "imageTag": "Image Tag",
+      "createdAt": "Created",
+      "actions": "Actions"
+    },
+    "actions": {
+      "newBuild": "New Build",
+      "refresh": "Refresh",
+      "viewLogs": "View Logs",
+      "cancel": "Cancel"
+    },
+    "logs": {
+      "title": "Build Logs",
+      "empty": "No logs yet..."
+    },
+    "toasts": {
+      "submitted": "Build job submitted.",
+      "canceled": "Build job canceled."
+    },
+    "empty": "No build jobs yet."
+  }
+}

@@ -1,0 +1,332 @@
+erDiagram
+
+  %% IDENTITY
+  users {
+    varchar id PK
+    text email
+    text nickname
+    text first_name
+    text last_name
+    text phone
+    text address
+    text password_hash
+    text status
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+  roles {
+    text id PK
+    text name
+    text description
+    bool is_system
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  user_roles {
+    text user_id FK
+    text role_id FK
+    timestamptz created_at
+  }
+
+  %% WORKSPACE
+  workspaces {
+    varchar id PK
+    varchar name
+    varchar description
+    varchar status
+    text metadata_json
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+  workspace_members {
+    varchar id PK
+    varchar workspace_id FK
+    text user_id FK
+    varchar member_role
+    timestamptz created_at
+  }
+
+  %% LLM PROVIDERS
+  llm_providers {
+    text id PK
+    text name
+    text provider
+    text model
+    text encrypted_api_key
+    text base_url
+    bool is_active
+    bool is_primary
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  provider_credentials {
+    varchar id PK
+    varchar provider_id FK
+    varchar kind
+    text encrypted_api_key
+    text encrypted_access_token
+    text encrypted_refresh_token
+    varchar token_type
+    text scope
+    timestamptz expires_at
+    timestamptz refresh_expires_at
+    text encrypted_metadata_json
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+
+  %% AGENTS
+  agents {
+    varchar id PK
+    varchar workspace_id FK
+    varchar parent_agent_id FK
+    varchar name
+    varchar role
+    varchar kind
+    varchar type
+    varchar status
+    text system_prompt
+    varchar model_override
+    float temperature
+    int max_tokens
+    bigint budget_limit
+    bigint budget_used
+    text metadata_json
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+  agent_providers {
+    varchar id PK
+    varchar agent_id FK
+    varchar llm_provider_id FK
+    int priority
+    varchar status
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+
+  %% CHANNELS & CONVERSATIONS
+  channels {
+    text id PK
+    varchar workspace_id FK
+    text name
+    text kind
+    text status
+    text setup_mode
+    text encrypted_credentials
+    text settings_json
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+  conversations {
+    text id PK
+    text workspace_id FK
+    text channel_id FK
+    text user_id FK
+    text channel_kind
+    text conversation_type
+    text external_chat_id
+    text title
+    text status
+    bool auto_reply_enabled
+    timestamptz last_message_at
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+  conversation_messages {
+    text id PK
+    text conversation_id FK
+    text run_id FK
+    text external_message_id
+    int sequence
+    text sender_type
+    text sender_id
+    varchar message_kind
+    text role
+    text content
+    text status
+    text provider
+    text model
+    text finish_reason
+    text error_message
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+
+  %% WORKFLOWS
+  workflows {
+    varchar id PK
+    varchar workspace_id FK
+    varchar name
+    text description
+    varchar status
+    varchar trigger_mode
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+  workflow_nodes {
+    varchar id PK
+    varchar workflow_id FK
+    varchar agent_id FK
+    varchar name
+    varchar node_type
+    float position_x
+    float position_y
+    text config_json
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+  workflow_edges {
+    varchar id PK
+    varchar workflow_id FK
+    varchar from_node_id FK
+    varchar to_node_id FK
+    varchar execution_mode
+    varchar label
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+
+  %% RUNS
+  runs {
+    varchar id PK
+    varchar workspace_id FK
+    varchar workflow_id FK
+    varchar conversation_id FK
+    varchar entry_agent_id FK
+    varchar status
+    text input
+    text final_output
+    timestamptz started_at
+    timestamptz finished_at
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+  run_steps {
+    varchar id PK
+    varchar run_id FK
+    varchar agent_id FK
+    varchar workflow_node_id FK
+    int step_index
+    varchar step_type
+    varchar status
+    text input
+    text output
+    text metadata_json
+    timestamptz started_at
+    timestamptz finished_at
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+
+  %% PIPELINES
+  pipelines {
+    varchar id PK
+    varchar workspace_id FK
+    varchar name
+    varchar type
+    varchar status
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+  pipeline_stages {
+    varchar id PK
+    varchar pipeline_id FK
+    varchar name
+    int position
+    varchar stage_type
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+
+  %% TASKS
+  tasks {
+    varchar id PK
+    varchar workspace_id FK
+    text conversation_id FK
+    varchar pipeline_id FK
+    varchar agent_id FK
+    varchar parent_task_id FK
+    varchar current_stage_id FK
+    text created_by
+    varchar title
+    text description
+    varchar status
+    varchar priority
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+  task_stage_history {
+    varchar id PK
+    varchar task_id FK
+    varchar from_stage_id FK
+    varchar to_stage_id FK
+    varchar changed_by_type
+    varchar changed_by_id
+    text note
+    timestamptz created_at
+  }
+
+  %% RELATIONSHIPS
+  users ||--o{ user_roles : ""
+  roles ||--o{ user_roles : ""
+  users ||--o{ workspace_members : ""
+  workspaces ||--o{ workspace_members : ""
+
+  llm_providers ||--o{ provider_credentials : ""
+  llm_providers ||--o{ agent_providers : ""
+  agents ||--o{ agent_providers : ""
+
+  workspaces ||--o{ agents : ""
+  agents ||--o{ agents : "parent"
+
+  workspaces ||--o{ channels : ""
+  channels ||--o{ conversations : ""
+  users ||--o{ conversations : ""
+  conversations ||--o{ conversation_messages : ""
+
+  workspaces ||--o{ workflows : ""
+  workflows ||--o{ workflow_nodes : ""
+  workflows ||--o{ workflow_edges : ""
+  workflow_nodes ||--o{ workflow_edges : "from"
+  workflow_nodes ||--o{ workflow_edges : "to"
+  agents ||--o{ workflow_nodes : ""
+
+  workspaces ||--o{ runs : ""
+  workflows ||--o{ runs : ""
+  conversations ||--o{ runs : ""
+  agents ||--o{ runs : "entry"
+  runs ||--o{ run_steps : ""
+  agents ||--o{ run_steps : ""
+  workflow_nodes ||--o{ run_steps : ""
+  runs ||--o{ conversation_messages : ""
+
+  workspaces ||--o{ pipelines : ""
+  pipelines ||--o{ pipeline_stages : ""
+
+  workspaces ||--o{ tasks : ""
+  conversations ||--o{ tasks : ""
+  pipelines ||--o{ tasks : ""
+  agents ||--o{ tasks : ""
+  tasks ||--o{ tasks : "parent"
+  pipeline_stages ||--o{ tasks : "current stage"
+  users ||--o{ tasks : "creates"
+  tasks ||--o{ task_stage_history : ""
+  pipeline_stages ||--o{ task_stage_history : "from"
+  pipeline_stages ||--o{ task_stage_history : "to"

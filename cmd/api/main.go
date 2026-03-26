@@ -160,6 +160,7 @@ func main() {
 	// Docker repository (optional — app starts fine if Docker is unavailable)
 	var dockerHandler *rest.DockerHandler
 	var dockerWSHandler *rest.DockerWSHandler
+	var resourceTerminalWSHandler *rest.ResourceTerminalWSHandler
 	var dockerRepo domain.DockerRepository
 	if dr, err := infradocker.NewRepository(); err != nil {
 		logger.Warn("docker unavailable, /docker endpoints disabled", "err", err)
@@ -232,6 +233,9 @@ func main() {
 	getResourceHandler := query.NewGetResourceHandler(resourceRepo)
 	getResourceRunHandler := query.NewGetResourceRunHandler(resourceRunRepo)
 	resourceRunWSHandler := rest.NewResourceRunWSHandler(resourceRunSvc, getResourceRunHandler)
+	if dockerRepo != nil {
+		resourceTerminalWSHandler = rest.NewResourceTerminalWSHandler(dockerRepo, getResourceHandler)
+	}
 	projectHandler := rest.NewProjectHandler(
 		createProjectHandler,
 		updateProjectHandler,
@@ -281,6 +285,9 @@ func main() {
 			buildHandler.Register(protected)
 			buildWSHandler.Register(protected)
 			resourceRunWSHandler.Register(protected)
+			if resourceTerminalWSHandler != nil {
+				resourceTerminalWSHandler.Register(protected)
+			}
 			logHandler.Register(protected)
 			projectHandler.Register(protected)
 			if dockerHandler != nil {

@@ -143,7 +143,10 @@ export default function ResourceDetails({
 
         {activeTab === "Logs" ? <ResourceLogsTab resource={resource} /> : null}
         {activeTab === "Terminal" ? (
-          <ResourceTerminalTab resource={resource} />
+          <ResourceTerminalTab
+            key={`${resource.id}:${resource.status}:${resource.container_id ?? ""}`}
+            resource={resource}
+          />
         ) : null}
         {activeTab === "Backups" ? (
           <ResourceBackupsTab resource={resource} />

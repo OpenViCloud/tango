@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"strconv"
 	"strings"
 
@@ -195,6 +196,54 @@ func (r *Repository) GetContainerLogs(ctx context.Context, containerID string, i
 	return lines, nil
 }
 
+func (r *Repository) ExecContainer(ctx context.Context, containerID string, input domain.ContainerExecInput) (domain.ContainerExecSession, error) {
+	shells := input.Shell
+	if len(shells) == 0 {
+		shells = []string{"/bin/bash", "/bin/sh"}
+	}
+
+	var lastErr error
+	for _, shell := range shells {
+		execResp, err := r.client.ContainerExecCreate(ctx, containerID, container.ExecOptions{
+			AttachStderr: true,
+			AttachStdin:  true,
+			AttachStdout: true,
+			Cmd:          []string{shell},
+			Tty:          true,
+		})
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		attachResp, err := r.client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{
+			Tty: true,
+		})
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		session := &execSession{
+			client: r.client,
+			execID: execResp.ID,
+			conn:   attachResp.Conn,
+			reader: attachResp.Reader,
+		}
+
+		if input.Cols > 0 && input.Rows > 0 {
+			_ = session.Resize(ctx, input.Cols, input.Rows)
+		}
+
+		return session, nil
+	}
+
+	if lastErr != nil {
+		return nil, fmt.Errorf("exec container %s: %w", containerID, lastErr)
+	}
+	return nil, fmt.Errorf("exec container %s: no shell available", containerID)
+}
+
 // StartContainer starts a stopped or newly created container.
 func (r *Repository) StartContainer(ctx context.Context, containerID string) error {
 	if err := r.client.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
@@ -358,3 +407,34 @@ func tailValue(value string) string {
 	}
 	return value
 }
+
+type execSession struct {
+	client *client.Client
+	execID string
+	conn   net.Conn
+	reader io.Reader
+}
+
+func (s *execSession) Read(p []byte) (int, error) {
+	return s.reader.Read(p)
+}
+
+func (s *execSession) Write(p []byte) (int, error) {
+	return s.conn.Write(p)
+}
+
+func (s *execSession) Close() error {
+	if s.conn != nil {
+		return s.conn.Close()
+	}
+	return nil
+}
+
+func (s *execSession) Resize(ctx context.Context, cols, rows uint) error {
+	return s.client.ContainerExecResize(ctx, s.execID, container.ResizeOptions{
+		Width:  cols,
+		Height: rows,
+	})
+}
+
+var _ domain.ContainerExecSession = (*execSession)(nil)

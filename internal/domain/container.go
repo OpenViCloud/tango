@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"io"
 )
 
 var (
@@ -64,6 +65,17 @@ type GetContainerLogsInput struct {
 	Tail string
 }
 
+type ContainerExecInput struct {
+	Shell []string
+	Cols  uint
+	Rows  uint
+}
+
+type ContainerExecSession interface {
+	io.ReadWriteCloser
+	Resize(ctx context.Context, cols, rows uint) error
+}
+
 // DockerRepository abstracts all Docker Engine operations.
 type DockerRepository interface {
 	ListImages(ctx context.Context) ([]Image, error)
@@ -72,6 +84,7 @@ type DockerRepository interface {
 	ListContainers(ctx context.Context, all bool) ([]Container, error)
 	CreateContainer(ctx context.Context, input CreateContainerInput) (Container, error)
 	GetContainerLogs(ctx context.Context, containerID string, input GetContainerLogsInput) ([]string, error)
+	ExecContainer(ctx context.Context, containerID string, input ContainerExecInput) (ContainerExecSession, error)
 	StartContainer(ctx context.Context, containerID string) error
 	StopContainer(ctx context.Context, containerID string) error
 	RemoveContainer(ctx context.Context, containerID string, force bool) error

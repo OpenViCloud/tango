@@ -51,6 +51,7 @@ type CreateContainerCommand struct {
 	Cmd          []string
 	Env          map[string]string
 	PortBindings map[string]string // containerPort -> hostPort
+	Volumes      []string          // host:container bind mounts
 	AutoRemove   bool
 }
 
@@ -69,6 +70,7 @@ func (h *CreateContainerHandler) Handle(ctx context.Context, cmd CreateContainer
 		Cmd:          cmd.Cmd,
 		Env:          cmd.Env,
 		PortBindings: cmd.PortBindings,
+		Volumes:      cmd.Volumes,
 		AutoRemove:   cmd.AutoRemove,
 	})
 }

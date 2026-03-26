@@ -42,6 +42,7 @@ export const createContainerSchema = z.object({
   cmd: z.array(z.string()).optional(),
   env: z.record(z.string(), z.string()).optional(),
   port_bindings: z.record(z.string(), z.string()).optional(),
+  volumes: z.array(z.string()).optional(),
   auto_remove: z.boolean().optional(),
 })
 

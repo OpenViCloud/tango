@@ -7,5 +7,11 @@ func All() []any {
 		&UserRoleRecord{},
 		&ChannelRecord{},
 		&BuildJobRecord{},
+		&ProjectRecord{},
+		&EnvironmentRecord{},
+		&ResourceRecord{},
+		&ResourceRunRecord{},
+		&ResourcePortRecord{},
+		&ResourceEnvVarRecord{},
 	}
 }

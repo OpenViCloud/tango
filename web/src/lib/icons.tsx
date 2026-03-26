@@ -10,7 +10,9 @@ import {
   BoxIcon,
   ContainerIcon,
   CopyIcon,
+  DatabaseIcon,
   FilterIcon,
+  FolderIcon,
   PlayIcon,
   PlusIcon,
   RefreshCwIcon,
@@ -37,6 +39,8 @@ function createSolarIcon(Icon: ComponentType<SolarIconProps>) {
 export const appIcons = {
   builds: BoxIcon,
   containers: ContainerIcon,
+  databases: DatabaseIcon,
+  projects: FolderIcon,
   dashboard: createSolarIcon(HomeSmile),
   channels: createSolarIcon(ChatRoundDots),
   users: createSolarIcon(UsersGroupRounded),

@@ -16,6 +16,7 @@ import (
 	"tango/internal/application/query"
 	"tango/internal/auth"
 	"tango/internal/config"
+	"tango/internal/domain"
 	"tango/internal/handler/rest"
 	response "tango/internal/handler/rest/response"
 	infacache "tango/internal/infrastructure/cache"
@@ -98,6 +99,10 @@ func main() {
 	roleRepo := persistrepo.NewRoleRepository(db)
 	channelRepo := persistrepo.NewChannelRepository(db)
 	buildJobRepo := persistrepo.NewBuildJobRepository(db)
+	projectRepo := persistrepo.NewProjectRepository(db)
+	environmentRepo := persistrepo.NewEnvironmentRepository(db)
+	resourceRepo := persistrepo.NewResourceRepository(db)
+	resourceRunRepo := persistrepo.NewResourceRunRepository(db)
 
 	if err := auth.SeedDemoData(ctx, userRepo, roleRepo); err != nil {
 		fatal(logger, "seed demo data failed", err)
@@ -155,20 +160,22 @@ func main() {
 	// Docker repository (optional — app starts fine if Docker is unavailable)
 	var dockerHandler *rest.DockerHandler
 	var dockerWSHandler *rest.DockerWSHandler
-	if dockerRepo, err := infradocker.NewRepository(); err != nil {
+	var dockerRepo domain.DockerRepository
+	if dr, err := infradocker.NewRepository(); err != nil {
 		logger.Warn("docker unavailable, /docker endpoints disabled", "err", err)
 	} else {
-		defer func() { _ = dockerRepo.Close() }()
-		dockerWSHandler = rest.NewDockerWSHandler(dockerRepo)
+		dockerRepo = dr
+		defer func() { _ = dr.Close() }()
+		dockerWSHandler = rest.NewDockerWSHandler(dr)
 		dockerHandler = rest.NewDockerHandler(
-			query.NewListContainersHandler(dockerRepo),
-			query.NewListImagesHandler(dockerRepo),
-			command.NewCreateContainerHandler(dockerRepo),
-			command.NewStartContainerHandler(dockerRepo),
-			command.NewStopContainerHandler(dockerRepo),
-			command.NewRemoveContainerHandler(dockerRepo),
-			command.NewPullImageHandler(dockerRepo),
-			command.NewRemoveImageHandler(dockerRepo),
+			query.NewListContainersHandler(dr),
+			query.NewListImagesHandler(dr),
+			command.NewCreateContainerHandler(dr),
+			command.NewStartContainerHandler(dr),
+			command.NewStopContainerHandler(dr),
+			command.NewRemoveContainerHandler(dr),
+			command.NewPullImageHandler(dr),
+			command.NewRemoveImageHandler(dr),
 		)
 	}
 
@@ -208,6 +215,40 @@ func main() {
 	buildWSHandler := rest.NewBuildWSHandler(buildSvc, getBuildJobHandler)
 	logHandler := rest.NewLogHandler(logService)
 
+	createProjectHandler := command.NewCreateProjectHandler(projectRepo)
+	updateProjectHandler := command.NewUpdateProjectHandler(projectRepo)
+	deleteProjectHandler := command.NewDeleteProjectHandler(projectRepo)
+	createEnvironmentHandler := command.NewCreateEnvironmentHandler(environmentRepo)
+	deleteEnvironmentHandler := command.NewDeleteEnvironmentHandler(environmentRepo)
+	createResourceHandler := command.NewCreateResourceHandler(resourceRepo, dockerRepo)
+	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, logger)
+	createStartResourceRunHandler := command.NewCreateStartResourceRunHandler(resourceRepo, resourceRunRepo, resourceRunSvc)
+	stopResourceHandler := command.NewStopResourceHandler(resourceRepo, dockerRepo)
+	deleteResourceHandler := command.NewDeleteResourceHandler(resourceRepo, dockerRepo)
+	setEnvVarsHandler := command.NewSetResourceEnvVarsHandler(resourceRepo)
+	listProjectsHandler := query.NewListProjectsHandler(projectRepo, environmentRepo)
+	getProjectHandler := query.NewGetProjectHandler(projectRepo, environmentRepo, resourceRepo)
+	listEnvResourcesHandler := query.NewListEnvironmentResourcesHandler(resourceRepo)
+	getResourceHandler := query.NewGetResourceHandler(resourceRepo)
+	getResourceRunHandler := query.NewGetResourceRunHandler(resourceRunRepo)
+	resourceRunWSHandler := rest.NewResourceRunWSHandler(resourceRunSvc, getResourceRunHandler)
+	projectHandler := rest.NewProjectHandler(
+		createProjectHandler,
+		updateProjectHandler,
+		deleteProjectHandler,
+		createEnvironmentHandler,
+		deleteEnvironmentHandler,
+		createResourceHandler,
+		createStartResourceRunHandler,
+		stopResourceHandler,
+		deleteResourceHandler,
+		setEnvVarsHandler,
+		listProjectsHandler,
+		getProjectHandler,
+		listEnvResourcesHandler,
+		getResourceHandler,
+	)
+
 	docs.SwaggerInfo.BasePath = "/api"
 	docs.SwaggerInfo.Title = "Tango API"
 	docs.SwaggerInfo.Version = "0.1.0"
@@ -238,7 +279,9 @@ func main() {
 			roleHandler.Register(protected)
 			buildHandler.Register(protected)
 			buildWSHandler.Register(protected)
+			resourceRunWSHandler.Register(protected)
 			logHandler.Register(protected)
+			projectHandler.Register(protected)
 			if dockerHandler != nil {
 				dockerHandler.Register(protected)
 				dockerWSHandler.Register(protected)

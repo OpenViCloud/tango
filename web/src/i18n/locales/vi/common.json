@@ -679,7 +679,70 @@
     "builds": "Builds",
     "buildList": "Build Jobs",
     "containers": "Docker",
-    "containerList": "Docker"
+    "containerList": "Docker",
+    "databases": "Databases",
+    "databaseList": "Databases",
+    "projects": "Dự án",
+    "projectList": "Dự án"
+  },
+  "projects": {
+    "page": {
+      "title": "Dự án",
+      "description": "Quản lý các dự án triển khai và môi trường của bạn."
+    },
+    "new": "Dự án mới",
+    "empty": "Chưa có dự án nào.",
+    "nameLabel": "Tên",
+    "namePlaceholder": "ten-du-an",
+    "descriptionLabel": "Mô tả",
+    "descriptionPlaceholder": "Mô tả tuỳ chọn",
+    "createTitle": "Dự án mới",
+    "cancel": "Hủy",
+    "create": "Tạo",
+    "creating": "Đang tạo...",
+    "addEnv": "Thêm môi trường",
+    "envNameLabel": "Tên môi trường",
+    "envNamePlaceholder": "production",
+    "deleteEnv": "Xóa",
+    "environments": "Môi trường",
+    "noResources": "Chưa có tài nguyên nào được triển khai.",
+    "addResource": "Thêm tài nguyên",
+    "deployResource": "Triển khai tài nguyên",
+    "resource": {
+      "start": "Khởi động",
+      "stop": "Dừng",
+      "delete": "Xóa",
+      "started": "Đã khởi động tài nguyên.",
+      "stopped": "Đã dừng tài nguyên.",
+      "deleted": "Đã xóa tài nguyên.",
+      "created": "Đã triển khai tài nguyên.",
+      "logTitle": "Log khởi động tài nguyên",
+      "logEmpty": "Chưa có log...",
+      "streaming": "Đang stream...",
+      "runFailed": "Khởi động tài nguyên thất bại."
+    }
+  },
+  "databases": {
+    "page": {
+      "title": "Databases",
+      "description": "Triển khai các database phổ biến với cấu hình được thiết lập sẵn."
+    },
+    "card": {
+      "local": "có sẵn",
+      "deploy": "Triển khai"
+    },
+    "deploy": {
+      "title": "Triển khai {{name}}",
+      "versionLabel": "Phiên bản",
+      "optional": "tùy chọn",
+      "volumeLabel": "Volume dữ liệu",
+      "volumeHint": "Để trống host path nếu muốn dùng Docker-managed volume.",
+      "pulling": "Đang pull {{image}}…",
+      "pulling_btn": "Đang pull…",
+      "creating_btn": "Đang tạo…",
+      "deployBtn": "Triển khai",
+      "success": "Đã triển khai {{name}} thành công."
+    }
   },
   "identity": {
     "page": {
@@ -988,10 +1051,27 @@
       "hideStoppedBtn": "Ẩn đã dừng",
       "createBtn": "Tạo mới",
       "createTitle": "Tạo Container",
+      "runTitle": "Chạy container mới",
       "imageLabel": "Image",
       "nameLabel": "Tên",
       "namePlaceholder": "my-container (tùy chọn)",
-      "created": "Đã tạo container.",
+      "nameHint": "Tên ngẫu nhiên sẽ được tạo nếu bạn không nhập.",
+      "nameInvalid": "Chỉ dùng chữ, số, dấu gạch ngang, gạch dưới và dấu chấm. Không dùng khoảng trắng.",
+      "optionalSettings": "Cài đặt tùy chọn",
+      "portsLabel": "Ports",
+      "portsHint": "Nhập \"0\" để gán port ngẫu nhiên.",
+      "hostPort": "Host port",
+      "addPort": "Thêm port",
+      "volumesLabel": "Volumes",
+      "hostPath": "Đường dẫn host",
+      "containerPath": "Đường dẫn container",
+      "addVolume": "Thêm volume",
+      "envLabel": "Biến môi trường",
+      "envKey": "Tên biến",
+      "envValue": "Giá trị",
+      "addEnv": "Thêm biến",
+      "cancel": "Hủy",
+      "created": "Đã tạo và khởi động container.",
       "started": "Đã khởi động container.",
       "stopped": "Đã dừng container.",
       "removed": "Đã xóa container.",
@@ -1022,6 +1102,8 @@
       "stop": "Dừng",
       "create": "Tạo",
       "creating": "Đang tạo...",
+      "run": "Chạy",
+      "running": "Đang chạy...",
       "pull": "Pull",
       "pulling": "Đang pull..."
     }

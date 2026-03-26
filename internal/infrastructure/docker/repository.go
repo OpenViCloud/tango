@@ -117,7 +117,7 @@ func (r *Repository) CreateContainer(ctx context.Context, input domain.CreateCon
 	portMap := nat.PortMap{}
 
 	for _, p := range input.ExposedPorts {
-		port, err := nat.NewPort("tcp", p)
+		port, err := parseContainerPort(p)
 		if err != nil {
 			return domain.Container{}, fmt.Errorf("parse exposed port %s: %w", p, err)
 		}
@@ -125,7 +125,7 @@ func (r *Repository) CreateContainer(ctx context.Context, input domain.CreateCon
 	}
 
 	for containerPort, hostPort := range input.PortBindings {
-		port, err := nat.NewPort("tcp", containerPort)
+		port, err := parseContainerPort(containerPort)
 		if err != nil {
 			return domain.Container{}, fmt.Errorf("parse port binding %s: %w", containerPort, err)
 		}
@@ -145,6 +145,7 @@ func (r *Repository) CreateContainer(ctx context.Context, input domain.CreateCon
 	hostCfg := &container.HostConfig{
 		AutoRemove:   input.AutoRemove,
 		PortBindings: portMap,
+		Binds:        input.Volumes,
 	}
 
 	resp, err := r.client.ContainerCreate(ctx, cfg, hostCfg, nil, nil, input.Name)
@@ -283,4 +284,19 @@ func envMapToSlice(values map[string]string) []string {
 		result = append(result, k+"="+v)
 	}
 	return result
+}
+
+func parseContainerPort(value string) (nat.Port, error) {
+	portValue := value
+	proto := "tcp"
+
+	if strings.Contains(value, "/") {
+		parts := strings.SplitN(value, "/", 2)
+		portValue = parts[0]
+		if len(parts) == 2 && parts[1] != "" {
+			proto = parts[1]
+		}
+	}
+
+	return nat.NewPort(proto, portValue)
 }

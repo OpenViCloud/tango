@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/gin-gonic/gin"
 
 	"tango/internal/application/command"
@@ -97,7 +98,8 @@ type createContainerRequest struct {
 	Image        string            `json:"image"`
 	Cmd          []string          `json:"cmd"`
 	Env          map[string]string `json:"env"`
-	PortBindings map[string]string `json:"port_bindings"` // "80/tcp" -> "8080"
+	PortBindings map[string]string `json:"port_bindings"` // containerPort -> hostPort, e.g. "80" -> "8080"
+	Volumes      []string          `json:"volumes"`        // bind mounts, e.g. "/host:/container"
 	AutoRemove   bool              `json:"auto_remove"`
 }
 
@@ -158,10 +160,15 @@ func (h *DockerHandler) CreateContainer(c *gin.Context) {
 		Cmd:          req.Cmd,
 		Env:          req.Env,
 		PortBindings: req.PortBindings,
+		Volumes:      req.Volumes,
 		AutoRemove:   req.AutoRemove,
 	})
 	if err != nil {
-		_ = c.Error(response.InternalCause(err, ""))
+		if errdefs.IsInvalidParameter(err) || errdefs.IsNotFound(err) || errdefs.IsConflict(err) {
+			_ = c.Error(response.BadRequest(err.Error()))
+		} else {
+			_ = c.Error(response.InternalCause(err, ""))
+		}
 		return
 	}
 	response.Created(c, toContainerResponse(ct))

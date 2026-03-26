@@ -56,6 +56,7 @@ type CreateContainerInput struct {
 	Env          map[string]string
 	ExposedPorts []string
 	PortBindings map[string]string // containerPort -> hostPort
+	Volumes      []string          // host:container bind mounts, e.g. "/data:/data"
 	AutoRemove   bool
 }
 

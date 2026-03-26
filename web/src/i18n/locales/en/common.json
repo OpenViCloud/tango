@@ -679,7 +679,70 @@
     "builds": "Builds",
     "buildList": "Build Jobs",
     "containers": "Docker",
-    "containerList": "Docker"
+    "containerList": "Docker",
+    "databases": "Databases",
+    "databaseList": "Databases",
+    "projects": "Projects",
+    "projectList": "Projects"
+  },
+  "projects": {
+    "page": {
+      "title": "Projects",
+      "description": "Manage your deployment projects and environments."
+    },
+    "new": "New Project",
+    "empty": "No projects yet.",
+    "nameLabel": "Name",
+    "namePlaceholder": "my-project",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Optional description",
+    "createTitle": "New Project",
+    "cancel": "Cancel",
+    "create": "Create",
+    "creating": "Creating...",
+    "addEnv": "Add Environment",
+    "envNameLabel": "Environment Name",
+    "envNamePlaceholder": "production",
+    "deleteEnv": "Delete",
+    "environments": "Environments",
+    "noResources": "No resources deployed yet.",
+    "addResource": "Add Resource",
+    "deployResource": "Deploy Resource",
+    "resource": {
+      "start": "Start",
+      "stop": "Stop",
+      "delete": "Delete",
+      "started": "Resource started.",
+      "stopped": "Resource stopped.",
+      "deleted": "Resource deleted.",
+      "created": "Resource deployed.",
+      "logTitle": "Start Resource Logs",
+      "logEmpty": "No logs yet...",
+      "streaming": "Streaming...",
+      "runFailed": "Resource start failed."
+    }
+  },
+  "databases": {
+    "page": {
+      "title": "Databases",
+      "description": "Deploy popular database images with pre-configured settings."
+    },
+    "card": {
+      "local": "local",
+      "deploy": "Deploy"
+    },
+    "deploy": {
+      "title": "Deploy {{name}}",
+      "versionLabel": "Version",
+      "optional": "optional",
+      "volumeLabel": "Data volume",
+      "volumeHint": "Leave host path empty to use a Docker-managed volume.",
+      "pulling": "Pulling {{image}}…",
+      "pulling_btn": "Pulling…",
+      "creating_btn": "Creating…",
+      "deployBtn": "Deploy",
+      "success": "{{name}} deployed successfully."
+    }
   },
   "identity": {
     "page": {
@@ -988,10 +1051,27 @@
       "hideStoppedBtn": "Hide Stopped",
       "createBtn": "Create",
       "createTitle": "Create Container",
+      "runTitle": "Run a new container",
       "imageLabel": "Image",
       "nameLabel": "Name",
       "namePlaceholder": "my-container (optional)",
-      "created": "Container created.",
+      "nameHint": "A random name is generated if you do not provide one.",
+      "nameInvalid": "Only letters, numbers, hyphens, underscores and dots. No spaces.",
+      "optionalSettings": "Optional settings",
+      "portsLabel": "Ports",
+      "portsHint": "Enter \"0\" to assign randomly generated host ports.",
+      "hostPort": "Host port",
+      "addPort": "Add port",
+      "volumesLabel": "Volumes",
+      "hostPath": "Host path",
+      "containerPath": "Container path",
+      "addVolume": "Add volume",
+      "envLabel": "Environment variables",
+      "envKey": "Variable",
+      "envValue": "Value",
+      "addEnv": "Add variable",
+      "cancel": "Cancel",
+      "created": "Container created and started.",
       "started": "Container started.",
       "stopped": "Container stopped.",
       "removed": "Container removed.",
@@ -1022,6 +1102,8 @@
       "stop": "Stop",
       "create": "Create",
       "creating": "Creating...",
+      "run": "Run",
+      "running": "Running...",
       "pull": "Pull",
       "pulling": "Pulling..."
     }

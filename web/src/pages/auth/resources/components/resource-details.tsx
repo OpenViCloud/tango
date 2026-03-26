@@ -5,8 +5,11 @@ import { useTranslation } from "react-i18next"
 
 import type { ResourceModel } from "@/@types/models"
 import { Button } from "@/components/ui/button"
-import { ConfigSidebar } from "./ConfigSidebar"
-import { ConfigGeneralForm, type EnvEntry } from "./ConfigGeneralForm"
+import { type EnvEntry } from "./ConfigGeneralForm"
+import { ResourceBackupsTab } from "./tabs/ResourceBackupsTab"
+import { ResourceConfigurationTab } from "./tabs/ResourceConfigurationTab"
+import { ResourceLogsTab } from "./tabs/ResourceLogsTab"
+import { ResourceTerminalTab } from "./tabs/ResourceTerminalTab"
 
 type ResourceDetailsProps = {
   resource: ResourceModel
@@ -113,44 +116,38 @@ export default function ResourceDetails({
       </div>
 
       <div className="relative flex">
-        <button
-          type="button"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="fixed right-4 bottom-4 z-50 rounded-full bg-accent p-3 text-accent-foreground shadow-lg md:hidden"
-        >
-          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
-
-        <aside
-          className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed top-0 left-0 z-40 min-h-[calc(100vh-120px)] w-64 shrink-0 border-r border-border bg-background p-4 transition-transform md:sticky md:top-auto md:min-h-0 md:translate-x-0 md:transition-none`}
-        >
-          <ConfigSidebar
-            active={activeSection}
-            onSelect={(item) => {
-              setActiveSection(item)
-              setSidebarOpen(false)
-            }}
-          />
-        </aside>
-
-        {sidebarOpen ? (
-          <div
-            className="fixed inset-0 z-30 bg-background/60 md:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
+        {activeTab === "Configuration" ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="fixed right-4 bottom-4 z-50 rounded-full bg-accent p-3 text-accent-foreground shadow-lg md:hidden"
+            >
+              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+            <ResourceConfigurationTab
+              resource={resource}
+              activeSection={activeSection}
+              onSelectSection={setActiveSection}
+              envEntries={envEntries}
+              setEnvEntries={setEnvEntries}
+              onSave={() => onSave(envEntries)}
+              pending={pending}
+              isLoadingEnvVars={isLoadingEnvVars}
+              isEnvVarsError={isEnvVarsError}
+              sidebarOpen={sidebarOpen}
+              onDismissSidebar={() => setSidebarOpen(false)}
+            />
+          </>
         ) : null}
 
-        <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
-          <ConfigGeneralForm
-            resource={resource}
-            envEntries={envEntries}
-            setEnvEntries={setEnvEntries}
-            onSave={() => onSave(envEntries)}
-            pending={pending}
-            isLoadingEnvVars={isLoadingEnvVars}
-            isEnvVarsError={isEnvVarsError}
-          />
-        </main>
+        {activeTab === "Logs" ? <ResourceLogsTab resource={resource} /> : null}
+        {activeTab === "Terminal" ? (
+          <ResourceTerminalTab resource={resource} />
+        ) : null}
+        {activeTab === "Backups" ? (
+          <ResourceBackupsTab resource={resource} />
+        ) : null}
       </div>
     </div>
   )

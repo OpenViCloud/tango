@@ -1,36 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState, useEffect } from "react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 
 import type { ResourceRunModel } from "@/@types/models"
 import { Badge } from "@/components/ui/badge"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
+  PROJECT_QUERY_KEYS,
   useGetResource,
   useGetResourceEnvVars,
   useSetResourceEnvVars,
   useStartResource,
   useStopResource,
-  PROJECT_QUERY_KEYS,
 } from "@/hooks/api/use-project"
 import { useResourceRunLogs } from "@/hooks/api/use-resource-run-logs"
-import ResourceDetails from "@/pages/auth/projects/components/resource-details"
-import type { EnvEntry } from "@/pages/auth/projects/components/ConfigGeneralForm"
+import ResourceDetails from "@/pages/auth/resources/components/resource-details"
+import type { EnvEntry } from "@/pages/auth/resources/components/ConfigGeneralForm"
 import { useQueryClient } from "@tanstack/react-query"
 
 type ResourceDetailPageProps = {
   resourceId: string
 }
 
-export default function ResourceDetailPage({
-  resourceId,
-}: ResourceDetailPageProps) {
+export default function ResourceDetailPage({ resourceId }: ResourceDetailPageProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const {
@@ -46,8 +39,8 @@ export default function ResourceDetailPage({
   const setEnvVarsMutation = useSetResourceEnvVars(resourceId)
   const startMutation = useStartResource()
   const stopMutation = useStopResource()
-
   const [activeRun, setActiveRun] = useState<ResourceRunModel | null>(null)
+
   const initialEnvEntries = useMemo<EnvEntry[]>(
     () =>
       envVars && envVars.length > 0
@@ -88,9 +81,7 @@ export default function ResourceDetailPage({
     stopMutation.mutate(resourceId, {
       onSuccess: async () => {
         toast.success(t("projects.resource.stopped"))
-        await queryClient.invalidateQueries({
-          queryKey: ["resource", resourceId],
-        })
+        await queryClient.invalidateQueries({ queryKey: ["resource", resourceId] })
         await queryClient.invalidateQueries({
           queryKey: PROJECT_QUERY_KEYS.resourceEnvVars(resourceId),
         })
@@ -127,9 +118,7 @@ export default function ResourceDetailPage({
         onStop={handleStop}
         pending={setEnvVarsMutation.isPending}
         actionPending={
-          startMutation.isPending ||
-          stopMutation.isPending ||
-          activeRun !== null
+          startMutation.isPending || stopMutation.isPending || activeRun !== null
         }
         isLoadingEnvVars={isLoadingEnvVars}
         isEnvVarsError={isEnvVarsError}
@@ -139,9 +128,7 @@ export default function ResourceDetailPage({
         resourceName={resource.name}
         onClose={() => setActiveRun(null)}
         onCompleted={async () => {
-          await queryClient.invalidateQueries({
-            queryKey: ["resource", resourceId],
-          })
+          await queryClient.invalidateQueries({ queryKey: ["resource", resourceId] })
           await queryClient.invalidateQueries({
             queryKey: PROJECT_QUERY_KEYS.resourceEnvVars(resourceId),
           })
@@ -225,7 +212,7 @@ function ResourceRunLogSheet({
               <Skeleton className="h-4 w-5/6" />
             </div>
           ) : (
-            <pre className="min-h-[220px] rounded-md bg-muted p-4 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">
+            <pre className="min-h-[220px] whitespace-pre-wrap break-all rounded-md bg-muted p-4 font-mono text-xs leading-relaxed">
               {logs || t("projects.resource.logEmpty")}
               {connected ? <span className="animate-pulse">▌</span> : null}
               <div ref={bottomRef} />

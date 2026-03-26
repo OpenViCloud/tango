@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-import ResourceDetailPage from "@/pages/auth/projects/resource-detail-page"
+import ResourceDetailPage from "@/pages/auth/resources/resource-detail-page"
 
 export const Route = createFileRoute("/_auth/resources/$resourceId")({
   component: ResourceDetailRoute,

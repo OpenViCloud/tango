@@ -28,6 +28,7 @@ type ProjectHandler struct {
 	getProject        *query.GetProjectHandler
 	listEnvResources  *query.ListEnvironmentResourcesHandler
 	getResource       *query.GetResourceHandler
+	dockerRepo        domain.DockerRepository
 }
 
 func NewProjectHandler(
@@ -45,6 +46,7 @@ func NewProjectHandler(
 	getProject *query.GetProjectHandler,
 	listEnvResources *query.ListEnvironmentResourcesHandler,
 	getResource *query.GetResourceHandler,
+	dockerRepo domain.DockerRepository,
 ) *ProjectHandler {
 	return &ProjectHandler{
 		createProject:     createProject,
@@ -61,6 +63,7 @@ func NewProjectHandler(
 		getProject:        getProject,
 		listEnvResources:  listEnvResources,
 		getResource:       getResource,
+		dockerRepo:        dockerRepo,
 	}
 }
 
@@ -78,6 +81,7 @@ func (h *ProjectHandler) Register(rg *gin.RouterGroup) {
 	rg.DELETE("/resources/:resourceId", h.DeleteResource)
 	rg.POST("/resources/:resourceId/start", h.StartResource)
 	rg.POST("/resources/:resourceId/stop", h.StopResource)
+	rg.GET("/resources/:resourceId/logs", h.GetResourceLogs)
 	rg.GET("/resources/:resourceId/env-vars", h.GetEnvVars)
 	rg.PUT("/resources/:resourceId/env-vars", h.SetEnvVars)
 }
@@ -165,6 +169,13 @@ type resourceRunResponse struct {
 	FinishedAt string `json:"finished_at,omitempty"`
 	CreatedAt  string `json:"created_at"`
 	UpdatedAt  string `json:"updated_at"`
+}
+
+type resourceLogsResponse struct {
+	ResourceID  string   `json:"resource_id"`
+	ContainerID string   `json:"container_id"`
+	Status      string   `json:"status"`
+	Lines       []string `json:"lines"`
 }
 
 type envResponse struct {
@@ -380,6 +391,41 @@ func (h *ProjectHandler) StopResource(c *gin.Context) {
 		return
 	}
 	response.NoContent(c)
+}
+
+func (h *ProjectHandler) GetResourceLogs(c *gin.Context) {
+	resource, err := h.getResource.Handle(c.Request.Context(), query.GetResourceQuery{ID: c.Param("resourceId")})
+	if err != nil {
+		writeProjectError(c, err)
+		return
+	}
+
+	resp := resourceLogsResponse{
+		ResourceID:  resource.ID,
+		ContainerID: resource.ContainerID,
+		Status:      resource.Status,
+		Lines:       []string{},
+	}
+
+	if resource.ContainerID == "" {
+		response.OK(c, resp)
+		return
+	}
+	if h.dockerRepo == nil {
+		response.OK(c, resp)
+		return
+	}
+
+	tail := c.DefaultQuery("tail", "200")
+	lines, err := h.dockerRepo.GetContainerLogs(c.Request.Context(), resource.ContainerID, domain.GetContainerLogsInput{
+		Tail: tail,
+	})
+	if err != nil {
+		writeProjectError(c, err)
+		return
+	}
+	resp.Lines = lines
+	response.OK(c, resp)
 }
 
 func (h *ProjectHandler) GetEnvVars(c *gin.Context) {

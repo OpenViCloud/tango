@@ -60,6 +60,10 @@ type CreateContainerInput struct {
 	AutoRemove   bool
 }
 
+type GetContainerLogsInput struct {
+	Tail string
+}
+
 // DockerRepository abstracts all Docker Engine operations.
 type DockerRepository interface {
 	ListImages(ctx context.Context) ([]Image, error)
@@ -67,6 +71,7 @@ type DockerRepository interface {
 	RemoveImage(ctx context.Context, imageID string, force bool) error
 	ListContainers(ctx context.Context, all bool) ([]Container, error)
 	CreateContainer(ctx context.Context, input CreateContainerInput) (Container, error)
+	GetContainerLogs(ctx context.Context, containerID string, input GetContainerLogsInput) ([]string, error)
 	StartContainer(ctx context.Context, containerID string) error
 	StopContainer(ctx context.Context, containerID string) error
 	RemoveContainer(ctx context.Context, containerID string, force bool) error

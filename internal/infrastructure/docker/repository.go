@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	dockertypes "github.com/docker/docker/api/types"
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 
 	"tango/internal/domain"
@@ -160,6 +162,39 @@ func (r *Repository) CreateContainer(ctx context.Context, input domain.CreateCon
 	return mapInspect(inspect), nil
 }
 
+func (r *Repository) GetContainerLogs(ctx context.Context, containerID string, input domain.GetContainerLogsInput) ([]string, error) {
+	reader, err := r.client.ContainerLogs(ctx, containerID, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Timestamps: false,
+		Tail:       input.Tail,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get container logs %s: %w", containerID, err)
+	}
+	defer reader.Close()
+
+	var stdout strings.Builder
+	var stderr strings.Builder
+	if _, err := stdcopy.StdCopy(&stdout, &stderr, reader); err != nil {
+		return nil, fmt.Errorf("decode container logs %s: %w", containerID, err)
+	}
+
+	combined := stdout.String()
+	if stderr.Len() > 0 {
+		if combined != "" && !strings.HasSuffix(combined, "\n") {
+			combined += "\n"
+		}
+		combined += stderr.String()
+	}
+
+	lines := splitLogLines(combined)
+	if len(lines) == 0 {
+		return []string{}, nil
+	}
+	return lines, nil
+}
+
 // StartContainer starts a stopped or newly created container.
 func (r *Repository) StartContainer(ctx context.Context, containerID string) error {
 	if err := r.client.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
@@ -299,4 +334,27 @@ func parseContainerPort(value string) (nat.Port, error) {
 	}
 
 	return nat.NewPort(proto, portValue)
+}
+
+func splitLogLines(raw string) []string {
+	items := strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n")
+	lines := make([]string, 0, len(items))
+	for _, item := range items {
+		trimmed := strings.TrimSpace(item)
+		if trimmed == "" {
+			continue
+		}
+		lines = append(lines, trimmed)
+	}
+	return lines
+}
+
+func tailValue(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "200"
+	}
+	if _, err := strconv.Atoi(value); err != nil {
+		return "200"
+	}
+	return value
 }

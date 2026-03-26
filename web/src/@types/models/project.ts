@@ -35,6 +35,13 @@ export const resourceRunSchema = z.object({
   updated_at: z.string(),
 })
 
+export const resourceLogsSchema = z.object({
+  resource_id: z.string(),
+  container_id: z.string(),
+  status: z.string(),
+  lines: z.array(z.string()),
+})
+
 export const environmentSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -66,6 +73,7 @@ export type ResourceModel = z.infer<typeof resourceSchema>
 export type ResourcePortModel = z.infer<typeof resourcePortSchema>
 export type ResourceEnvVarModel = z.infer<typeof resourceEnvVarSchema>
 export type ResourceRunModel = z.infer<typeof resourceRunSchema>
+export type ResourceLogsModel = z.infer<typeof resourceLogsSchema>
 
 // ── Create schemas ─────────────────────────────────────────────────────────────
 

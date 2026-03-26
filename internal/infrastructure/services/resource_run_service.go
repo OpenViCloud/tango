@@ -145,8 +145,14 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 		updateStatus(domain.ResourceRunStatusCreating)
 		logLine("[create] creating container")
 
+		containerName, err := buildUniqueContainerName(ctx, s.dockerRepo, resource)
+		if err != nil {
+			return fail("allocate container name", err)
+		}
+		logLine(fmt.Sprintf("[create] using container name %s", containerName))
+
 		ct, err := s.dockerRepo.CreateContainer(ctx, domain.CreateContainerInput{
-			Name:         resource.Name,
+			Name:         containerName,
 			Image:        imageRef,
 			Env:          buildResourceEnv(resource.EnvVars),
 			PortBindings: buildResourcePortBindings(resource.Ports),

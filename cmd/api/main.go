@@ -247,6 +247,7 @@ func main() {
 		getProjectHandler,
 		listEnvResourcesHandler,
 		getResourceHandler,
+		dockerRepo,
 	)
 
 	docs.SwaggerInfo.BasePath = "/api"

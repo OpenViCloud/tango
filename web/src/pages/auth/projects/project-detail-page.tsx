@@ -74,7 +74,7 @@ type ResourcePreset = {
   color: string
   abbr: string
   tags: string[]
-  port: { host: string; container: string }
+  ports: { host: string; container: string }[]
   dataPath: string
   env: EnvPreset[]
   type: string
@@ -90,7 +90,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     color: "#336791",
     abbr: "PG",
     tags: ["latest", "17", "16", "15", "14", "13"],
-    port: { host: "5432", container: "5432" },
+    ports: [{ host: "5432", container: "5432" }],
     dataPath: "/var/lib/postgresql/data",
     env: [
       { key: "POSTGRES_PASSWORD", value: "postgres" },
@@ -107,11 +107,28 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     color: "#4479A1",
     abbr: "MY",
     tags: ["latest", "9.0", "8.4", "8.0", "5.7"],
-    port: { host: "3306", container: "3306" },
+    ports: [{ host: "3306", container: "3306" }],
     dataPath: "/var/lib/mysql",
     env: [
       { key: "MYSQL_ROOT_PASSWORD", value: "root" },
       { key: "MYSQL_DATABASE", value: "mydb" },
+    ],
+    type: "db",
+  },
+  {
+    id: "sqlserver",
+    name: "SQL Server",
+    image: "mcr.microsoft.com/mssql/server",
+    description: "Microsoft SQL Server — enterprise relational database engine.",
+    color: "#CC2927",
+    abbr: "MS",
+    tags: ["latest", "2022-latest", "2019-latest"],
+    ports: [{ host: "1433", container: "1433" }],
+    dataPath: "/var/opt/mssql",
+    env: [
+      { key: "ACCEPT_EULA", value: "Y" },
+      { key: "SA_PASSWORD", value: "SqlServer@123" },
+      { key: "MSSQL_PID", value: "Developer" },
     ],
     type: "db",
   },
@@ -123,7 +140,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     color: "#DC382D",
     abbr: "RD",
     tags: ["latest", "7.4", "7.2", "7.0", "6.2"],
-    port: { host: "6379", container: "6379" },
+    ports: [{ host: "6379", container: "6379" }],
     dataPath: "/data",
     env: [],
     type: "db",
@@ -136,7 +153,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     color: "#00874A",
     abbr: "MG",
     tags: ["latest", "8.0", "7.0", "6.0", "5.0"],
-    port: { host: "27017", container: "27017" },
+    ports: [{ host: "27017", container: "27017" }],
     dataPath: "/data/db",
     env: [
       { key: "MONGO_INITDB_ROOT_USERNAME", value: "root" },
@@ -152,7 +169,10 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     color: "#FF6600",
     abbr: "RQ",
     tags: ["management", "latest", "4.0-management"],
-    port: { host: "5672", container: "5672" },
+    ports: [
+      { host: "5672", container: "5672" },
+      { host: "15672", container: "15672" },
+    ],
     dataPath: "/var/lib/rabbitmq",
     env: [
       { key: "RABBITMQ_DEFAULT_USER", value: "admin" },
@@ -168,7 +188,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     color: "#009639",
     abbr: "NG",
     tags: ["latest", "1.27", "1.26", "alpine"],
-    port: { host: "8080", container: "80" },
+    ports: [{ host: "8080", container: "80" }],
     dataPath: "/usr/share/nginx/html",
     env: [],
     type: "app",
@@ -369,7 +389,7 @@ function DeployResourceSheet({
     setTag(preset.tags[0] ?? "latest")
     setName(preset.id)
     setResourceType(preset.type)
-    setPorts([{ host: preset.port.host, container: preset.port.container }])
+    setPorts(preset.ports.map((p) => ({ host: p.host, container: p.container })))
     setEnvEntries(
       preset.env.length > 0
         ? preset.env.map((e) => ({ key: e.key, value: e.value }))

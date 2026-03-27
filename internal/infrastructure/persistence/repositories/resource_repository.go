@@ -136,6 +136,48 @@ func (r *ResourceRepository) GetByID(ctx context.Context, id string) (*domain.Re
 	return toDomainResource(record, portRecords, evRecords)
 }
 
+func (r *ResourceRepository) Update(ctx context.Context, id string, input domain.UpdateResourceInput) (*domain.Resource, error) {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&models.ResourceRecord{}).Where("id = ?", id).Updates(map[string]any{
+			"name":         input.Name,
+			"container_id": "",
+			"updated_at":   time.Now().UTC(),
+		})
+		if result.Error != nil {
+			return fmt.Errorf("update resource: %w", result.Error)
+		}
+		if result.RowsAffected == 0 {
+			return domain.ErrResourceNotFound
+		}
+
+		if err := tx.Where("resource_id = ?", id).Delete(&models.ResourcePortRecord{}).Error; err != nil {
+			return fmt.Errorf("delete resource ports: %w", err)
+		}
+		for _, p := range input.Ports {
+			proto := p.Proto
+			if proto == "" {
+				proto = "tcp"
+			}
+			portRecord := models.ResourcePortRecord{
+				ID:           uuid.New().String(),
+				ResourceID:   id,
+				HostPort:     p.HostPort,
+				InternalPort: p.InternalPort,
+				Proto:        proto,
+				Label:        p.Label,
+			}
+			if err := tx.Create(&portRecord).Error; err != nil {
+				return fmt.Errorf("create resource port: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r.GetByID(ctx, id)
+}
+
 func (r *ResourceRepository) UpdateStatus(ctx context.Context, id string, status domain.ResourceStatus, containerID string) error {
 	result := r.db.WithContext(ctx).Model(&models.ResourceRecord{}).
 		Where("id = ?", id).

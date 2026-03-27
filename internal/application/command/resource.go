@@ -121,6 +121,42 @@ func (h *CreateResourceHandler) Handle(ctx context.Context, cmd CreateResourceCo
 	return h.resourceRepo.GetByID(ctx, resource.ID)
 }
 
+// ── Update Resource ───────────────────────────────────────────────────────────
+
+type UpdateResourceCommand struct {
+	ID    string
+	Name  string
+	Ports []ResourcePortInput
+}
+
+type UpdateResourceHandler struct {
+	resourceRepo domain.ResourceRepository
+}
+
+func NewUpdateResourceHandler(resourceRepo domain.ResourceRepository) *UpdateResourceHandler {
+	return &UpdateResourceHandler{resourceRepo: resourceRepo}
+}
+
+func (h *UpdateResourceHandler) Handle(ctx context.Context, cmd UpdateResourceCommand) (*domain.Resource, error) {
+	ports := make([]domain.ResourcePort, 0, len(cmd.Ports))
+	for _, p := range cmd.Ports {
+		proto := p.Proto
+		if proto == "" {
+			proto = "tcp"
+		}
+		ports = append(ports, domain.ResourcePort{
+			HostPort:     p.HostPort,
+			InternalPort: p.InternalPort,
+			Proto:        proto,
+			Label:        p.Label,
+		})
+	}
+	return h.resourceRepo.Update(ctx, cmd.ID, domain.UpdateResourceInput{
+		Name:  cmd.Name,
+		Ports: ports,
+	})
+}
+
 // ── Start Resource ────────────────────────────────────────────────────────────
 
 type StartResourceCommand struct {

@@ -69,10 +69,16 @@ type CreateResourceInput struct {
 	EnvVars       []ResourceEnvVar
 }
 
+type UpdateResourceInput struct {
+	Name  string
+	Ports []ResourcePort
+}
+
 type ResourceRepository interface {
 	Create(ctx context.Context, input CreateResourceInput) (*Resource, error)
 	ListByEnvironment(ctx context.Context, environmentID string) ([]*Resource, error)
 	GetByID(ctx context.Context, id string) (*Resource, error)
+	Update(ctx context.Context, id string, input UpdateResourceInput) (*Resource, error)
 	UpdateStatus(ctx context.Context, id string, status ResourceStatus, containerID string) error
 	Delete(ctx context.Context, id string) error
 	SetEnvVars(ctx context.Context, resourceID string, vars []ResourceEnvVar) error

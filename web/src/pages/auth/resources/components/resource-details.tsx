@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next"
 
 import type { ResourceModel } from "@/@types/models"
 import { Button } from "@/components/ui/button"
-import { type EnvEntry } from "./ConfigGeneralForm"
+import { type EnvEntry, type PortEntry } from "./ConfigGeneralForm"
 import { ResourceBackupsTab } from "./tabs/ResourceBackupsTab"
 import { ResourceConfigurationTab } from "./tabs/ResourceConfigurationTab"
 import { ResourceLogsTab } from "./tabs/ResourceLogsTab"
@@ -14,7 +14,7 @@ import { ResourceTerminalTab } from "./tabs/ResourceTerminalTab"
 type ResourceDetailsProps = {
   resource: ResourceModel
   initialEnvEntries: EnvEntry[]
-  onSave: (entries: EnvEntry[]) => void
+  onSave: (entries: EnvEntry[], name: string, ports: PortEntry[]) => void
   onStart: () => void
   onStop: () => void
   pending: boolean
@@ -42,6 +42,17 @@ export default function ResourceDetails({
   const [activeTab, setActiveTab] = useState("Configuration")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [envEntries, setEnvEntries] = useState<EnvEntry[]>(initialEnvEntries)
+  const [resourceName, setResourceName] = useState(resource.name)
+  const [portEntries, setPortEntries] = useState<PortEntry[]>(
+    resource.ports.length > 0
+      ? resource.ports.map((p) => ({
+          host_port: String(p.host_port),
+          internal_port: String(p.internal_port),
+          proto: p.proto || "tcp",
+          label: p.label || "",
+        }))
+      : [{ host_port: "", internal_port: "", proto: "tcp", label: "" }]
+  )
 
   const statusDotClass =
     resource.status === "running" ? "bg-green-500" : "bg-destructive"
@@ -129,9 +140,13 @@ export default function ResourceDetails({
               resource={resource}
               activeSection={activeSection}
               onSelectSection={setActiveSection}
+              resourceName={resourceName}
+              setResourceName={setResourceName}
+              portEntries={portEntries}
+              setPortEntries={setPortEntries}
               envEntries={envEntries}
               setEnvEntries={setEnvEntries}
-              onSave={() => onSave(envEntries)}
+              onSave={() => onSave(envEntries, resourceName, portEntries)}
               pending={pending}
               isLoadingEnvVars={isLoadingEnvVars}
               isEnvVarsError={isEnvVarsError}

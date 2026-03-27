@@ -222,6 +222,7 @@ func main() {
 	createEnvironmentHandler := command.NewCreateEnvironmentHandler(environmentRepo)
 	deleteEnvironmentHandler := command.NewDeleteEnvironmentHandler(environmentRepo)
 	createResourceHandler := command.NewCreateResourceHandler(resourceRepo, dockerRepo)
+	updateResourceHandler := command.NewUpdateResourceHandler(resourceRepo)
 	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, logger)
 	createStartResourceRunHandler := command.NewCreateStartResourceRunHandler(resourceRepo, resourceRunRepo, resourceRunSvc)
 	stopResourceHandler := command.NewStopResourceHandler(resourceRepo, dockerRepo)
@@ -243,6 +244,7 @@ func main() {
 		createEnvironmentHandler,
 		deleteEnvironmentHandler,
 		createResourceHandler,
+		updateResourceHandler,
 		createStartResourceRunHandler,
 		stopResourceHandler,
 		deleteResourceHandler,

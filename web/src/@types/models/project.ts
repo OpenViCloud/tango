@@ -118,7 +118,22 @@ export const updateProjectSchema = z.object({
   description: z.string().optional(),
 })
 
+export const updateResourceSchema = z.object({
+  name: z.string().min(1, "validation.required"),
+  ports: z
+    .array(
+      z.object({
+        host_port: z.number(),
+        internal_port: z.number(),
+        proto: z.string().default("tcp"),
+        label: z.string().optional(),
+      })
+    )
+    .optional(),
+})
+
 export type CreateProjectModel = z.infer<typeof createProjectSchema>
 export type CreateEnvironmentModel = z.infer<typeof createEnvironmentSchema>
 export type CreateResourceModel = z.infer<typeof createResourceSchema>
 export type UpdateProjectModel = z.infer<typeof updateProjectSchema>
+export type UpdateResourceModel = z.infer<typeof updateResourceSchema>

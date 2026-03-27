@@ -12,8 +12,19 @@ type EnvEntry = {
   is_secret: boolean
 }
 
+type PortEntry = {
+  host_port: string
+  internal_port: string
+  proto: string
+  label: string
+}
+
 type ConfigGeneralFormProps = {
   resource: ResourceModel | null
+  resourceName: string
+  setResourceName: (name: string) => void
+  portEntries: PortEntry[]
+  setPortEntries: (ports: PortEntry[]) => void
   envEntries: EnvEntry[]
   setEnvEntries: (entries: EnvEntry[]) => void
   onSave: () => void
@@ -27,6 +38,10 @@ const DeleteIcon = actionIcons.delete
 
 export function ConfigGeneralForm({
   resource,
+  resourceName,
+  setResourceName,
+  portEntries,
+  setPortEntries,
   envEntries,
   setEnvEntries,
   onSave,
@@ -49,7 +64,14 @@ export function ConfigGeneralForm({
 
       {resource ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <ReadOnlyField label={t("projects.nameLabel")} value={resource.name} />
+          <div className="flex flex-col gap-1.5">
+            <Label>{t("projects.nameLabel")}</Label>
+            <Input
+              value={resourceName}
+              onChange={(e) => setResourceName(e.target.value)}
+              placeholder={t("projects.nameLabel")}
+            />
+          </div>
           <ReadOnlyField
             label={t("projects.resource.typeLabel")}
             value={resource.type}
@@ -63,21 +85,89 @@ export function ConfigGeneralForm({
             label="Container ID"
             value={resource.container_id || "-"}
           />
-          <ReadOnlyField
-            label={t("projects.resource.portsLabel")}
-            value={
-              resource.ports.length > 0
-                ? resource.ports
-                    .map(
-                      (port) =>
-                        `${port.host_port}:${port.internal_port}/${port.proto}`
-                    )
-                    .join(", ")
-                : "-"
-            }
-          />
         </div>
       ) : null}
+
+      <div className="flex flex-col gap-4">
+        <h3 className="text-lg font-bold text-foreground">
+          {t("projects.resource.portsLabel")}
+        </h3>
+
+        <div className="flex flex-col gap-3">
+          {portEntries.map((port, index) => (
+            <div key={index} className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+              <div className="flex flex-col gap-1.5">
+                <Label>Host Port</Label>
+                <Input
+                  value={port.host_port}
+                  onChange={(e) => {
+                    const next = [...portEntries]
+                    next[index] = { ...next[index], host_port: e.target.value }
+                    setPortEntries(next)
+                  }}
+                  placeholder="e.g. 5432"
+                  inputMode="numeric"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Container Port</Label>
+                <Input
+                  value={port.internal_port}
+                  onChange={(e) => {
+                    const next = [...portEntries]
+                    next[index] = { ...next[index], internal_port: e.target.value }
+                    setPortEntries(next)
+                  }}
+                  placeholder="e.g. 5432"
+                  inputMode="numeric"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Label</Label>
+                <Input
+                  value={port.label}
+                  onChange={(e) => {
+                    const next = [...portEntries]
+                    next[index] = { ...next[index], label: e.target.value }
+                    setPortEntries(next)
+                  }}
+                  placeholder="e.g. Management UI"
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    portEntries.length > 1
+                      ? setPortEntries(portEntries.filter((_, i) => i !== index))
+                      : setPortEntries([{ host_port: "", internal_port: "", proto: "tcp", label: "" }])
+                  }
+                >
+                  <DeleteIcon />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              setPortEntries([
+                ...portEntries,
+                { host_port: "", internal_port: "", proto: "tcp", label: "" },
+              ])
+            }
+          >
+            <CreateIcon data-icon="inline-start" />
+            Add Port
+          </Button>
+        </div>
+      </div>
 
       <div className="flex flex-col gap-4">
         <h3 className="text-lg font-bold text-foreground">
@@ -178,4 +268,4 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   )
 }
 
-export type { EnvEntry, ConfigGeneralFormProps }
+export type { EnvEntry, PortEntry, ConfigGeneralFormProps }

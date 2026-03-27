@@ -20,6 +20,7 @@ type ProjectHandler struct {
 	createEnvironment *command.CreateEnvironmentHandler
 	deleteEnvironment *command.DeleteEnvironmentHandler
 	createResource    *command.CreateResourceHandler
+	updateResource    *command.UpdateResourceHandler
 	startResourceRun  *command.CreateStartResourceRunHandler
 	stopResource      *command.StopResourceHandler
 	deleteResource    *command.DeleteResourceHandler
@@ -38,6 +39,7 @@ func NewProjectHandler(
 	createEnvironment *command.CreateEnvironmentHandler,
 	deleteEnvironment *command.DeleteEnvironmentHandler,
 	createResource *command.CreateResourceHandler,
+	updateResource *command.UpdateResourceHandler,
 	startResourceRun *command.CreateStartResourceRunHandler,
 	stopResource *command.StopResourceHandler,
 	deleteResource *command.DeleteResourceHandler,
@@ -55,6 +57,7 @@ func NewProjectHandler(
 		createEnvironment: createEnvironment,
 		deleteEnvironment: deleteEnvironment,
 		createResource:    createResource,
+		updateResource:    updateResource,
 		startResourceRun:  startResourceRun,
 		stopResource:      stopResource,
 		deleteResource:    deleteResource,
@@ -78,6 +81,7 @@ func (h *ProjectHandler) Register(rg *gin.RouterGroup) {
 	rg.GET("/environments/:envId/resources", h.ListResources)
 	rg.POST("/environments/:envId/resources", h.CreateResource)
 	rg.GET("/resources/:resourceId", h.GetResource)
+	rg.PUT("/resources/:resourceId", h.UpdateResource)
 	rg.DELETE("/resources/:resourceId", h.DeleteResource)
 	rg.POST("/resources/:resourceId/start", h.StartResource)
 	rg.POST("/resources/:resourceId/stop", h.StopResource)
@@ -123,6 +127,11 @@ type createResourceRequest struct {
 	Config  map[string]any                `json:"config"`
 	Ports   []createResourcePortRequest   `json:"ports"`
 	EnvVars []createResourceEnvVarRequest `json:"env_vars"`
+}
+
+type updateResourceRequest struct {
+	Name  string                        `json:"name"`
+	Ports []createResourcePortRequest   `json:"ports"`
 }
 
 type setEnvVarsRequest struct {
@@ -355,6 +364,33 @@ func (h *ProjectHandler) CreateResource(c *gin.Context) {
 
 func (h *ProjectHandler) GetResource(c *gin.Context) {
 	resource, err := h.getResource.Handle(c.Request.Context(), query.GetResourceQuery{ID: c.Param("resourceId")})
+	if err != nil {
+		writeProjectError(c, err)
+		return
+	}
+	response.OK(c, toResourceResponse(resource))
+}
+
+func (h *ProjectHandler) UpdateResource(c *gin.Context) {
+	var req updateResourceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(response.Validation(nil, err.Error()))
+		return
+	}
+	ports := make([]command.ResourcePortInput, 0, len(req.Ports))
+	for _, p := range req.Ports {
+		ports = append(ports, command.ResourcePortInput{
+			HostPort:     p.HostPort,
+			InternalPort: p.InternalPort,
+			Proto:        p.Proto,
+			Label:        p.Label,
+		})
+	}
+	resource, err := h.updateResource.Handle(c.Request.Context(), command.UpdateResourceCommand{
+		ID:    c.Param("resourceId"),
+		Name:  req.Name,
+		Ports: ports,
+	})
 	if err != nil {
 		writeProjectError(c, err)
 		return

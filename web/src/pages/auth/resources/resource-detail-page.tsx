@@ -11,12 +11,13 @@ import {
   useGetResource,
   useGetResourceEnvVars,
   useSetResourceEnvVars,
+  useUpdateResource,
   useStartResource,
   useStopResource,
 } from "@/hooks/api/use-project"
 import { useResourceRunLogs } from "@/hooks/api/use-resource-run-logs"
 import ResourceDetails from "@/pages/auth/resources/components/resource-details"
-import type { EnvEntry } from "@/pages/auth/resources/components/ConfigGeneralForm"
+import type { EnvEntry, PortEntry } from "@/pages/auth/resources/components/ConfigGeneralForm"
 import { useQueryClient } from "@tanstack/react-query"
 
 type ResourceDetailPageProps = {
@@ -37,6 +38,7 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
     isError: isEnvVarsError,
   } = useGetResourceEnvVars(resourceId)
   const setEnvVarsMutation = useSetResourceEnvVars(resourceId)
+  const updateResourceMutation = useUpdateResource(resourceId)
   const startMutation = useStartResource()
   const stopMutation = useStopResource()
   const [activeRun, setActiveRun] = useState<ResourceRunModel | null>(null)
@@ -53,17 +55,30 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
     [envVars]
   )
 
-  const handleSave = async (entries: EnvEntry[]) => {
+  const handleSave = async (entries: EnvEntry[], name: string, ports: PortEntry[]) => {
     try {
-      await setEnvVarsMutation.mutateAsync(
-        entries
-          .filter((item) => item.key.trim())
-          .map((item) => ({
-            key: item.key.trim(),
-            value: item.value,
-            is_secret: item.is_secret,
-          }))
-      )
+      await Promise.all([
+        updateResourceMutation.mutateAsync({
+          name: name.trim() || resource!.name,
+          ports: ports
+            .filter((p) => p.host_port !== "" && p.internal_port !== "")
+            .map((p) => ({
+              host_port: Number(p.host_port),
+              internal_port: Number(p.internal_port),
+              proto: p.proto || "tcp",
+              label: p.label,
+            })),
+        }),
+        setEnvVarsMutation.mutateAsync(
+          entries
+            .filter((item) => item.key.trim())
+            .map((item) => ({
+              key: item.key.trim(),
+              value: item.value,
+              is_secret: item.is_secret,
+            }))
+        ),
+      ])
       toast.success(t("projects.resource.updated"))
     } catch {
       // Mutation toast handles backend errors.
@@ -116,7 +131,7 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
         onSave={handleSave}
         onStart={handleStart}
         onStop={handleStop}
-        pending={setEnvVarsMutation.isPending}
+        pending={setEnvVarsMutation.isPending || updateResourceMutation.isPending}
         actionPending={
           startMutation.isPending || stopMutation.isPending || activeRun !== null
         }

@@ -1,12 +1,16 @@
 import type { ResourceModel } from "@/@types/models"
 
 import { ConfigSidebar } from "@/pages/auth/projects/components/ConfigSidebar"
-import { ConfigGeneralForm, type EnvEntry } from "@/pages/auth/resources/components/ConfigGeneralForm"
+import { ConfigGeneralForm, type EnvEntry, type PortEntry } from "@/pages/auth/resources/components/ConfigGeneralForm"
 
 type ResourceConfigurationTabProps = {
   resource: ResourceModel
   activeSection: string
   onSelectSection: (section: string) => void
+  resourceName: string
+  setResourceName: (name: string) => void
+  portEntries: PortEntry[]
+  setPortEntries: (ports: PortEntry[]) => void
   envEntries: EnvEntry[]
   setEnvEntries: (entries: EnvEntry[]) => void
   onSave: () => void
@@ -21,6 +25,10 @@ export function ResourceConfigurationTab({
   resource,
   activeSection,
   onSelectSection,
+  resourceName,
+  setResourceName,
+  portEntries,
+  setPortEntries,
   envEntries,
   setEnvEntries,
   onSave,
@@ -54,6 +62,10 @@ export function ResourceConfigurationTab({
       <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
         <ConfigGeneralForm
           resource={resource}
+          resourceName={resourceName}
+          setResourceName={setResourceName}
+          portEntries={portEntries}
+          setPortEntries={setPortEntries}
           envEntries={envEntries}
           setEnvEntries={setEnvEntries}
           onSave={onSave}

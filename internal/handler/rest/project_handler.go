@@ -14,22 +14,23 @@ import (
 
 // ProjectHandler exposes project, environment, and resource management endpoints.
 type ProjectHandler struct {
-	createProject     *command.CreateProjectHandler
-	updateProject     *command.UpdateProjectHandler
-	deleteProject     *command.DeleteProjectHandler
-	createEnvironment *command.CreateEnvironmentHandler
-	deleteEnvironment *command.DeleteEnvironmentHandler
-	createResource    *command.CreateResourceHandler
-	updateResource    *command.UpdateResourceHandler
-	startResourceRun  *command.CreateStartResourceRunHandler
-	stopResource      *command.StopResourceHandler
-	deleteResource    *command.DeleteResourceHandler
-	setEnvVars        *command.SetResourceEnvVarsHandler
-	listProjects      *query.ListProjectsHandler
-	getProject        *query.GetProjectHandler
-	listEnvResources  *query.ListEnvironmentResourcesHandler
-	getResource       *query.GetResourceHandler
-	dockerRepo        domain.DockerRepository
+	createProject         *command.CreateProjectHandler
+	updateProject         *command.UpdateProjectHandler
+	deleteProject         *command.DeleteProjectHandler
+	createEnvironment     *command.CreateEnvironmentHandler
+	deleteEnvironment     *command.DeleteEnvironmentHandler
+	createResource        *command.CreateResourceHandler
+	createResourceFromGit *command.CreateResourceFromGitHandler
+	updateResource        *command.UpdateResourceHandler
+	startResourceRun      *command.CreateStartResourceRunHandler
+	stopResource          *command.StopResourceHandler
+	deleteResource        *command.DeleteResourceHandler
+	setEnvVars            *command.SetResourceEnvVarsHandler
+	listProjects          *query.ListProjectsHandler
+	getProject            *query.GetProjectHandler
+	listEnvResources      *query.ListEnvironmentResourcesHandler
+	getResource           *query.GetResourceHandler
+	dockerRepo            domain.DockerRepository
 }
 
 func NewProjectHandler(
@@ -39,6 +40,7 @@ func NewProjectHandler(
 	createEnvironment *command.CreateEnvironmentHandler,
 	deleteEnvironment *command.DeleteEnvironmentHandler,
 	createResource *command.CreateResourceHandler,
+	createResourceFromGit *command.CreateResourceFromGitHandler,
 	updateResource *command.UpdateResourceHandler,
 	startResourceRun *command.CreateStartResourceRunHandler,
 	stopResource *command.StopResourceHandler,
@@ -51,22 +53,23 @@ func NewProjectHandler(
 	dockerRepo domain.DockerRepository,
 ) *ProjectHandler {
 	return &ProjectHandler{
-		createProject:     createProject,
-		updateProject:     updateProject,
-		deleteProject:     deleteProject,
-		createEnvironment: createEnvironment,
-		deleteEnvironment: deleteEnvironment,
-		createResource:    createResource,
-		updateResource:    updateResource,
-		startResourceRun:  startResourceRun,
-		stopResource:      stopResource,
-		deleteResource:    deleteResource,
-		setEnvVars:        setEnvVars,
-		listProjects:      listProjects,
-		getProject:        getProject,
-		listEnvResources:  listEnvResources,
-		getResource:       getResource,
-		dockerRepo:        dockerRepo,
+		createProject:         createProject,
+		updateProject:         updateProject,
+		deleteProject:         deleteProject,
+		createEnvironment:     createEnvironment,
+		deleteEnvironment:     deleteEnvironment,
+		createResource:        createResource,
+		createResourceFromGit: createResourceFromGit,
+		updateResource:        updateResource,
+		startResourceRun:      startResourceRun,
+		stopResource:          stopResource,
+		deleteResource:        deleteResource,
+		setEnvVars:            setEnvVars,
+		listProjects:          listProjects,
+		getProject:            getProject,
+		listEnvResources:      listEnvResources,
+		getResource:           getResource,
+		dockerRepo:            dockerRepo,
 	}
 }
 
@@ -80,6 +83,7 @@ func (h *ProjectHandler) Register(rg *gin.RouterGroup) {
 	rg.DELETE("/environments/:envId", h.DeleteEnvironment)
 	rg.GET("/environments/:envId/resources", h.ListResources)
 	rg.POST("/environments/:envId/resources", h.CreateResource)
+	rg.POST("/environments/:envId/resources/from-git", h.CreateResourceFromGit)
 	rg.GET("/resources/:resourceId", h.GetResource)
 	rg.PUT("/resources/:resourceId", h.UpdateResource)
 	rg.DELETE("/resources/:resourceId", h.DeleteResource)
@@ -129,6 +133,17 @@ type createResourceRequest struct {
 	EnvVars []createResourceEnvVarRequest `json:"env_vars"`
 }
 
+type createResourceFromGitRequest struct {
+	Name      string                        `json:"name"       binding:"required"`
+	GitURL    string                        `json:"git_url"    binding:"required"`
+	GitBranch string                        `json:"git_branch"`
+	BuildMode string                        `json:"build_mode"` // "auto" | "dockerfile"
+	GitToken  string                        `json:"git_token"`
+	ImageTag  string                        `json:"image_tag"  binding:"required"`
+	Ports     []createResourcePortRequest   `json:"ports"`
+	EnvVars   []createResourceEnvVarRequest `json:"env_vars"`
+}
+
 type updateResourceRequest struct {
 	Name  string                        `json:"name"`
 	Ports []createResourcePortRequest   `json:"ports"`
@@ -163,6 +178,9 @@ type resourceResponse struct {
 	ContainerID   string         `json:"container_id"`
 	Config        map[string]any `json:"config"`
 	EnvironmentID string         `json:"environment_id"`
+	SourceType    string         `json:"source_type,omitempty"`
+	GitURL        string         `json:"git_url,omitempty"`
+	BuildJobID    string         `json:"build_job_id,omitempty"`
 	CreatedAt     string         `json:"created_at"`
 	UpdatedAt     string         `json:"updated_at"`
 	Ports         []portResponse `json:"ports"`
@@ -352,6 +370,51 @@ func (h *ProjectHandler) CreateResource(c *gin.Context) {
 		Config:        req.Config,
 		EnvironmentID: c.Param("envId"),
 		CreatedBy:     userID,
+		Ports:         ports,
+		EnvVars:       envVars,
+	})
+	if err != nil {
+		writeProjectError(c, err)
+		return
+	}
+	response.Created(c, toResourceResponse(resource))
+}
+
+func (h *ProjectHandler) CreateResourceFromGit(c *gin.Context) {
+	var req createResourceFromGitRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(response.Validation(nil, err.Error()))
+		return
+	}
+	userID := c.GetString("user_id")
+
+	ports := make([]command.ResourcePortInput, 0, len(req.Ports))
+	for _, p := range req.Ports {
+		ports = append(ports, command.ResourcePortInput{
+			HostPort:     p.HostPort,
+			InternalPort: p.InternalPort,
+			Proto:        p.Proto,
+			Label:        p.Label,
+		})
+	}
+	envVars := make([]command.ResourceEnvVarInput, 0, len(req.EnvVars))
+	for _, ev := range req.EnvVars {
+		envVars = append(envVars, command.ResourceEnvVarInput{
+			Key:      ev.Key,
+			Value:    ev.Value,
+			IsSecret: ev.IsSecret,
+		})
+	}
+
+	resource, err := h.createResourceFromGit.Handle(c.Request.Context(), command.CreateResourceFromGitCommand{
+		Name:          req.Name,
+		EnvironmentID: c.Param("envId"),
+		CreatedBy:     userID,
+		GitURL:        req.GitURL,
+		GitBranch:     req.GitBranch,
+		BuildMode:     req.BuildMode,
+		GitToken:      req.GitToken,
+		ImageTag:      req.ImageTag,
 		Ports:         ports,
 		EnvVars:       envVars,
 	})
@@ -554,6 +617,9 @@ func toResourceResponse(r *domain.Resource) resourceResponse {
 		ContainerID:   r.ContainerID,
 		Config:        r.Config,
 		EnvironmentID: r.EnvironmentID,
+		SourceType:    r.SourceType,
+		GitURL:        r.GitURL,
+		BuildJobID:    r.BuildJobID,
 		CreatedAt:     r.CreatedAt.Format(timeLayout),
 		UpdatedAt:     r.UpdatedAt.Format(timeLayout),
 		Ports:         ports,

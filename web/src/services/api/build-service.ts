@@ -16,6 +16,18 @@ export const buildService = {
       .post<ApiResponse<BuildJobModel>>(baseUrl, payload)
       .then((res) => unwrapApiResponse(res.data)),
 
+  upload: (file: File, imageTag: string, buildMode: "auto" | "dockerfile") => {
+    const form = new FormData()
+    form.append("archive", file)
+    form.append("image_tag", imageTag)
+    form.append("build_mode", buildMode)
+    return api
+      .post<ApiResponse<BuildJobModel>>(`${baseUrl}/upload`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((res) => unwrapApiResponse(res.data))
+  },
+
   getById: (id: string) =>
     api
       .get<ApiResponse<BuildJobModel>>(`${baseUrl}/${id}`)

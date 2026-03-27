@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -42,6 +44,33 @@ func (s *ResourceRunService) RunStartAsync(run *domain.ResourceRun) {
 			s.logger.Error("resource start run failed", "run_id", run.ID, "resource_id", run.ResourceID, "err", err)
 		}
 	}()
+}
+
+// StartAfterBuild implements services.ResourceAutoStarter. It updates the resource
+// image to the newly built tag, then immediately kicks off a start run.
+func (s *ResourceRunService) StartAfterBuild(ctx context.Context, resourceID, imageTag string) error {
+	// 1. Persist the new image on the resource (status → stopped)
+	if err := s.resourceRepo.UpdateBuildComplete(ctx, resourceID, imageTag, ""); err != nil {
+		return fmt.Errorf("update resource build complete: %w", err)
+	}
+
+	// 2. Create a new run record
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	runID := "resrun_" + hex.EncodeToString(b)
+
+	run, err := domain.NewResourceRun(runID, resourceID)
+	if err != nil {
+		return err
+	}
+	saved, err := s.runRepo.Save(ctx, run)
+	if err != nil {
+		return fmt.Errorf("save resource run: %w", err)
+	}
+
+	// 3. Launch the start sequence asynchronously
+	s.RunStartAsync(saved)
+	return nil
 }
 
 func (s *ResourceRunService) Subscribe(runID string) (<-chan []byte, func()) {

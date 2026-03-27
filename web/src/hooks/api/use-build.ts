@@ -19,7 +19,6 @@ export const useGetBuildJob = (id: string | null) =>
     queryKey: BUILD_QUERY_KEYS.getById(id ?? ""),
     queryFn: () => buildService.getById(id ?? ""),
     enabled: Boolean(id),
-    // Poll every 3s while job is still running
     refetchInterval: (query) => {
       const status = query.state.data?.status
       if (!status) return false
@@ -32,6 +31,24 @@ export const useCreateBuildJob = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (payload: CreateBuildJobModel) => buildService.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["UseBuildJobList"] })
+    },
+  })
+}
+
+export const useUploadBuildJob = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      file,
+      imageTag,
+      buildMode,
+    }: {
+      file: File
+      imageTag: string
+      buildMode: "auto" | "dockerfile"
+    }) => buildService.upload(file, imageTag, buildMode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["UseBuildJobList"] })
     },

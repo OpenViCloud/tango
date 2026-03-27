@@ -17,8 +17,20 @@ import { SectionCard } from "@/components/share/cards/section-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { appIcons } from "@/lib/icons"
 
@@ -46,7 +58,8 @@ const DB_PRESETS: DbPreset[] = [
     id: "postgres",
     name: "PostgreSQL",
     image: "postgres",
-    description: "Advanced open source relational database with full SQL compliance.",
+    description:
+      "Advanced open source relational database with full SQL compliance.",
     color: "#336791",
     abbr: "PG",
     tags: ["latest", "17", "16", "15", "14", "13"],
@@ -121,7 +134,8 @@ const DB_PRESETS: DbPreset[] = [
     id: "elasticsearch",
     name: "Elasticsearch",
     image: "elasticsearch",
-    description: "Distributed search and analytics engine for all types of data.",
+    description:
+      "Distributed search and analytics engine for all types of data.",
     color: "#F04E98",
     abbr: "ES",
     tags: ["8.15.3", "8.14.3", "8.13.4", "7.17.24"],
@@ -172,29 +186,30 @@ function DatabaseCard({
 }) {
   const { t } = useTranslation()
   const { data: images } = useGetImageList()
-  const isLocal = images?.some((img) =>
-    img.tags.some((tag) => tag.startsWith(`${preset.image}:`))
-  ) ?? false
+  const isLocal =
+    images?.some((img) =>
+      img.tags.some((tag) => tag.startsWith(`${preset.image}:`))
+    ) ?? false
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow">
+    <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 transition-shadow hover:shadow-sm">
       <div className="flex items-start gap-3">
         <div
-          className="flex size-10 shrink-0 items-center justify-center rounded-lg text-white text-xs font-bold"
+          className="flex size-10 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
           style={{ backgroundColor: preset.color }}
         >
           {preset.abbr}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm">{preset.name}</span>
+            <span className="text-sm font-medium">{preset.name}</span>
             {isLocal && (
-              <Badge variant="secondary" className="text-xs h-4 px-1.5">
+              <Badge variant="secondary" className="h-4 px-1.5 text-xs">
                 {t("databases.card.local")}
               </Badge>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
             {preset.description}
           </p>
         </div>
@@ -202,7 +217,11 @@ function DatabaseCard({
 
       <div className="flex flex-wrap gap-1">
         {preset.tags.slice(0, 4).map((tag) => (
-          <Badge key={tag} variant="outline" className="text-xs font-mono px-1.5 h-5">
+          <Badge
+            key={tag}
+            variant="outline"
+            className="h-5 px-1.5 font-mono text-xs"
+          >
             {tag}
           </Badge>
         ))}
@@ -210,7 +229,7 @@ function DatabaseCard({
 
       <Button
         size="sm"
-        className="w-full mt-auto"
+        className="mt-auto w-full"
         onClick={() => onDeploy(preset)}
       >
         {t("databases.card.deploy")}
@@ -238,7 +257,17 @@ function DeployDatabaseSheet({
   const { data: images } = useGetImageList()
   const createMutation = useCreateContainer()
   const startMutation = useStartContainer()
-  const { headerLogs, layers, layerOrder, footerLogs, done: pullDone, error: pullError, connected: pulling, pull, reset: resetPull } = usePullImageLogs()
+  const {
+    headerLogs,
+    layers,
+    layerOrder,
+    footerLogs,
+    done: pullDone,
+    error: pullError,
+    connected: pulling,
+    pull,
+    reset: resetPull,
+  } = usePullImageLogs()
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const [phase, setPhase] = useState<DeployPhase>("idle")
@@ -316,7 +345,9 @@ function DeployDatabaseSheet({
       onSuccess: (container: ContainerModel) => {
         startMutation.mutate(container.id, {
           onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: CONTAINER_QUERY_KEYS.containers(false) })
+            queryClient.invalidateQueries({
+              queryKey: CONTAINER_QUERY_KEYS.containers(false),
+            })
             toast.success(t("databases.deploy.success", { name: preset?.name }))
             setPhase("done")
             onOpenChange(false)
@@ -368,19 +399,23 @@ function DeployDatabaseSheet({
         <SheetHeader className="border-b pb-4">
           <div className="flex items-center gap-3">
             <div
-              className="flex size-9 shrink-0 items-center justify-center rounded-lg text-white text-xs font-bold"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
               style={{ backgroundColor: preset.color }}
             >
               {preset.abbr}
             </div>
             <div>
-              <SheetTitle>{t("databases.deploy.title", { name: preset.name })}</SheetTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">{preset.description}</p>
+              <SheetTitle>
+                {t("databases.deploy.title", { name: preset.name })}
+              </SheetTitle>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {preset.description}
+              </p>
             </div>
           </div>
         </SheetHeader>
 
-        <div className="flex flex-col gap-5 py-4 flex-1">
+        <div className="flex flex-1 flex-col gap-5 py-4">
           {/* Version / tag */}
           <div className="flex flex-col gap-1.5">
             <Label>{t("databases.deploy.versionLabel")}</Label>
@@ -409,13 +444,19 @@ function DeployDatabaseSheet({
             <Input
               placeholder={`${preset.id} (${t("databases.deploy.optional")})`}
               value={name}
-              onChange={(e) => { setName(e.target.value); setNameError("") }}
+              onChange={(e) => {
+                setName(e.target.value)
+                setNameError("")
+              }}
               disabled={busy}
             />
-            {nameError
-              ? <p className="text-xs text-destructive">{nameError}</p>
-              : <p className="text-xs text-muted-foreground">{t("docker.container.nameHint")}</p>
-            }
+            {nameError ? (
+              <p className="text-xs text-destructive">{nameError}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {t("docker.container.nameHint")}
+              </p>
+            )}
           </div>
 
           {/* Port */}
@@ -429,8 +470,8 @@ function DeployDatabaseSheet({
                 onChange={(e) => setHostPort(e.target.value)}
                 disabled={busy}
               />
-              <span className="text-sm text-muted-foreground shrink-0">:</span>
-              <div className="flex-1 rounded-lg border bg-muted/50 px-3 py-2 text-sm font-mono text-muted-foreground">
+              <span className="shrink-0 text-sm text-muted-foreground">:</span>
+              <div className="flex-1 rounded-lg border bg-muted/50 px-3 py-2 font-mono text-sm text-muted-foreground">
                 {preset.port.container}/tcp
               </div>
             </div>
@@ -447,12 +488,14 @@ function DeployDatabaseSheet({
                 onChange={(e) => setHostDataPath(e.target.value)}
                 disabled={busy}
               />
-              <span className="text-sm text-muted-foreground shrink-0">:</span>
-              <div className="flex-1 rounded-lg border bg-muted/50 px-3 py-2 text-xs font-mono text-muted-foreground truncate">
+              <span className="shrink-0 text-sm text-muted-foreground">:</span>
+              <div className="flex-1 truncate rounded-lg border bg-muted/50 px-3 py-2 font-mono text-xs text-muted-foreground">
                 {preset.dataPath}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">{t("databases.deploy.volumeHint")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("databases.deploy.volumeHint")}
+            </p>
           </div>
 
           {/* Environment variables */}
@@ -489,7 +532,9 @@ function DeployDatabaseSheet({
                     size="icon"
                     className="size-8 shrink-0"
                     disabled={busy}
-                    onClick={() => setEnvEntries(envEntries.filter((_, j) => j !== i))}
+                    onClick={() =>
+                      setEnvEntries(envEntries.filter((_, j) => j !== i))
+                    }
                   >
                     <MinusIcon className="size-3.5" />
                   </Button>
@@ -501,9 +546,11 @@ function DeployDatabaseSheet({
                 size="sm"
                 className="self-start"
                 disabled={busy}
-                onClick={() => setEnvEntries([...envEntries, { key: "", value: "" }])}
+                onClick={() =>
+                  setEnvEntries([...envEntries, { key: "", value: "" }])
+                }
               >
-                <PlusIcon className="size-3.5 mr-1" />
+                <PlusIcon className="mr-1 size-3.5" />
                 {t("docker.container.addEnv")}
               </Button>
             </div>
@@ -512,28 +559,43 @@ function DeployDatabaseSheet({
           {/* Pull progress */}
           {phase === "pulling" && (
             <div className="flex flex-col gap-1.5">
-              <Label>{t("databases.deploy.pulling", { image: `${preset.image}:${tag}` })}</Label>
-              <div className="rounded-md bg-muted p-3 text-xs font-mono min-h-[120px] max-h-[200px] overflow-auto">
+              <Label>
+                {t("databases.deploy.pulling", {
+                  image: `${preset.image}:${tag}`,
+                })}
+              </Label>
+              <div className="max-h-[200px] min-h-[120px] overflow-auto rounded-md bg-muted p-3 font-mono text-xs">
                 {headerLogs && (
-                  <pre className="whitespace-pre-wrap break-all leading-relaxed mb-2">{headerLogs}</pre>
+                  <pre className="mb-2 leading-relaxed break-all whitespace-pre-wrap">
+                    {headerLogs}
+                  </pre>
                 )}
                 {layerOrder.length > 0 && (
-                  <div className="grid gap-0.5 mb-2" style={{ gridTemplateColumns: "5rem 8rem 1fr" }}>
+                  <div
+                    className="mb-2 grid gap-0.5"
+                    style={{ gridTemplateColumns: "5rem 8rem 1fr" }}
+                  >
                     {layerOrder.map((id) => {
                       const layer = layers.get(id)
                       if (!layer) return null
                       return (
                         <div key={id} className="contents">
-                          <span className="text-muted-foreground truncate">{id}</span>
+                          <span className="truncate text-muted-foreground">
+                            {id}
+                          </span>
                           <span className="truncate">{layer.status}</span>
-                          <span className="text-cyan-400 truncate">{layer.progress}</span>
+                          <span className="truncate text-cyan-400">
+                            {layer.progress}
+                          </span>
                         </div>
                       )
                     })}
                   </div>
                 )}
                 {footerLogs && (
-                  <pre className="whitespace-pre-wrap break-all leading-relaxed">{footerLogs}</pre>
+                  <pre className="leading-relaxed break-all whitespace-pre-wrap">
+                    {footerLogs}
+                  </pre>
                 )}
                 {pulling && !layerOrder.length && !headerLogs && (
                   <span className="animate-pulse">▌</span>
@@ -544,16 +606,20 @@ function DeployDatabaseSheet({
           )}
         </div>
 
-        <SheetFooter className="border-t pt-4 gap-2">
-          <Button variant="outline" disabled={busy} onClick={() => handleClose(false)}>
+        <SheetFooter className="gap-2 border-t pt-4">
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => handleClose(false)}
+          >
             {t("docker.container.cancel")}
           </Button>
           <Button disabled={busy} onClick={handleDeploy}>
             {phase === "pulling"
               ? t("databases.deploy.pulling_btn")
               : phase === "creating"
-              ? t("databases.deploy.creating_btn")
-              : t("databases.deploy.deployBtn")}
+                ? t("databases.deploy.creating_btn")
+                : t("databases.deploy.deployBtn")}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -588,7 +654,11 @@ export function DatabasesPage() {
       <SectionCard>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {DB_PRESETS.map((preset) => (
-            <DatabaseCard key={preset.id} preset={preset} onDeploy={handleDeploy} />
+            <DatabaseCard
+              key={preset.id}
+              preset={preset}
+              onDeploy={handleDeploy}
+            />
           ))}
         </div>
       </SectionCard>

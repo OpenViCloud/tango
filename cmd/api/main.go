@@ -192,6 +192,7 @@ func main() {
 	listUsersHandler := query.NewListUsersHandler(userRepo)
 	listUserRolesHandler := query.NewListUserRolesHandler(userRepo, roleRepo)
 	createBuildJobHandler := command.NewCreateBuildJobHandler(buildJobRepo, buildSvc)
+	createBuildJobFromUploadHandler := command.NewCreateBuildJobFromUploadHandler(buildJobRepo, buildSvc)
 	cancelBuildJobHandler := command.NewCancelBuildJobHandler(buildJobRepo)
 	getBuildJobHandler := query.NewGetBuildJobHandler(buildJobRepo)
 	listBuildJobsHandler := query.NewListBuildJobsHandler(buildJobRepo)
@@ -212,7 +213,7 @@ func main() {
 	channelHandler := rest.NewChannelHandler(channelService, channelRuntimeService)
 	discordRuntimeHandler := rest.NewDiscordRuntimeHandler(discordRuntime)
 	roleHandler := rest.NewRoleHandler(roleService)
-	buildHandler := rest.NewBuildHandler(createBuildJobHandler, cancelBuildJobHandler, getBuildJobHandler, listBuildJobsHandler)
+	buildHandler := rest.NewBuildHandler(createBuildJobHandler, createBuildJobFromUploadHandler, cancelBuildJobHandler, getBuildJobHandler, listBuildJobsHandler)
 	buildWSHandler := rest.NewBuildWSHandler(buildSvc, getBuildJobHandler)
 	logHandler := rest.NewLogHandler(logService)
 
@@ -222,8 +223,10 @@ func main() {
 	createEnvironmentHandler := command.NewCreateEnvironmentHandler(environmentRepo)
 	deleteEnvironmentHandler := command.NewDeleteEnvironmentHandler(environmentRepo)
 	createResourceHandler := command.NewCreateResourceHandler(resourceRepo, dockerRepo)
+	createResourceFromGitHandler := command.NewCreateResourceFromGitHandler(resourceRepo, buildJobRepo, buildSvc)
 	updateResourceHandler := command.NewUpdateResourceHandler(resourceRepo)
 	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, logger)
+	buildSvc.SetResourceAutoStarter(resourceRunSvc)
 	createStartResourceRunHandler := command.NewCreateStartResourceRunHandler(resourceRepo, resourceRunRepo, resourceRunSvc)
 	stopResourceHandler := command.NewStopResourceHandler(resourceRepo, dockerRepo)
 	deleteResourceHandler := command.NewDeleteResourceHandler(resourceRepo, dockerRepo)
@@ -244,6 +247,7 @@ func main() {
 		createEnvironmentHandler,
 		deleteEnvironmentHandler,
 		createResourceHandler,
+		createResourceFromGitHandler,
 		updateResourceHandler,
 		createStartResourceRunHandler,
 		stopResourceHandler,

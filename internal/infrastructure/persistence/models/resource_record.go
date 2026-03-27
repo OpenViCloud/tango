@@ -13,10 +13,17 @@ type ResourceRecord struct {
 	Config        string                 `gorm:"column:config;type:text"`
 	EnvironmentID string                 `gorm:"column:environment_id;type:text;not null;index"`
 	CreatedBy     string                 `gorm:"column:created_by;type:text"`
-	CreatedAt     time.Time              `gorm:"column:created_at;not null"`
-	UpdatedAt     time.Time              `gorm:"column:updated_at;not null"`
-	Ports         []ResourcePortRecord   `gorm:"foreignKey:ResourceID;references:ID;constraint:OnDelete:CASCADE"`
-	EnvVars       []ResourceEnvVarRecord `gorm:"foreignKey:ResourceID;references:ID;constraint:OnDelete:CASCADE"`
+	// Source fields
+	SourceType string `gorm:"column:source_type;type:varchar(32);not null;default:'preset'"`
+	GitURL     string `gorm:"column:git_url;type:text"`
+	GitBranch  string `gorm:"column:git_branch;type:varchar(255)"`
+	BuildMode  string `gorm:"column:build_mode;type:varchar(32)"`
+	BuildJobID string `gorm:"column:build_job_id;type:varchar(64)"`
+	GitToken   string `gorm:"column:git_token;type:text"` // stored encrypted
+	CreatedAt  time.Time              `gorm:"column:created_at;not null"`
+	UpdatedAt  time.Time              `gorm:"column:updated_at;not null"`
+	Ports      []ResourcePortRecord   `gorm:"foreignKey:ResourceID;references:ID;constraint:OnDelete:CASCADE"`
+	EnvVars    []ResourceEnvVarRecord `gorm:"foreignKey:ResourceID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
 func (ResourceRecord) TableName() string { return "resources" }

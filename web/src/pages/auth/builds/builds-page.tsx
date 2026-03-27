@@ -4,22 +4,36 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 
-import type { BuildJobModel, CreateBuildJobModel } from "@/@types/models"
+import type {
+  BuildJobModel,
+  CreateBuildJobModel,
+  UploadBuildJobModel,
+} from "@/@types/models"
 import {
   useGetBuildJobList,
   useCreateBuildJob,
+  useUploadBuildJob,
   useCancelBuildJob,
 } from "@/hooks/api/use-build"
 import { useBuildLogs } from "@/hooks/api/use-build-logs"
-import { createBuildJobSchema } from "@/@types/models/build"
+import {
+  createBuildJobSchema,
+  uploadBuildJobSchema,
+} from "@/@types/models/build"
 import { PageHeaderCard } from "@/components/share/cards/page-header-card"
 import { SectionCard } from "@/components/share/cards/section-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { appIcons, actionIcons } from "@/lib/icons"
 
 const BuildsIcon = appIcons.builds
@@ -59,9 +73,57 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-const ACTIVE_STATUSES = ["queued", "cloning", "detecting", "generating", "building"]
+const ACTIVE_STATUSES = [
+  "queued",
+  "cloning",
+  "detecting",
+  "generating",
+  "building",
+]
 
-// ── New build form ────────────────────────────────────────────────────────────
+// ── Build mode radio ──────────────────────────────────────────────────────────
+
+function BuildModeField({
+  value,
+  onChange,
+}: {
+  value: "auto" | "dockerfile"
+  onChange: (v: "auto" | "dockerfile") => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label>{t("builds.form.buildMode")}</Label>
+      <div className="flex gap-3">
+        {(["auto", "dockerfile"] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => onChange(mode)}
+            className={`flex-1 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+              value === mode
+                ? "border-primary bg-primary/5 text-primary"
+                : "border-border hover:border-primary/40"
+            }`}
+          >
+            <p className="font-medium">
+              {mode === "auto"
+                ? t("builds.form.modeAuto")
+                : t("builds.form.modeDockerfile")}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {mode === "auto"
+                ? t("builds.form.modeAutoDesc")
+                : t("builds.form.modeDockerfileDesc")}
+            </p>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── New build sheet ────────────────────────────────────────────────────────────
 
 function NewBuildSheet({
   open,
@@ -72,77 +134,218 @@ function NewBuildSheet({
 }) {
   const { t } = useTranslation()
   const createMutation = useCreateBuildJob()
+  const uploadMutation = useUploadBuildJob()
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<CreateBuildJobModel>({
+  // Git form
+  const gitForm = useForm<CreateBuildJobModel>({
     resolver: zodResolver(createBuildJobSchema),
     defaultValues: {
-      git_url: "https://github.com/golang/example",
-      git_branch: "master",
-      image_tag: "ttl.sh/tango-test:1h",
+      git_url: "",
+      git_branch: "",
+      build_mode: "auto",
+      image_tag: "",
     },
   })
 
-  const onSubmit = async (data: CreateBuildJobModel) => {
-    await createMutation.mutateAsync(data)
-    toast.success(t("builds.toasts.submitted"))
-    reset()
+  // Upload form
+  const uploadForm = useForm<UploadBuildJobModel>({
+    resolver: zodResolver(uploadBuildJobSchema),
+    defaultValues: { image_tag: "", build_mode: "auto" },
+  })
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [fileError, setFileError] = useState("")
+
+  const handleClose = () => {
+    gitForm.reset()
+    uploadForm.reset()
+    setSelectedFile(null)
+    setFileError("")
     onClose()
   }
 
+  const onGitSubmit = async (data: CreateBuildJobModel) => {
+    await createMutation.mutateAsync(data)
+    toast.success(t("builds.toasts.submitted"))
+    handleClose()
+  }
+
+  const onUploadSubmit = async (data: UploadBuildJobModel) => {
+    if (!selectedFile) {
+      setFileError(t("builds.form.fileRequired"))
+      return
+    }
+    await uploadMutation.mutateAsync({
+      file: selectedFile,
+      imageTag: data.image_tag,
+      buildMode: data.build_mode,
+    })
+    toast.success(t("builds.toasts.submitted"))
+    handleClose()
+  }
+
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent className="w-full sm:max-w-lg">
+    <Sheet open={open} onOpenChange={(v) => !v && handleClose()}>
+      <SheetContent className="flex w-full flex-col sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{t("builds.form.title")}</SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 flex flex-col gap-5">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="git_url">{t("builds.form.gitUrl")}</Label>
-            <Input
-              id="git_url"
-              placeholder="https://github.com/user/repo"
-              {...register("git_url")}
-            />
-            {errors.git_url && (
-              <p className="text-destructive text-sm">{errors.git_url.message}</p>
-            )}
-          </div>
+        <Tabs defaultValue="git" className="mt-4 flex flex-1 flex-col px-4">
+          <TabsList className="w-full">
+            <TabsTrigger value="git" className="flex-1">
+              {t("builds.form.tabGit")}
+            </TabsTrigger>
+            <TabsTrigger value="upload" className="flex-1">
+              {t("builds.form.tabUpload")}
+            </TabsTrigger>
+          </TabsList>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="git_branch">
-              {t("builds.form.gitBranch")}{" "}
-              <span className="text-muted-foreground text-xs">({t("builds.form.optional")})</span>
-            </Label>
-            <Input id="git_branch" placeholder="main" {...register("git_branch")} />
-          </div>
+          {/* ── Git tab ── */}
+          <TabsContent value="git">
+            <form
+              onSubmit={gitForm.handleSubmit(onGitSubmit)}
+              className="flex flex-col gap-5 pt-2"
+            >
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="git_url">{t("builds.form.gitUrl")}</Label>
+                <Input
+                  id="git_url"
+                  placeholder="https://github.com/user/repo"
+                  {...gitForm.register("git_url")}
+                />
+                {gitForm.formState.errors.git_url && (
+                  <p className="text-sm text-destructive">
+                    {gitForm.formState.errors.git_url.message}
+                  </p>
+                )}
+              </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="image_tag">{t("builds.form.imageTag")}</Label>
-            <Input
-              id="image_tag"
-              placeholder="ghcr.io/user/app:v1"
-              {...register("image_tag")}
-            />
-            {errors.image_tag && (
-              <p className="text-destructive text-sm">{errors.image_tag.message}</p>
-            )}
-          </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="git_branch">
+                  {t("builds.form.gitBranch")}{" "}
+                  <span className="text-xs text-muted-foreground">
+                    ({t("builds.form.optional")})
+                  </span>
+                </Label>
+                <Input
+                  id="git_branch"
+                  placeholder="main"
+                  {...gitForm.register("git_branch")}
+                />
+              </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t("builds.form.cancel")}
-            </Button>
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? t("builds.form.submitting") : t("builds.form.submit")}
-            </Button>
-          </div>
-        </form>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="git_image_tag">
+                  {t("builds.form.imageTag")}
+                </Label>
+                <Input
+                  id="git_image_tag"
+                  placeholder="ghcr.io/user/app:v1"
+                  {...gitForm.register("image_tag")}
+                />
+                {gitForm.formState.errors.image_tag && (
+                  <p className="text-sm text-destructive">
+                    {gitForm.formState.errors.image_tag.message}
+                  </p>
+                )}
+              </div>
+
+              <BuildModeField
+                value={gitForm.watch("build_mode") ?? "auto"}
+                onChange={(v) => gitForm.setValue("build_mode", v)}
+              />
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={handleClose}>
+                  {t("builds.form.cancel")}
+                </Button>
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending
+                    ? t("builds.form.submitting")
+                    : t("builds.form.submit")}
+                </Button>
+              </div>
+            </form>
+          </TabsContent>
+
+          {/* ── Upload tab ── */}
+          <TabsContent value="upload">
+            <form
+              onSubmit={uploadForm.handleSubmit(onUploadSubmit)}
+              className="flex flex-col gap-5 pt-2"
+            >
+              <div className="flex flex-col gap-1.5">
+                <Label>{t("builds.form.archiveFile")}</Label>
+                <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border p-6 transition-colors hover:border-primary/40">
+                  <input
+                    type="file"
+                    accept=".zip,.tar.gz,.tgz"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null
+                      setSelectedFile(f)
+                      setFileError("")
+                    }}
+                  />
+                  {selectedFile ? (
+                    <div className="text-center">
+                      <p className="max-w-[280px] truncate text-sm font-medium">
+                        {selectedFile.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground">
+                        {t("builds.form.dropArchive")}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        .zip, .tar.gz, .tgz
+                      </p>
+                    </div>
+                  )}
+                </label>
+                {fileError && (
+                  <p className="text-sm text-destructive">{fileError}</p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="upload_image_tag">
+                  {t("builds.form.imageTag")}
+                </Label>
+                <Input
+                  id="upload_image_tag"
+                  placeholder="ghcr.io/user/app:v1"
+                  {...uploadForm.register("image_tag")}
+                />
+                {uploadForm.formState.errors.image_tag && (
+                  <p className="text-sm text-destructive">
+                    {uploadForm.formState.errors.image_tag.message}
+                  </p>
+                )}
+              </div>
+
+              <BuildModeField
+                value={uploadForm.watch("build_mode") ?? "auto"}
+                onChange={(v) => uploadForm.setValue("build_mode", v)}
+              />
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={handleClose}>
+                  {t("builds.form.cancel")}
+                </Button>
+                <Button type="submit" disabled={uploadMutation.isPending}>
+                  {uploadMutation.isPending
+                    ? t("builds.form.submitting")
+                    : t("builds.form.submit")}
+                </Button>
+              </div>
+            </form>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   )
@@ -170,23 +373,25 @@ function LogSheet({
 
   return (
     <Sheet open={Boolean(job)} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent className="w-full sm:max-w-2xl flex flex-col">
+      <SheetContent className="flex w-full flex-col sm:max-w-2xl">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             {t("builds.logs.title")}
             {displayStatus && <StatusBadge status={displayStatus} />}
             {connected && (
-              <span className="text-xs text-muted-foreground animate-pulse">
+              <span className="animate-pulse text-xs text-muted-foreground">
                 {t("builds.logs.streaming")}
               </span>
             )}
           </SheetTitle>
           {job && (
-            <p className="text-muted-foreground text-xs font-mono truncate">{job.image_tag}</p>
+            <p className="truncate font-mono text-xs text-muted-foreground">
+              {job.image_tag}
+            </p>
           )}
         </SheetHeader>
 
-        <div className="flex-1 overflow-auto mt-4">
+        <div className="mt-4 flex-1 overflow-auto">
           {isEmpty ? (
             <div className="flex flex-col gap-2">
               <Skeleton className="h-4 w-full" />
@@ -194,7 +399,7 @@ function LogSheet({
               <Skeleton className="h-4 w-5/6" />
             </div>
           ) : (
-            <pre className="bg-muted rounded-md p-4 text-xs font-mono whitespace-pre-wrap break-all leading-relaxed min-h-[200px]">
+            <pre className="min-h-[200px] rounded-md bg-muted p-4 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">
               {logs || t("builds.logs.empty")}
               {connected && <span className="animate-pulse">▌</span>}
               <div ref={bottomRef} />
@@ -221,32 +426,41 @@ function JobRow({
 }) {
   const { t } = useTranslation()
   const isActive = ACTIVE_STATUSES.includes(job.status)
+  const source =
+    job.source_type === "upload" ? (job.archive_name ?? "upload") : job.git_url
 
   return (
-    <tr className="border-b last:border-0 hover:bg-muted/40 transition-colors">
-      <td className="py-3 px-4">
-        <span className="font-mono text-xs text-muted-foreground">{job.id}</span>
+    <tr className="border-b transition-colors last:border-0 hover:bg-muted/40">
+      <td className="px-4 py-3">
+        <span className="font-mono text-xs text-muted-foreground">
+          {job.id}
+        </span>
       </td>
-      <td className="py-3 px-4">
+      <td className="px-4 py-3">
         <StatusBadge status={job.status} />
       </td>
-      <td className="py-3 px-4 max-w-[220px]">
-        <span className="text-sm truncate block" title={job.git_url}>
-          {job.git_url}
+      <td className="max-w-[220px] px-4 py-3">
+        <span className="block truncate text-sm" title={source}>
+          {source}
         </span>
-        <span className="text-xs text-muted-foreground">{job.git_branch}</span>
+        <span className="text-xs text-muted-foreground">
+          {job.source_type === "upload" ? job.build_mode : job.git_branch}
+        </span>
       </td>
-      <td className="py-3 px-4 max-w-[200px]">
-        <span className="font-mono text-xs truncate block" title={job.image_tag}>
+      <td className="max-w-[200px] px-4 py-3">
+        <span
+          className="block truncate font-mono text-xs"
+          title={job.image_tag}
+        >
           {job.image_tag}
         </span>
       </td>
-      <td className="py-3 px-4">
+      <td className="px-4 py-3">
         <span className="text-xs text-muted-foreground">
           {new Date(job.created_at).toLocaleString()}
         </span>
       </td>
-      <td className="py-3 px-4">
+      <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => onViewLogs(job)}>
             {t("builds.actions.viewLogs")}
@@ -308,7 +522,6 @@ export default function BuildsPage() {
 
       <SectionCard>
         <div className="flex flex-col gap-4">
-          {/* Toolbar */}
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -321,17 +534,28 @@ export default function BuildsPage() {
             </Button>
           </div>
 
-          {/* Table */}
-          <div className="rounded-md border overflow-x-auto">
+          <div className="overflow-x-auto rounded-md border">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="py-3 px-4 text-left font-medium">{t("builds.table.id")}</th>
-                  <th className="py-3 px-4 text-left font-medium">{t("builds.table.status")}</th>
-                  <th className="py-3 px-4 text-left font-medium">{t("builds.table.gitUrl")}</th>
-                  <th className="py-3 px-4 text-left font-medium">{t("builds.table.imageTag")}</th>
-                  <th className="py-3 px-4 text-left font-medium">{t("builds.table.createdAt")}</th>
-                  <th className="py-3 px-4 text-left font-medium">{t("builds.table.actions")}</th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    {t("builds.table.id")}
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    {t("builds.table.status")}
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    {t("builds.table.source")}
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    {t("builds.table.imageTag")}
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    {t("builds.table.createdAt")}
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    {t("builds.table.actions")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -339,7 +563,7 @@ export default function BuildsPage() {
                   Array.from({ length: 4 }).map((_, i) => (
                     <tr key={i} className="border-b last:border-0">
                       {Array.from({ length: 6 }).map((_, j) => (
-                        <td key={j} className="py-3 px-4">
+                        <td key={j} className="px-4 py-3">
                           <Skeleton className="h-4 w-full" />
                         </td>
                       ))}
@@ -349,7 +573,7 @@ export default function BuildsPage() {
                   <tr>
                     <td
                       colSpan={6}
-                      className="py-10 text-center text-muted-foreground text-sm"
+                      className="py-10 text-center text-sm text-muted-foreground"
                     >
                       {t("builds.empty")}
                     </td>
@@ -371,7 +595,10 @@ export default function BuildsPage() {
         </div>
       </SectionCard>
 
-      <NewBuildSheet open={showNewBuild} onClose={() => setShowNewBuild(false)} />
+      <NewBuildSheet
+        open={showNewBuild}
+        onClose={() => setShowNewBuild(false)}
+      />
       <LogSheet job={selectedJob} onClose={() => setSelectedJob(null)} />
     </>
   )

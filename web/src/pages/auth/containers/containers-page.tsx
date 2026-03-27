@@ -3,11 +3,24 @@ import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
-import { ChevronDownIcon, ChevronRightIcon, PlusIcon, MinusIcon } from "lucide-react"
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  PlusIcon,
+  MinusIcon,
+} from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 
-import type { ContainerModel, CreateContainerModel, ImageModel, PullImageModel } from "@/@types/models"
-import { createContainerSchema, pullImageSchema } from "@/@types/models/container"
+import type {
+  ContainerModel,
+  CreateContainerModel,
+  ImageModel,
+  PullImageModel,
+} from "@/@types/models"
+import {
+  createContainerSchema,
+  pullImageSchema,
+} from "@/@types/models/container"
 import {
   useGetContainerList,
   useGetImageList,
@@ -25,7 +38,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { appIcons, actionIcons } from "@/lib/icons"
@@ -77,7 +96,10 @@ function groupContainers(containers: ContainerModel[]): {
   }
 
   return {
-    groups: Array.from(map.entries()).map(([project, cts]) => ({ project, containers: cts })),
+    groups: Array.from(map.entries()).map(([project, cts]) => ({
+      project,
+      containers: cts,
+    })),
     standalone,
   }
 }
@@ -91,7 +113,9 @@ const COLS = "grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_minmax(0,1.5fr)_9rem]"
 function ContainerTableHeader() {
   const { t } = useTranslation()
   return (
-    <div className={`${COLS} gap-4 px-4 py-2 text-xs font-medium text-muted-foreground border-b`}>
+    <div
+      className={`${COLS} gap-4 border-b px-4 py-2 text-xs font-medium text-muted-foreground`}
+    >
       <span>{t("docker.container.col.name")}</span>
       <span>{t("docker.container.col.image")}</span>
       <span>{t("docker.container.col.ports")}</span>
@@ -126,25 +150,39 @@ function ContainerRow({
 
   return (
     <div
-      className={`${COLS} gap-4 items-center px-4 py-2.5 border-b last:border-0 hover:bg-muted/30`}
+      className={`${COLS} items-center gap-4 border-b px-4 py-2.5 last:border-0 hover:bg-muted/30`}
     >
-      <div className={`flex items-center gap-2 min-w-0 ${indent ? "pl-5" : ""}`}>
+      <div
+        className={`flex min-w-0 items-center gap-2 ${indent ? "pl-5" : ""}`}
+      >
         <StateDot state={container.state} />
-        <span className="font-mono text-sm truncate">
+        <span className="truncate font-mono text-sm">
           {container.name || container.short_id}
         </span>
       </div>
-      <span className="text-xs text-muted-foreground truncate">{container.image}</span>
-      <span className="text-xs font-mono text-muted-foreground truncate">
+      <span className="truncate text-xs text-muted-foreground">
+        {container.image}
+      </span>
+      <span className="truncate font-mono text-xs text-muted-foreground">
         {portSummary || "—"}
       </span>
-      <div className="flex items-center gap-1 justify-end">
+      <div className="flex items-center justify-end gap-1">
         {isRunning ? (
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => onStop(container.id)}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => onStop(container.id)}
+          >
             <StopIcon className="size-3.5" />
           </Button>
         ) : (
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => onStart(container.id)}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => onStart(container.id)}
+          >
             <StartIcon className="size-3.5" />
           </Button>
         )}
@@ -178,20 +216,22 @@ function ProjectGroupRow({
   busy: boolean
 }) {
   const [open, setOpen] = useState(true)
-  const runningCount = group.containers.filter((c) => c.state === "running").length
+  const runningCount = group.containers.filter(
+    (c) => c.state === "running"
+  ).length
 
   return (
     <div>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`${COLS} w-full gap-4 items-center px-4 py-2.5 border-b hover:bg-muted/30 text-left`}
+        className={`${COLS} w-full items-center gap-4 border-b px-4 py-2.5 text-left hover:bg-muted/30`}
       >
         <div className="flex items-center gap-2">
           {open ? (
-            <ChevronDownIcon className="size-3.5 text-muted-foreground shrink-0" />
+            <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
           ) : (
-            <ChevronRightIcon className="size-3.5 text-muted-foreground shrink-0" />
+            <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
           )}
           <span className="text-sm font-medium">{group.project}</span>
           <span className="text-xs text-muted-foreground">
@@ -254,15 +294,24 @@ function ContainersTab() {
     )
   }
 
-  const busy = startMutation.isPending || stopMutation.isPending || removeMutation.isPending
+  const busy =
+    startMutation.isPending ||
+    stopMutation.isPending ||
+    removeMutation.isPending
   const { groups, standalone } = groupContainers(containers ?? [])
   const isEmpty = (containers ?? []).length === 0
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={() => setShowAll((v) => !v)}>
-          {showAll ? t("docker.container.hideStoppedBtn") : t("docker.container.showAllBtn")}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowAll((v) => !v)}
+        >
+          {showAll
+            ? t("docker.container.hideStoppedBtn")
+            : t("docker.container.showAllBtn")}
         </Button>
         <Button size="sm" onClick={() => setShowCreate(true)}>
           <CreateIcon data-icon="inline-start" />
@@ -277,9 +326,11 @@ function ContainersTab() {
           ))}
         </div>
       ) : isEmpty ? (
-        <p className="text-sm text-muted-foreground">{t("docker.container.empty")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("docker.container.empty")}
+        </p>
       ) : (
-        <div className="rounded-lg border overflow-hidden">
+        <div className="overflow-hidden rounded-lg border">
           <ContainerTableHeader />
           {standalone.map((ct) => (
             <ContainerRow
@@ -311,9 +362,9 @@ function ContainersTab() {
 
 // ── Run container sheet ───────────────────────────────────────────────────────
 
-type PortRow    = { hostPort: string; containerPort: string }
-type VolumeRow  = { hostPath: string; containerPath: string }
-type EnvRow     = { key: string; value: string }
+type PortRow = { hostPort: string; containerPort: string }
+type VolumeRow = { hostPath: string; containerPath: string }
+type EnvRow = { key: string; value: string }
 type RunContainerForm = {
   image: string
   name: string
@@ -334,16 +385,16 @@ function RunContainerSheet({
   const { t } = useTranslation()
   const [optionsOpen, setOptionsOpen] = useState(true)
   const createMutation = useCreateContainer()
-  const startMutation  = useStartContainer()
+  const startMutation = useStartContainer()
   const busy = createMutation.isPending || startMutation.isPending
 
   const form = useForm<RunContainerForm>({
     defaultValues: {
-      image:    defaultImage,
-      name:     "",
-      ports:    [{ hostPort: "", containerPort: "" }],
-      volumes:  [{ hostPath: "", containerPath: "" }],
-      envVars:  [{ key: "", value: "" }],
+      image: defaultImage,
+      name: "",
+      ports: [{ hostPort: "", containerPort: "" }],
+      volumes: [{ hostPath: "", containerPath: "" }],
+      envVars: [{ key: "", value: "" }],
     },
   })
 
@@ -352,12 +403,19 @@ function RunContainerSheet({
     form.setValue("image", defaultImage)
   }, [defaultImage]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ports   = useFieldArray({ control: form.control, name: "ports" })
+  const ports = useFieldArray({ control: form.control, name: "ports" })
   const volumes = useFieldArray({ control: form.control, name: "volumes" })
   const envVars = useFieldArray({ control: form.control, name: "envVars" })
 
   const handleClose = (v: boolean) => {
-    if (!v) form.reset({ image: defaultImage, name: "", ports: [{ hostPort: "", containerPort: "" }], volumes: [{ hostPath: "", containerPath: "" }], envVars: [{ key: "", value: "" }] })
+    if (!v)
+      form.reset({
+        image: defaultImage,
+        name: "",
+        ports: [{ hostPort: "", containerPort: "" }],
+        volumes: [{ hostPath: "", containerPath: "" }],
+        envVars: [{ key: "", value: "" }],
+      })
     onOpenChange(v)
   }
 
@@ -385,11 +443,13 @@ function RunContainerSheet({
     }
 
     const payload: CreateContainerModel = {
-      image:         values.image.trim(),
-      name:          values.name.trim() || undefined,
-      port_bindings: Object.keys(port_bindings).length ? port_bindings : undefined,
-      volumes:       vols.length ? vols : undefined,
-      env:           Object.keys(env).length ? env : undefined,
+      image: values.image.trim(),
+      name: values.name.trim() || undefined,
+      port_bindings: Object.keys(port_bindings).length
+        ? port_bindings
+        : undefined,
+      volumes: vols.length ? vols : undefined,
+      env: Object.keys(env).length ? env : undefined,
     }
 
     createMutation.mutate(payload, {
@@ -412,18 +472,22 @@ function RunContainerSheet({
         <SheetHeader className="border-b pb-4">
           <SheetTitle>{t("docker.container.runTitle")}</SheetTitle>
           {defaultImage && (
-            <p className="text-sm text-muted-foreground font-mono">{defaultImage}</p>
+            <p className="font-mono text-sm text-muted-foreground">
+              {defaultImage}
+            </p>
           )}
         </SheetHeader>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-0 flex-1">
+        <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-0">
           {/* Image input — only shown when not pre-set */}
           {!defaultImage && (
-            <div className="flex flex-col gap-1.5 py-4 border-b">
+            <div className="flex flex-col gap-1.5 border-b py-4">
               <Label>{t("docker.container.imageLabel")}</Label>
               <Input placeholder="nginx:latest" {...form.register("image")} />
               {form.formState.errors.image && (
-                <p className="text-xs text-destructive">{form.formState.errors.image.message}</p>
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.image.message}
+                </p>
               )}
             </div>
           )}
@@ -432,13 +496,14 @@ function RunContainerSheet({
           <button
             type="button"
             onClick={() => setOptionsOpen((v) => !v)}
-            className="flex items-center justify-between w-full py-4 text-sm font-medium border-b text-left"
+            className="flex w-full items-center justify-between border-b py-4 text-left text-sm font-medium"
           >
             <span>{t("docker.container.optionalSettings")}</span>
-            {optionsOpen
-              ? <ChevronDownIcon className="size-4 text-muted-foreground" />
-              : <ChevronRightIcon className="size-4 text-muted-foreground" />
-            }
+            {optionsOpen ? (
+              <ChevronDownIcon className="size-4 text-muted-foreground" />
+            ) : (
+              <ChevronRightIcon className="size-4 text-muted-foreground" />
+            )}
           </button>
 
           {optionsOpen && (
@@ -456,16 +521,22 @@ function RunContainerSheet({
                   })}
                 />
                 {form.formState.errors.name ? (
-                  <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.name.message}
+                  </p>
                 ) : (
-                  <p className="text-xs text-muted-foreground">{t("docker.container.nameHint")}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("docker.container.nameHint")}
+                  </p>
                 )}
               </div>
 
               {/* Ports */}
               <div className="flex flex-col gap-2">
                 <Label>{t("docker.container.portsLabel")}</Label>
-                <p className="text-xs text-muted-foreground -mt-1">{t("docker.container.portsHint")}</p>
+                <p className="-mt-1 text-xs text-muted-foreground">
+                  {t("docker.container.portsHint")}
+                </p>
                 {ports.fields.map((field, i) => (
                   <div key={field.id} className="flex items-center gap-2">
                     <Input
@@ -473,21 +544,26 @@ function RunContainerSheet({
                       placeholder={t("docker.container.hostPort")}
                       {...form.register(`ports.${i}.hostPort`)}
                     />
-                    <span className="text-muted-foreground text-sm shrink-0">:</span>
+                    <span className="shrink-0 text-sm text-muted-foreground">
+                      :
+                    </span>
                     <Input
                       className="flex-1"
                       placeholder="80"
                       {...form.register(`ports.${i}.containerPort`)}
                     />
-                    <span className="text-xs text-muted-foreground shrink-0">/tcp</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      /tcp
+                    </span>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       className="size-8 shrink-0"
-                      onClick={() => ports.fields.length > 1
-                        ? ports.remove(i)
-                        : ports.update(i, { hostPort: "", containerPort: "" })
+                      onClick={() =>
+                        ports.fields.length > 1
+                          ? ports.remove(i)
+                          : ports.update(i, { hostPort: "", containerPort: "" })
                       }
                     >
                       <MinusIcon className="size-3.5" />
@@ -499,9 +575,11 @@ function RunContainerSheet({
                   variant="outline"
                   size="sm"
                   className="self-start"
-                  onClick={() => ports.append({ hostPort: "", containerPort: "" })}
+                  onClick={() =>
+                    ports.append({ hostPort: "", containerPort: "" })
+                  }
                 >
-                  <PlusIcon className="size-3.5 mr-1" />
+                  <PlusIcon className="mr-1 size-3.5" />
                   {t("docker.container.addPort")}
                 </Button>
               </div>
@@ -526,9 +604,13 @@ function RunContainerSheet({
                       variant="ghost"
                       size="icon"
                       className="size-8 shrink-0"
-                      onClick={() => volumes.fields.length > 1
-                        ? volumes.remove(i)
-                        : volumes.update(i, { hostPath: "", containerPath: "" })
+                      onClick={() =>
+                        volumes.fields.length > 1
+                          ? volumes.remove(i)
+                          : volumes.update(i, {
+                              hostPath: "",
+                              containerPath: "",
+                            })
                       }
                     >
                       <MinusIcon className="size-3.5" />
@@ -540,9 +622,11 @@ function RunContainerSheet({
                   variant="outline"
                   size="sm"
                   className="self-start"
-                  onClick={() => volumes.append({ hostPath: "", containerPath: "" })}
+                  onClick={() =>
+                    volumes.append({ hostPath: "", containerPath: "" })
+                  }
                 >
-                  <PlusIcon className="size-3.5 mr-1" />
+                  <PlusIcon className="mr-1 size-3.5" />
                   {t("docker.container.addVolume")}
                 </Button>
               </div>
@@ -567,9 +651,10 @@ function RunContainerSheet({
                       variant="ghost"
                       size="icon"
                       className="size-8 shrink-0"
-                      onClick={() => envVars.fields.length > 1
-                        ? envVars.remove(i)
-                        : envVars.update(i, { key: "", value: "" })
+                      onClick={() =>
+                        envVars.fields.length > 1
+                          ? envVars.remove(i)
+                          : envVars.update(i, { key: "", value: "" })
                       }
                     >
                       <MinusIcon className="size-3.5" />
@@ -583,15 +668,19 @@ function RunContainerSheet({
                   className="self-start"
                   onClick={() => envVars.append({ key: "", value: "" })}
                 >
-                  <PlusIcon className="size-3.5 mr-1" />
+                  <PlusIcon className="mr-1 size-3.5" />
                   {t("docker.container.addEnv")}
                 </Button>
               </div>
             </div>
           )}
 
-          <SheetFooter className="mt-auto pt-4 border-t gap-2">
-            <Button type="button" variant="outline" onClick={() => handleClose(false)}>
+          <SheetFooter className="mt-auto gap-2 border-t pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleClose(false)}
+            >
               {t("docker.container.cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
@@ -642,9 +731,11 @@ function ImagesTab() {
           ))}
         </div>
       ) : isEmpty ? (
-        <p className="text-sm text-muted-foreground">{t("docker.image.empty")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("docker.image.empty")}
+        </p>
       ) : (
-        <div className="rounded-lg border overflow-hidden">
+        <div className="overflow-hidden rounded-lg border">
           <ImageTableHeader />
           {(images ?? []).map((img) => (
             <ImageRow
@@ -661,7 +752,9 @@ function ImagesTab() {
       <PullImageSheet open={showPull} onOpenChange={setShowPull} />
       <RunContainerSheet
         open={runImage !== null}
-        onOpenChange={(v) => { if (!v) setRunImage(null) }}
+        onOpenChange={(v) => {
+          if (!v) setRunImage(null)
+        }}
         defaultImage={runImage ?? ""}
       />
     </div>
@@ -670,12 +763,15 @@ function ImagesTab() {
 
 // ── Image table header ────────────────────────────────────────────────────────
 
-const IMG_COLS = "grid grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)_8rem]"
+const IMG_COLS =
+  "grid grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)_8rem]"
 
 function ImageTableHeader() {
   const { t } = useTranslation()
   return (
-    <div className={`${IMG_COLS} gap-4 px-4 py-2 text-xs font-medium text-muted-foreground border-b`}>
+    <div
+      className={`${IMG_COLS} gap-4 border-b px-4 py-2 text-xs font-medium text-muted-foreground`}
+    >
       <span>{t("docker.image.col.tag")}</span>
       <span>{t("docker.image.col.id")}</span>
       <span>{t("docker.image.col.size")}</span>
@@ -699,16 +795,20 @@ function ImageRow({
   const tag = image.tags[0] ?? "<none>"
 
   return (
-    <div className={`${IMG_COLS} gap-4 items-center px-4 py-2.5 border-b last:border-0 hover:bg-muted/30`}>
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="font-mono text-sm truncate">{tag}</span>
+    <div
+      className={`${IMG_COLS} items-center gap-4 border-b px-4 py-2.5 last:border-0 hover:bg-muted/30`}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="truncate font-mono text-sm">{tag}</span>
         {image.in_use > 0 && (
           <Badge variant="secondary" className="shrink-0">
             {t("docker.image.inUse", { count: image.in_use })}
           </Badge>
         )}
       </div>
-      <span className="text-xs text-muted-foreground font-mono">{image.short_id}</span>
+      <span className="font-mono text-xs text-muted-foreground">
+        {image.short_id}
+      </span>
       <span className="text-xs text-muted-foreground">{image.size}</span>
       <div className="flex justify-end gap-1">
         <Button
@@ -742,7 +842,17 @@ function PullImageSheet({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { headerLogs, layers, layerOrder, footerLogs, done, error, connected, pull, reset } = usePullImageLogs()
+  const {
+    headerLogs,
+    layers,
+    layerOrder,
+    footerLogs,
+    done,
+    error,
+    connected,
+    pull,
+    reset,
+  } = usePullImageLogs()
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const form = useForm<PullImageModel>({
@@ -782,14 +892,14 @@ function PullImageSheet({
           <SheetTitle className="flex items-center gap-2">
             {t("docker.image.pullTitle")}
             {isPulling && (
-              <span className="text-xs text-muted-foreground animate-pulse">
+              <span className="animate-pulse text-xs text-muted-foreground">
                 {t("docker.actions.pulling")}
               </span>
             )}
           </SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={onSubmit} className="flex gap-2 mt-4">
+        <form onSubmit={onSubmit} className="mt-4 flex gap-2">
           <Input
             placeholder="nginx:latest"
             className="flex-1"
@@ -801,29 +911,42 @@ function PullImageSheet({
           </Button>
         </form>
         {form.formState.errors.reference && (
-          <p className="text-xs text-destructive -mt-2">
+          <p className="-mt-2 text-xs text-destructive">
             {form.formState.errors.reference.message}
           </p>
         )}
 
-        {(headerLogs || layerOrder.length > 0 || footerLogs || isPulling || error) && (
-          <div className="flex-1 overflow-auto mt-3 bg-muted rounded-md p-3 text-xs font-mono min-h-[200px]">
+        {(headerLogs ||
+          layerOrder.length > 0 ||
+          footerLogs ||
+          isPulling ||
+          error) && (
+          <div className="mt-3 min-h-[200px] flex-1 overflow-auto rounded-md bg-muted p-3 font-mono text-xs">
             {/* "Pulling from library/nginx" and similar header lines */}
             {headerLogs && (
-              <pre className="whitespace-pre-wrap break-all leading-relaxed mb-2">{headerLogs}</pre>
+              <pre className="mb-2 leading-relaxed break-all whitespace-pre-wrap">
+                {headerLogs}
+              </pre>
             )}
 
             {/* Per-layer progress rows */}
             {layerOrder.length > 0 && (
-              <div className="grid gap-0.5 mb-2" style={{ gridTemplateColumns: "5rem 8rem 1fr" }}>
+              <div
+                className="mb-2 grid gap-0.5"
+                style={{ gridTemplateColumns: "5rem 8rem 1fr" }}
+              >
                 {layerOrder.map((id) => {
                   const layer = layers.get(id)
                   if (!layer) return null
                   return (
                     <div key={id} className="contents">
-                      <span className="text-muted-foreground truncate">{id}</span>
+                      <span className="truncate text-muted-foreground">
+                        {id}
+                      </span>
                       <span className="truncate">{layer.status}</span>
-                      <span className="text-cyan-400 truncate">{layer.progress}</span>
+                      <span className="truncate text-cyan-400">
+                        {layer.progress}
+                      </span>
                     </div>
                   )
                 })}
@@ -832,13 +955,19 @@ function PullImageSheet({
 
             {/* "Digest: sha256:..." and "Status: Downloaded newer image for ..." */}
             {footerLogs && (
-              <pre className="whitespace-pre-wrap break-all leading-relaxed">{footerLogs}</pre>
+              <pre className="leading-relaxed break-all whitespace-pre-wrap">
+                {footerLogs}
+              </pre>
             )}
 
             {isPulling && !layerOrder.length && !headerLogs && (
               <span className="animate-pulse">▌</span>
             )}
-            {error && <span className="text-destructive block mt-1">[error] {error}</span>}
+            {error && (
+              <span className="mt-1 block text-destructive">
+                [error] {error}
+              </span>
+            )}
             <div ref={bottomRef} />
           </div>
         )}
@@ -862,7 +991,9 @@ export function ContainersPage() {
       <SectionCard>
         <Tabs defaultValue="containers">
           <TabsList>
-            <TabsTrigger value="containers">{t("docker.tabs.containers")}</TabsTrigger>
+            <TabsTrigger value="containers">
+              {t("docker.tabs.containers")}
+            </TabsTrigger>
             <TabsTrigger value="images">{t("docker.tabs.images")}</TabsTrigger>
           </TabsList>
           <TabsContent value="containers" className="mt-4">

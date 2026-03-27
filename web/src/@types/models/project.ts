@@ -21,6 +21,9 @@ export const resourceSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   ports: z.array(resourcePortSchema),
+  source_type: z.string().optional(),
+  git_url: z.string().optional(),
+  build_job_id: z.string().optional(),
 })
 
 export const resourceRunSchema = z.object({
@@ -131,6 +134,27 @@ export const updateResourceSchema = z.object({
     )
     .optional(),
 })
+
+export const createResourceFromGitSchema = z.object({
+  name: z.string().min(1, "validation.required"),
+  git_url: z.string().min(1, "validation.required"),
+  git_branch: z.string().optional(),
+  build_mode: z.enum(["auto", "dockerfile"]).default("auto"),
+  git_token: z.string().optional(),
+  image_tag: z.string().min(1, "validation.required"),
+  ports: z.array(z.object({
+    host_port: z.number(),
+    internal_port: z.number(),
+    proto: z.string().default("tcp"),
+    label: z.string().optional(),
+  })).optional(),
+  env_vars: z.array(z.object({
+    key: z.string(),
+    value: z.string(),
+    is_secret: z.boolean().default(false),
+  })).optional(),
+})
+export type CreateResourceFromGitModel = z.infer<typeof createResourceFromGitSchema>
 
 export type CreateProjectModel = z.infer<typeof createProjectSchema>
 export type CreateEnvironmentModel = z.infer<typeof createEnvironmentSchema>

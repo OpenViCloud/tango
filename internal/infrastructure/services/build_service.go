@@ -1,6 +1,9 @@
 package services
 
 import (
+	"archive/tar"
+	"archive/zip"
+	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -10,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -34,13 +38,20 @@ type BuildConfig struct {
 	CloneTimeout time.Duration
 }
 
-// BuildService clones a git repo and calls buildctl to build + push a Docker
-// image via a remote BuildKit daemon.
+// ResourceAutoStarter is called by BuildService after a successful build when
+// the job carries a ResourceID. It updates the resource image and starts it.
+type ResourceAutoStarter interface {
+	StartAfterBuild(ctx context.Context, resourceID, imageTag string) error
+}
+
+// BuildService clones a git repo (or extracts an uploaded archive) and calls
+// buildctl to build + push a Docker image via a remote BuildKit daemon.
 type BuildService struct {
-	cfg    BuildConfig
-	repo   domain.BuildJobRepository
-	logger *slog.Logger
-	active sync.Map // jobID → *LogBroadcaster
+	cfg           BuildConfig
+	repo          domain.BuildJobRepository
+	logger        *slog.Logger
+	active        sync.Map // jobID → *LogBroadcaster
+	autoStarter   ResourceAutoStarter // optional; called when job.ResourceID != ""
 }
 
 // NewBuildService creates a BuildService.
@@ -54,6 +65,12 @@ func NewBuildService(cfg BuildConfig, repo domain.BuildJobRepository, logger *sl
 	return &BuildService{cfg: cfg, repo: repo, logger: logger}
 }
 
+// SetResourceAutoStarter injects the auto-starter after construction (avoids
+// circular dependency at wire-up time).
+func (s *BuildService) SetResourceAutoStarter(rs ResourceAutoStarter) {
+	s.autoStarter = rs
+}
+
 // RunAsync launches the build in a background goroutine.
 func (s *BuildService) RunAsync(job *domain.BuildJob) {
 	go func() {
@@ -64,8 +81,7 @@ func (s *BuildService) RunAsync(job *domain.BuildJob) {
 }
 
 // Subscribe returns a channel that streams log chunks for the given job and an
-// unsubscribe func. Returns a nil channel when the job is not currently running
-// (already finished or unknown).
+// unsubscribe func. Returns a nil channel when the job is not currently running.
 func (s *BuildService) Subscribe(jobID string) (<-chan []byte, func()) {
 	val, ok := s.active.Load(jobID)
 	if !ok {
@@ -78,7 +94,6 @@ func (s *BuildService) run(job *domain.BuildJob) error {
 	ctx := context.Background()
 	workDir := filepath.Join(s.cfg.WorkspaceDir, job.ID)
 
-	// Register broadcaster so WS clients can subscribe.
 	b := newLogBroadcaster()
 	s.active.Store(job.ID, b)
 	defer func() {
@@ -116,50 +131,62 @@ func (s *BuildService) run(job *domain.BuildJob) error {
 		}
 	}
 
-	// Mark started
 	now := time.Now().UTC()
 	job.StartedAt = &now
 	updateStatus(domain.BuildJobStatusCloning)
 
-	// ── 1. Clone ──────────────────────────────────────────────────────────────
-	log(fmt.Sprintf("[clone] git clone %s (branch: %s)", job.GitURL, job.GitBranch))
+	// ── 1. Prepare source ─────────────────────────────────────────────────────
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		return fail("create workspace dir", err)
 	}
 
-	cloneCtx, cloneCancel := context.WithTimeout(ctx, s.cfg.CloneTimeout)
-	defer cloneCancel()
+	if job.SourceType == domain.BuildJobSourceUpload {
+		log(fmt.Sprintf("[extract] extracting %s", job.ArchiveName))
+		if err := extractArchive(job.ArchivePath, workDir); err != nil {
+			return fail("extract archive", err)
+		}
+		_ = os.Remove(job.ArchivePath) // clean up temp file
+	} else {
+		// git clone
+		log(fmt.Sprintf("[clone] git clone %s (branch: %s)", job.GitURL, job.GitBranch))
+		cloneCtx, cloneCancel := context.WithTimeout(ctx, s.cfg.CloneTimeout)
+		defer cloneCancel()
 
-	cloneArgs := []string{"clone", "--depth", "1", "--branch", job.GitBranch, job.GitURL, workDir}
-	if err := runCmd(cloneCtx, "", b, "git", cloneArgs...); err != nil {
-		log("[clone] branch not found, retrying on default branch")
-		_ = os.RemoveAll(workDir)
-		_ = os.MkdirAll(workDir, 0o755)
-		cloneArgs = []string{"clone", "--depth", "1", job.GitURL, workDir}
-		if err2 := runCmd(cloneCtx, "", b, "git", cloneArgs...); err2 != nil {
-			return fail("git clone failed", err2)
+		cloneArgs := []string{"clone", "--depth", "1", "--branch", job.GitBranch, job.GitURL, workDir}
+		if err := runCmd(cloneCtx, "", b, "git", cloneArgs...); err != nil {
+			log("[clone] branch not found, retrying on default branch")
+			_ = os.RemoveAll(workDir)
+			_ = os.MkdirAll(workDir, 0o755)
+			cloneArgs = []string{"clone", "--depth", "1", job.GitURL, workDir}
+			if err2 := runCmd(cloneCtx, "", b, "git", cloneArgs...); err2 != nil {
+				return fail("git clone failed", err2)
+			}
 		}
 	}
 
-	// ── 2. Detect stack ───────────────────────────────────────────────────────
-	updateStatus(domain.BuildJobStatusDetecting)
-	stack := DetectStack(workDir)
-	log(fmt.Sprintf("[detect] stack detected: %s", stack))
+	// ── 2. Detect stack (skip if build_mode = dockerfile) ─────────────────────
+	if job.BuildMode != domain.BuildJobModeDockerfile {
+		updateStatus(domain.BuildJobStatusDetecting)
+		stack := DetectStack(workDir)
+		log(fmt.Sprintf("[detect] stack detected: %s", stack))
 
-	if stack == StackUnknown {
-		return fail("could not detect stack — no known manifest found", nil)
-	}
-
-	// ── 3. Generate Dockerfile if needed ─────────────────────────────────────
-	if stack != StackDockerfile {
-		updateStatus(domain.BuildJobStatusGenerating)
-		log(fmt.Sprintf("[generate] creating Dockerfile for %s stack", stack))
-		if err := GenerateDockerfile(workDir, stack); err != nil {
-			return fail("generate Dockerfile", err)
+		if stack == StackUnknown {
+			return fail("could not detect stack — no known manifest found", nil)
 		}
+
+		// ── 3. Generate Dockerfile if needed ──────────────────────────────────
+		if stack != StackDockerfile {
+			updateStatus(domain.BuildJobStatusGenerating)
+			log(fmt.Sprintf("[generate] creating Dockerfile for %s stack", stack))
+			if err := GenerateDockerfile(workDir, stack); err != nil {
+				return fail("generate Dockerfile", err)
+			}
+		}
+	} else {
+		log("[build] using existing Dockerfile")
 	}
 
-	// ── 4. Build + push via buildctl ─────────────────────────────────────────
+	// ── 4. Build + push via buildctl ──────────────────────────────────────────
 	updateStatus(domain.BuildJobStatusBuilding)
 	log(fmt.Sprintf("[build] building image %s", job.ImageTag))
 
@@ -197,10 +224,190 @@ func (s *BuildService) run(job *domain.BuildJob) error {
 	if _, err := s.repo.Update(ctx, job); err != nil {
 		s.logger.Error("update build job on success", "job_id", job.ID, "err", err)
 	}
+
+	// ── 6. Auto-start resource if linked ──────────────────────────────────────
+	if job.ResourceID != "" && s.autoStarter != nil {
+		log(fmt.Sprintf("[deploy] starting resource %s", job.ResourceID))
+		if err := s.autoStarter.StartAfterBuild(ctx, job.ResourceID, job.ImageTag); err != nil {
+			s.logger.Error("auto-start resource after build failed", "resource_id", job.ResourceID, "err", err)
+			log(fmt.Sprintf("[deploy] failed to start resource: %s", err.Error()))
+		}
+	}
+
 	return nil
 }
 
-// runCmd executes a command and streams stdout+stderr to w in real-time.
+// ── archive extraction ────────────────────────────────────────────────────────
+
+func extractArchive(archivePath, destDir string) error {
+	lower := strings.ToLower(archivePath)
+	switch {
+	case strings.HasSuffix(lower, ".tar.gz"), strings.HasSuffix(lower, ".tgz"):
+		return extractTarGz(archivePath, destDir)
+	case strings.HasSuffix(lower, ".zip"):
+		return extractZip(archivePath, destDir)
+	default:
+		return fmt.Errorf("unsupported archive format: %s", filepath.Ext(archivePath))
+	}
+}
+
+func extractTarGz(src, destDir string) error {
+	f, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// First pass: collect entry names to detect common top-level dir.
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		return err
+	}
+	tr := tar.NewReader(gz)
+	var names []string
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		names = append(names, hdr.Name)
+	}
+	gz.Close()
+	topDir := detectTopDir(names)
+
+	// Second pass: extract.
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	gz2, err := gzip.NewReader(f)
+	if err != nil {
+		return err
+	}
+	defer gz2.Close()
+	tr2 := tar.NewReader(gz2)
+
+	cleanDest := filepath.Clean(destDir) + string(os.PathSeparator)
+	for {
+		hdr, err := tr2.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		rel := hdr.Name
+		if topDir != "" {
+			rel = strings.TrimPrefix(rel, topDir)
+		}
+		if rel == "" || rel == "." {
+			continue
+		}
+		target := filepath.Join(destDir, filepath.FromSlash(rel))
+		if !strings.HasPrefix(target, cleanDest) {
+			continue // skip path traversal attempts
+		}
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, 0o755); err != nil {
+				return err
+			}
+		case tar.TypeReg:
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, hdr.FileInfo().Mode())
+			if err != nil {
+				return err
+			}
+			_, copyErr := io.Copy(out, tr2)
+			out.Close()
+			if copyErr != nil {
+				return copyErr
+			}
+		}
+	}
+	return nil
+}
+
+func extractZip(src, destDir string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	names := make([]string, 0, len(r.File))
+	for _, f := range r.File {
+		names = append(names, f.Name)
+	}
+	topDir := detectTopDir(names)
+
+	cleanDest := filepath.Clean(destDir) + string(os.PathSeparator)
+	for _, f := range r.File {
+		rel := f.Name
+		if topDir != "" {
+			rel = strings.TrimPrefix(rel, topDir)
+		}
+		if rel == "" || rel == "." {
+			continue
+		}
+		target := filepath.Join(destDir, filepath.FromSlash(rel))
+		if !strings.HasPrefix(target, cleanDest) {
+			continue
+		}
+		if f.FileInfo().IsDir() {
+			_ = os.MkdirAll(target, 0o755)
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, f.Mode())
+		if err != nil {
+			rc.Close()
+			return err
+		}
+		_, copyErr := io.Copy(out, rc)
+		out.Close()
+		rc.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+	}
+	return nil
+}
+
+// detectTopDir returns the common top-level directory prefix shared by all
+// entries, so it can be stripped during extraction (e.g. "repo-main/").
+func detectTopDir(entries []string) string {
+	if len(entries) == 0 {
+		return ""
+	}
+	var top string
+	for _, e := range entries {
+		idx := strings.Index(e, "/")
+		if idx < 0 {
+			return "" // entry at root level — nothing to strip
+		}
+		dir := e[:idx+1]
+		if top == "" {
+			top = dir
+		} else if top != dir {
+			return ""
+		}
+	}
+	return top
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
 func runCmd(ctx context.Context, dir string, w io.Writer, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
 	if dir != "" {
@@ -211,7 +418,6 @@ func runCmd(ctx context.Context, dir string, w io.Writer, name string, args ...s
 	return cmd.Run()
 }
 
-// writeDockerConfig creates a temp dir with a minimal docker config.json.
 func writeDockerConfig(host, username, password string) (string, error) {
 	dir, err := os.MkdirTemp("", "buildkit-auth-*")
 	if err != nil {

@@ -5,8 +5,11 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   FolderIcon,
+  GitBranchIcon,
   MinusIcon,
   PlusIcon,
+  SearchIcon,
+  ServerIcon,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
@@ -19,7 +22,6 @@ import type {
   ResourceModel,
   ResourceRunModel,
 } from "@/@types/models"
-import type { CreateResourceModel } from "@/@types/models/project"
 import { createEnvironmentSchema } from "@/@types/models/project"
 import { PageHeaderCard } from "@/components/share/cards/page-header-card"
 import { SectionCard } from "@/components/share/cards/section-card"
@@ -44,8 +46,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   PROJECT_QUERY_KEYS,
+  useCheckRepo,
   useCreateEnvironment,
   useCreateResource,
+  useCreateResourceFromGit,
   useDeleteEnvironment,
   useDeleteResource,
   useGetProject,
@@ -119,7 +123,8 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "sqlserver",
     name: "SQL Server",
     image: "mcr.microsoft.com/mssql/server",
-    description: "Microsoft SQL Server — enterprise relational database engine.",
+    description:
+      "Microsoft SQL Server — enterprise relational database engine.",
     color: "#CC2927",
     abbr: "MS",
     tags: ["latest", "2022-latest", "2019-latest"],
@@ -191,7 +196,93 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     ports: [{ host: "8080", container: "80" }],
     dataPath: "/usr/share/nginx/html",
     env: [],
-    type: "app",
+    type: "service",
+  },
+  {
+    id: "kafka",
+    name: "Apache Kafka",
+    image: "confluentinc/cp-kafka",
+    description:
+      "Distributed event streaming platform for high-performance data pipelines.",
+    color: "#231F20",
+    abbr: "KF",
+    tags: ["latest", "7.6", "7.5", "7.4"],
+    ports: [{ host: "9092", container: "9092" }],
+    dataPath: "/var/lib/kafka/data",
+    env: [
+      { key: "KAFKA_BROKER_ID", value: "1" },
+      { key: "KAFKA_ZOOKEEPER_CONNECT", value: "zookeeper:2181" },
+      {
+        key: "KAFKA_ADVERTISED_LISTENERS",
+        value: "PLAINTEXT://localhost:9092",
+      },
+    ],
+    type: "service",
+  },
+  {
+    id: "minio",
+    name: "MinIO",
+    image: "minio/minio",
+    description: "High-performance S3-compatible object storage server.",
+    color: "#C72E49",
+    abbr: "MN",
+    tags: ["latest", "RELEASE.2024-01-01T00-00-00Z"],
+    ports: [
+      { host: "9000", container: "9000" },
+      { host: "9001", container: "9001" },
+    ],
+    dataPath: "/data",
+    env: [
+      { key: "MINIO_ROOT_USER", value: "minioadmin" },
+      { key: "MINIO_ROOT_PASSWORD", value: "minioadmin" },
+    ],
+    type: "service",
+  },
+  {
+    id: "grafana",
+    name: "Grafana",
+    image: "grafana/grafana",
+    description:
+      "Open source analytics & interactive visualization web application.",
+    color: "#F46800",
+    abbr: "GF",
+    tags: ["latest", "11.0.0", "10.4.0"],
+    ports: [{ host: "3000", container: "3000" }],
+    dataPath: "/var/lib/grafana",
+    env: [
+      { key: "GF_SECURITY_ADMIN_USER", value: "admin" },
+      { key: "GF_SECURITY_ADMIN_PASSWORD", value: "admin" },
+    ],
+    type: "service",
+  },
+  {
+    id: "n8n",
+    name: "n8n",
+    image: "n8nio/n8n",
+    description: "Workflow automation tool — connect anything to everything.",
+    color: "#EA4B71",
+    abbr: "N8",
+    tags: ["latest", "1.44.1"],
+    ports: [{ host: "5678", container: "5678" }],
+    dataPath: "/home/node/.n8n",
+    env: [{ key: "N8N_BASIC_AUTH_ACTIVE", value: "true" }],
+    type: "service",
+  },
+  {
+    id: "gitea",
+    name: "Gitea",
+    image: "gitea/gitea",
+    description: "Lightweight self-hosted Git service.",
+    color: "#609926",
+    abbr: "GT",
+    tags: ["latest", "1.22", "1.21"],
+    ports: [
+      { host: "3000", container: "3000" },
+      { host: "222", container: "22" },
+    ],
+    dataPath: "/data",
+    env: [],
+    type: "service",
   },
 ]
 
@@ -327,7 +418,8 @@ function ResourceCard({
 
 // ── Deploy resource sheet ─────────────────────────────────────────────────────
 
-type DeployPhase = "idle" | "preset" | "config" | "creating" | "done"
+type DeployPhase = "picker" | "config" | "git" | "creating"
+type FlowType = "preset" | "docker" | "git"
 type EnvEntry = { key: string; value: string }
 type PortEntry = { host: string; container: string }
 
@@ -345,14 +437,17 @@ function DeployResourceSheet({
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const createMutation = useCreateResource(envId, projectId)
+  const createFromGitMutation = useCreateResourceFromGit(envId, projectId)
+  const checkRepoMutation = useCheckRepo()
 
-  const [phase, setPhase] = useState<DeployPhase>("preset")
+  const [phase, setPhase] = useState<DeployPhase>("picker")
+  const [flowType, setFlowType] = useState<FlowType>("preset")
+  const [search, setSearch] = useState("")
   const [selectedPreset, setSelectedPreset] = useState<ResourcePreset | null>(
     null
   )
-  const [customMode, setCustomMode] = useState(false)
 
-  // Config form state
+  // Config form state (docker/preset)
   const [name, setName] = useState("")
   const [nameError, setNameError] = useState("")
   const [tag, setTag] = useState("latest")
@@ -363,10 +458,29 @@ function DeployResourceSheet({
     { key: "", value: "" },
   ])
 
+  // Git form state
+  const [gitUrl, setGitUrl] = useState("")
+  const [gitBranch, setGitBranch] = useState("")
+  const [gitToken, setGitToken] = useState("")
+  const [buildMode, setBuildMode] = useState<"auto" | "dockerfile">("auto")
+  const [imageTag, setImageTag] = useState("")
+  const [gitName, setGitName] = useState("")
+  const [gitPorts, setGitPorts] = useState<PortEntry[]>([
+    { host: "", container: "" },
+  ])
+  const [gitEnvEntries, setGitEnvEntries] = useState<EnvEntry[]>([
+    { key: "", value: "" },
+  ])
+  const [repoChecked, setRepoChecked] = useState<{
+    available: boolean
+    defaultBranch?: string
+  } | null>(null)
+
   const resetForm = () => {
-    setPhase("preset")
+    setPhase("picker")
+    setFlowType("preset")
+    setSearch("")
     setSelectedPreset(null)
-    setCustomMode(false)
     setName("")
     setNameError("")
     setTag("latest")
@@ -374,22 +488,31 @@ function DeployResourceSheet({
     setResourceType("db")
     setPorts([{ host: "", container: "" }])
     setEnvEntries([{ key: "", value: "" }])
+    setGitUrl("")
+    setGitBranch("")
+    setGitToken("")
+    setBuildMode("auto")
+    setImageTag("")
+    setGitName("")
+    setGitPorts([{ host: "", container: "" }])
+    setGitEnvEntries([{ key: "", value: "" }])
+    setRepoChecked(null)
   }
 
   const handleClose = (v: boolean) => {
-    if (!v) {
-      resetForm()
-    }
+    if (!v) resetForm()
     onOpenChange(v)
   }
 
   const selectPreset = (preset: ResourcePreset) => {
     setSelectedPreset(preset)
-    setCustomMode(false)
+    setFlowType("preset")
     setTag(preset.tags[0] ?? "latest")
     setName(preset.id)
     setResourceType(preset.type)
-    setPorts(preset.ports.map((p) => ({ host: p.host, container: p.container })))
+    setPorts(
+      preset.ports.map((p) => ({ host: p.host, container: p.container }))
+    )
     setEnvEntries(
       preset.env.length > 0
         ? preset.env.map((e) => ({ key: e.key, value: e.value }))
@@ -398,9 +521,9 @@ function DeployResourceSheet({
     setPhase("config")
   }
 
-  const selectCustom = () => {
+  const selectDockerImage = () => {
     setSelectedPreset(null)
-    setCustomMode(true)
+    setFlowType("docker")
     setTag("latest")
     setName("")
     setResourceType("app")
@@ -409,350 +532,773 @@ function DeployResourceSheet({
     setPhase("config")
   }
 
-  const buildPayload = (): CreateResourceModel => {
-    const envVars = envEntries
-      .filter((e) => e.key.trim())
-      .map((e) => ({ key: e.key.trim(), value: e.value, is_secret: false }))
-
-    const portList = ports
-      .filter((p) => p.container.trim())
-      .map((p) => ({
-        host_port: parseInt(p.host.trim() || "0", 10),
-        internal_port: parseInt(p.container.trim(), 10),
-        proto: "tcp",
-        label: "",
-      }))
-
-    const image = customMode
-      ? customImage.trim()
-      : (selectedPreset?.image ?? "")
-
-    return {
-      name: name.trim(),
-      type: resourceType,
-      image,
-      tag,
-      ports: portList,
-      env_vars: envVars,
-    }
+  const selectGitBased = () => {
+    setFlowType("git")
+    setPhase("git")
   }
 
+  // Filter presets
+  const q = search.toLowerCase()
+  const filtered = RESOURCE_PRESETS.filter(
+    (p) =>
+      !q ||
+      p.name.toLowerCase().includes(q) ||
+      p.id.toLowerCase().includes(q) ||
+      p.image.toLowerCase().includes(q)
+  )
+  const dbPresets = filtered.filter((p) => p.type === "db")
+  const servicePresets = filtered.filter(
+    (p) => p.type === "service" || p.type === "app"
+  )
+
+  const showApps = !q || "git".includes(q) || "docker".includes(q)
+
   const doCreate = () => {
-    const payload = buildPayload()
-    createMutation.mutate(payload, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: PROJECT_QUERY_KEYS.project(projectId),
-        })
-        toast.success(t("projects.resource.created"))
-        setPhase("done")
-        handleClose(false)
-      },
-      onError: (err) => {
-        toast.error(err.message)
-        setPhase("config")
-      },
-    })
+    if (flowType === "git") {
+      const portList = gitPorts
+        .filter((p) => p.container.trim())
+        .map((p) => ({
+          host_port: parseInt(p.host.trim() || "0", 10),
+          internal_port: parseInt(p.container.trim(), 10),
+          proto: "tcp",
+          label: "",
+        }))
+      const envVars = gitEnvEntries
+        .filter((e) => e.key.trim())
+        .map((e) => ({ key: e.key.trim(), value: e.value, is_secret: false }))
+
+      createFromGitMutation.mutate(
+        {
+          name: gitName.trim(),
+          git_url: gitUrl.trim(),
+          git_branch: gitBranch.trim() || undefined,
+          build_mode: buildMode,
+          git_token: gitToken.trim() || undefined,
+          image_tag: imageTag.trim(),
+          ports: portList,
+          env_vars: envVars,
+        },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({
+              queryKey: PROJECT_QUERY_KEYS.project(projectId),
+            })
+            toast.success("Build started — resource will auto-start when done.")
+            handleClose(false)
+          },
+          onError: (err) => {
+            toast.error(err.message)
+            setPhase("git")
+          },
+        }
+      )
+    } else {
+      const envVars = envEntries
+        .filter((e) => e.key.trim())
+        .map((e) => ({ key: e.key.trim(), value: e.value, is_secret: false }))
+      const portList = ports
+        .filter((p) => p.container.trim())
+        .map((p) => ({
+          host_port: parseInt(p.host.trim() || "0", 10),
+          internal_port: parseInt(p.container.trim(), 10),
+          proto: "tcp",
+          label: "",
+        }))
+      const image =
+        flowType === "docker"
+          ? customImage.trim()
+          : (selectedPreset?.image ?? "")
+      createMutation.mutate(
+        {
+          name: name.trim(),
+          type: resourceType,
+          image,
+          tag,
+          ports: portList,
+          env_vars: envVars,
+        },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({
+              queryKey: PROJECT_QUERY_KEYS.project(projectId),
+            })
+            toast.success(t("projects.resource.created"))
+            handleClose(false)
+          },
+          onError: (err) => {
+            toast.error(err.message)
+            setPhase("config")
+          },
+        }
+      )
+    }
   }
 
   const handleDeploy = () => {
-    if (!name.trim()) {
-      setNameError(t("validation.required") || "Required")
-      return
-    }
-    setNameError("")
-    const image = customMode
-      ? customImage.trim()
-      : (selectedPreset?.image ?? "")
-    if (!image) {
-      toast.error("Image is required")
-      return
+    if (flowType === "git") {
+      if (!gitName.trim()) {
+        toast.error("Name is required")
+        return
+      }
+      if (!gitUrl.trim()) {
+        toast.error("Git URL is required")
+        return
+      }
+      if (!imageTag.trim()) {
+        toast.error("Image tag is required")
+        return
+      }
+    } else {
+      if (!name.trim()) {
+        setNameError(t("validation.required") || "Required")
+        return
+      }
+      setNameError("")
+      const image =
+        flowType === "docker"
+          ? customImage.trim()
+          : (selectedPreset?.image ?? "")
+      if (!image) {
+        toast.error("Image is required")
+        return
+      }
     }
     setPhase("creating")
     doCreate()
   }
 
+  const handleCheckRepo = () => {
+    if (!gitUrl.trim()) return
+    checkRepoMutation.mutate(
+      {
+        url: gitUrl.trim(),
+        branch: gitBranch.trim() || undefined,
+        token: gitToken.trim() || undefined,
+      },
+      {
+        onSuccess: (res) => {
+          setRepoChecked({
+            available: res.available,
+            defaultBranch: res.default_branch,
+          })
+          if (res.available && res.default_branch && !gitBranch) {
+            setGitBranch(res.default_branch)
+          }
+          if (!res.available) {
+            toast.error(res.error || "Repository not accessible")
+          } else {
+            toast.success("Repository verified!")
+          }
+        },
+        onError: () => toast.error("Could not reach repository"),
+      }
+    )
+  }
+
   const busy = phase === "creating"
+
+  const PresetCard = ({ preset }: { preset: ResourcePreset }) => (
+    <button
+      key={preset.id}
+      type="button"
+      onClick={() => selectPreset(preset)}
+      className="flex flex-col gap-2 rounded-xl border bg-card p-3 text-left transition-shadow hover:border-primary/40 hover:shadow-sm"
+    >
+      <div className="flex items-center gap-2">
+        <div
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
+          style={{ backgroundColor: preset.color }}
+        >
+          {preset.abbr}
+        </div>
+        <div>
+          <p className="text-sm font-medium">{preset.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {preset.image.split("/").pop()}
+          </p>
+        </div>
+      </div>
+      <p className="line-clamp-2 text-xs text-muted-foreground">
+        {preset.description}
+      </p>
+    </button>
+  )
 
   return (
     <Sheet open={open} onOpenChange={handleClose}>
       <SheetContent className="flex flex-col overflow-y-auto sm:max-w-lg">
         <SheetHeader className="border-b pb-4">
           <div className="flex items-center gap-2">
-            {phase === "config" && (
+            {(phase === "config" || phase === "git") && (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 className="-ml-1 size-7"
-                onClick={() => setPhase("preset")}
+                onClick={() => setPhase("picker")}
                 disabled={busy}
               >
                 <ArrowLeftIcon className="size-4" />
               </Button>
             )}
             <SheetTitle>
-              {phase === "preset"
+              {phase === "picker"
                 ? t("projects.deployResource")
-                : selectedPreset
-                  ? selectedPreset.name
-                  : t("projects.deployResource")}
+                : phase === "git"
+                  ? "Git Repository"
+                  : selectedPreset
+                    ? selectedPreset.name
+                    : flowType === "docker"
+                      ? "Docker Image"
+                      : t("projects.deployResource")}
             </SheetTitle>
           </div>
         </SheetHeader>
-
-        {/* Preset picker */}
-        {phase === "preset" && (
-          <div className="flex flex-1 flex-col gap-4 py-4">
-            <div className="grid grid-cols-2 gap-3">
-              {RESOURCE_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => selectPreset(preset)}
-                  className="flex flex-col gap-2 rounded-xl border bg-card p-3 text-left transition-shadow hover:border-primary/40 hover:shadow-sm"
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-                      style={{ backgroundColor: preset.color }}
-                    >
-                      {preset.abbr}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{preset.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {preset.type}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="line-clamp-2 text-xs text-muted-foreground">
-                    {preset.description}
-                  </p>
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={selectCustom}
-                className="flex flex-col gap-2 rounded-xl border border-dashed bg-card p-3 text-left transition-shadow hover:border-primary/40 hover:shadow-sm"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                    <PlusIcon className="size-4" />
-                  </div>
-                  <p className="text-sm font-medium">Custom</p>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Use any Docker image
-                </p>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Config form */}
-        {phase === "config" || phase === "creating" ? (
-          <div className="flex flex-1 flex-col gap-5 py-4">
-            {/* Custom image input */}
-            {customMode && (
-              <div className="flex flex-col gap-1.5">
-                <Label>Image</Label>
+        <div className="px-4">
+          {/* ── Picker phase ─────────────────────────── */}
+          {phase === "picker" && (
+            <div className="flex flex-1 flex-col gap-4 py-4">
+              {/* Search */}
+              <div className="relative">
+                <SearchIcon className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
                 <Input
-                  placeholder="nginx"
-                  value={customImage}
-                  onChange={(e) => setCustomImage(e.target.value)}
+                  placeholder="Search..."
+                  className="pl-8"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+
+              {/* Applications section */}
+              {showApps && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    Applications
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(!q || "git".includes(q) || "repository".includes(q)) && (
+                      <button
+                        type="button"
+                        onClick={selectGitBased}
+                        className="flex flex-col gap-2 rounded-xl border bg-card p-3 text-left transition-shadow hover:border-primary/40 hover:shadow-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white">
+                            <GitBranchIcon className="size-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">
+                              Git Repository
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              public or private
+                            </p>
+                          </div>
+                        </div>
+                        <p className="line-clamp-2 text-xs text-muted-foreground">
+                          Auto-detect stack or use existing Dockerfile. Builds
+                          &amp; deploys automatically.
+                        </p>
+                      </button>
+                    )}
+                    {(!q || "docker".includes(q) || "image".includes(q)) && (
+                      <button
+                        type="button"
+                        onClick={selectDockerImage}
+                        className="flex flex-col gap-2 rounded-xl border border-dashed bg-card p-3 text-left transition-shadow hover:border-primary/40 hover:shadow-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sky-600 text-white">
+                            <ServerIcon className="size-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">Docker Image</p>
+                            <p className="text-xs text-muted-foreground">
+                              any registry
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Use any Docker image from Docker Hub or a custom
+                          registry.
+                        </p>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Databases section */}
+              {dbPresets.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    Databases
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {dbPresets.map((preset) => (
+                      <PresetCard key={preset.id} preset={preset} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Services section */}
+              {servicePresets.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    Services
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {servicePresets.map((preset) => (
+                      <PresetCard key={preset.id} preset={preset} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {dbPresets.length === 0 &&
+                servicePresets.length === 0 &&
+                !showApps && (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    No results
+                  </p>
+                )}
+            </div>
+          )}
+
+          {/* ── Git source phase ─────────────────────── */}
+          {phase === "git" && (
+            <div className="flex flex-1 flex-col gap-5 py-4">
+              <div className="flex flex-col gap-1.5">
+                <Label>Repository URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="https://github.com/user/repo"
+                    value={gitUrl}
+                    onChange={(e) => {
+                      setGitUrl(e.target.value)
+                      setRepoChecked(null)
+                    }}
+                    disabled={busy}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      !gitUrl.trim() || checkRepoMutation.isPending || busy
+                    }
+                    onClick={handleCheckRepo}
+                    className="shrink-0"
+                  >
+                    {checkRepoMutation.isPending ? "Checking…" : "Check"}
+                  </Button>
+                </div>
+                {repoChecked && (
+                  <p
+                    className={`text-xs ${repoChecked.available ? "text-green-600" : "text-destructive"}`}
+                  >
+                    {repoChecked.available
+                      ? `✓ Accessible${repoChecked.defaultBranch ? ` · default branch: ${repoChecked.defaultBranch}` : ""}`
+                      : "✗ Not accessible"}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label>
+                  Branch{" "}
+                  <span className="text-muted-foreground">(optional)</span>
+                </Label>
+                <Input
+                  placeholder={repoChecked?.defaultBranch ?? "main"}
+                  value={gitBranch}
+                  onChange={(e) => setGitBranch(e.target.value)}
                   disabled={busy}
                 />
               </div>
-            )}
 
-            {/* Resource type */}
-            <div className="flex flex-col gap-1.5">
-              <Label>Type</Label>
-              <Select
-                value={resourceType}
-                onValueChange={setResourceType}
-                disabled={busy}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="db">Database</SelectItem>
-                  <SelectItem value="app">Application</SelectItem>
-                  <SelectItem value="service">Service</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Tag / version */}
-            {selectedPreset ? (
               <div className="flex flex-col gap-1.5">
-                <Label>{t("databases.deploy.versionLabel")}</Label>
-                <Select value={tag} onValueChange={setTag} disabled={busy}>
+                <Label>
+                  Access Token{" "}
+                  <span className="text-muted-foreground">(private repos)</span>
+                </Label>
+                <Input
+                  type="password"
+                  placeholder="ghp_xxxxxxxxxxxx"
+                  value={gitToken}
+                  onChange={(e) => setGitToken(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label>Build Mode</Label>
+                <Select
+                  value={buildMode}
+                  onValueChange={(v) =>
+                    setBuildMode(v as "auto" | "dockerfile")
+                  }
+                  disabled={busy}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {selectedPreset.tags.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="auto">
+                      Auto-detect (recommended)
+                    </SelectItem>
+                    <SelectItem value="dockerfile">
+                      Use existing Dockerfile
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            ) : (
+
               <div className="flex flex-col gap-1.5">
-                <Label>Tag</Label>
+                <Label>
+                  Image Tag{" "}
+                  <span className="text-xs text-muted-foreground">
+                    (where to push)
+                  </span>
+                </Label>
                 <Input
-                  placeholder="latest"
-                  value={tag}
-                  onChange={(e) => setTag(e.target.value)}
+                  placeholder="registry.example.com/myapp:latest"
+                  value={imageTag}
+                  onChange={(e) => setImageTag(e.target.value)}
                   disabled={busy}
                 />
               </div>
-            )}
 
-            {/* Name */}
-            <div className="flex flex-col gap-1.5">
-              <Label>{t("projects.nameLabel")}</Label>
-              <Input
-                placeholder={t("projects.namePlaceholder")}
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value)
-                  setNameError("")
-                }}
-                disabled={busy}
-              />
-              {nameError && (
-                <p className="text-xs text-destructive">{nameError}</p>
+              <div className="flex flex-col gap-1.5">
+                <Label>Resource Name</Label>
+                <Input
+                  placeholder="my-app"
+                  value={gitName}
+                  onChange={(e) => setGitName(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
+
+              {/* Ports */}
+              <div className="flex flex-col gap-2">
+                <Label>Ports</Label>
+                {gitPorts.map((port, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1"
+                      placeholder="Host port"
+                      value={port.host}
+                      onChange={(e) => {
+                        const next = [...gitPorts]
+                        next[i] = { ...next[i], host: e.target.value }
+                        setGitPorts(next)
+                      }}
+                      disabled={busy}
+                    />
+                    <span className="shrink-0 text-sm text-muted-foreground">
+                      :
+                    </span>
+                    <Input
+                      className="flex-1"
+                      placeholder="Container port"
+                      value={port.container}
+                      onChange={(e) => {
+                        const next = [...gitPorts]
+                        next[i] = { ...next[i], container: e.target.value }
+                        setGitPorts(next)
+                      }}
+                      disabled={busy}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0"
+                      disabled={busy}
+                      onClick={() =>
+                        gitPorts.length > 1
+                          ? setGitPorts(gitPorts.filter((_, j) => j !== i))
+                          : setGitPorts([{ host: "", container: "" }])
+                      }
+                    >
+                      <MinusIcon className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  disabled={busy}
+                  onClick={() =>
+                    setGitPorts([...gitPorts, { host: "", container: "" }])
+                  }
+                >
+                  <PlusIcon className="mr-1 size-3.5" />
+                  Add port
+                </Button>
+              </div>
+
+              {/* Env vars */}
+              <div className="flex flex-col gap-2">
+                <Label>{t("docker.container.envLabel")}</Label>
+                {gitEnvEntries.map((entry, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1 font-mono text-xs"
+                      placeholder={t("docker.container.envKey")}
+                      value={entry.key}
+                      onChange={(e) => {
+                        const next = [...gitEnvEntries]
+                        next[i] = { ...next[i], key: e.target.value }
+                        setGitEnvEntries(next)
+                      }}
+                      disabled={busy}
+                    />
+                    <Input
+                      className="flex-1 text-xs"
+                      placeholder={t("docker.container.envValue")}
+                      value={entry.value}
+                      onChange={(e) => {
+                        const next = [...gitEnvEntries]
+                        next[i] = { ...next[i], value: e.target.value }
+                        setGitEnvEntries(next)
+                      }}
+                      disabled={busy}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0"
+                      disabled={busy}
+                      onClick={() =>
+                        gitEnvEntries.length > 1
+                          ? setGitEnvEntries(
+                              gitEnvEntries.filter((_, j) => j !== i)
+                            )
+                          : setGitEnvEntries([{ key: "", value: "" }])
+                      }
+                    >
+                      <MinusIcon className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  disabled={busy}
+                  onClick={() =>
+                    setGitEnvEntries([...gitEnvEntries, { key: "", value: "" }])
+                  }
+                >
+                  <PlusIcon className="mr-1 size-3.5" />
+                  {t("docker.container.addEnv")}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Config form (preset / docker) ────────── */}
+          {(phase === "config" ||
+            (phase === "creating" && flowType !== "git")) && (
+            <div className="flex flex-1 flex-col gap-5 py-4">
+              {flowType === "docker" && (
+                <div className="flex flex-col gap-1.5">
+                  <Label>Image</Label>
+                  <Input
+                    placeholder="nginx"
+                    value={customImage}
+                    onChange={(e) => setCustomImage(e.target.value)}
+                    disabled={busy}
+                  />
+                </div>
               )}
-            </div>
-
-            {/* Ports */}
-            <div className="flex flex-col gap-2">
-              <Label>Ports</Label>
-              {ports.map((port, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Input
-                    className="flex-1"
-                    placeholder="Host port"
-                    value={port.host}
-                    onChange={(e) => {
-                      const next = [...ports]
-                      next[i] = { ...next[i], host: e.target.value }
-                      setPorts(next)
-                    }}
-                    disabled={busy}
-                  />
-                  <span className="shrink-0 text-sm text-muted-foreground">
-                    :
-                  </span>
-                  <Input
-                    className="flex-1"
-                    placeholder="Container port"
-                    value={port.container}
-                    onChange={(e) => {
-                      const next = [...ports]
-                      next[i] = { ...next[i], container: e.target.value }
-                      setPorts(next)
-                    }}
-                    disabled={busy}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0"
-                    disabled={busy}
-                    onClick={() =>
-                      ports.length > 1
-                        ? setPorts(ports.filter((_, j) => j !== i))
-                        : setPorts([{ host: "", container: "" }])
-                    }
-                  >
-                    <MinusIcon className="size-3.5" />
-                  </Button>
+              <div className="flex flex-col gap-1.5">
+                <Label>Type</Label>
+                <Select
+                  value={resourceType}
+                  onValueChange={setResourceType}
+                  disabled={busy}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="db">Database</SelectItem>
+                    <SelectItem value="app">Application</SelectItem>
+                    <SelectItem value="service">Service</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedPreset ? (
+                <div className="flex flex-col gap-1.5">
+                  <Label>{t("databases.deploy.versionLabel")}</Label>
+                  <Select value={tag} onValueChange={setTag} disabled={busy}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedPreset.tags.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="self-start"
-                disabled={busy}
-                onClick={() =>
-                  setPorts([...ports, { host: "", container: "" }])
-                }
-              >
-                <PlusIcon className="mr-1 size-3.5" />
-                Add port
-              </Button>
-            </div>
-
-            {/* Env vars */}
-            <div className="flex flex-col gap-2">
-              <Label>{t("docker.container.envLabel")}</Label>
-              {envEntries.map((entry, i) => (
-                <div key={i} className="flex items-center gap-2">
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  <Label>Tag</Label>
                   <Input
-                    className="flex-1 font-mono text-xs"
-                    placeholder={t("docker.container.envKey")}
-                    value={entry.key}
-                    onChange={(e) => {
-                      const next = [...envEntries]
-                      next[i] = { ...next[i], key: e.target.value }
-                      setEnvEntries(next)
-                    }}
+                    placeholder="latest"
+                    value={tag}
+                    onChange={(e) => setTag(e.target.value)}
                     disabled={busy}
                   />
-                  <Input
-                    className="flex-1 text-xs"
-                    placeholder={t("docker.container.envValue")}
-                    value={entry.value}
-                    onChange={(e) => {
-                      const next = [...envEntries]
-                      next[i] = { ...next[i], value: e.target.value }
-                      setEnvEntries(next)
-                    }}
-                    disabled={busy}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0"
-                    disabled={busy}
-                    onClick={() =>
-                      envEntries.length > 1
-                        ? setEnvEntries(envEntries.filter((_, j) => j !== i))
-                        : setEnvEntries([{ key: "", value: "" }])
-                    }
-                  >
-                    <MinusIcon className="size-3.5" />
-                  </Button>
                 </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="self-start"
-                disabled={busy}
-                onClick={() =>
-                  setEnvEntries([...envEntries, { key: "", value: "" }])
-                }
-              >
-                <PlusIcon className="mr-1 size-3.5" />
-                {t("docker.container.addEnv")}
-              </Button>
+              )}
+              <div className="flex flex-col gap-1.5">
+                <Label>{t("projects.nameLabel")}</Label>
+                <Input
+                  placeholder={t("projects.namePlaceholder")}
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    setNameError("")
+                  }}
+                  disabled={busy}
+                />
+                {nameError && (
+                  <p className="text-xs text-destructive">{nameError}</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label>Ports</Label>
+                {ports.map((port, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1"
+                      placeholder="Host port"
+                      value={port.host}
+                      onChange={(e) => {
+                        const next = [...ports]
+                        next[i] = { ...next[i], host: e.target.value }
+                        setPorts(next)
+                      }}
+                      disabled={busy}
+                    />
+                    <span className="shrink-0 text-sm text-muted-foreground">
+                      :
+                    </span>
+                    <Input
+                      className="flex-1"
+                      placeholder="Container port"
+                      value={port.container}
+                      onChange={(e) => {
+                        const next = [...ports]
+                        next[i] = { ...next[i], container: e.target.value }
+                        setPorts(next)
+                      }}
+                      disabled={busy}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0"
+                      disabled={busy}
+                      onClick={() =>
+                        ports.length > 1
+                          ? setPorts(ports.filter((_, j) => j !== i))
+                          : setPorts([{ host: "", container: "" }])
+                      }
+                    >
+                      <MinusIcon className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  disabled={busy}
+                  onClick={() =>
+                    setPorts([...ports, { host: "", container: "" }])
+                  }
+                >
+                  <PlusIcon className="mr-1 size-3.5" />
+                  Add port
+                </Button>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label>{t("docker.container.envLabel")}</Label>
+                {envEntries.map((entry, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1 font-mono text-xs"
+                      placeholder={t("docker.container.envKey")}
+                      value={entry.key}
+                      onChange={(e) => {
+                        const next = [...envEntries]
+                        next[i] = { ...next[i], key: e.target.value }
+                        setEnvEntries(next)
+                      }}
+                      disabled={busy}
+                    />
+                    <Input
+                      className="flex-1 text-xs"
+                      placeholder={t("docker.container.envValue")}
+                      value={entry.value}
+                      onChange={(e) => {
+                        const next = [...envEntries]
+                        next[i] = { ...next[i], value: e.target.value }
+                        setEnvEntries(next)
+                      }}
+                      disabled={busy}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0"
+                      disabled={busy}
+                      onClick={() =>
+                        envEntries.length > 1
+                          ? setEnvEntries(envEntries.filter((_, j) => j !== i))
+                          : setEnvEntries([{ key: "", value: "" }])
+                      }
+                    >
+                      <MinusIcon className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  disabled={busy}
+                  onClick={() =>
+                    setEnvEntries([...envEntries, { key: "", value: "" }])
+                  }
+                >
+                  <PlusIcon className="mr-1 size-3.5" />
+                  {t("docker.container.addEnv")}
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : null}
+          )}
+        </div>
 
-        {(phase === "config" || phase === "creating") && (
+        {/* ── Footer ───────────────────────────────── */}
+        {(phase === "config" || phase === "git" || phase === "creating") && (
           <SheetFooter className="gap-2 border-t pt-4">
             <Button
               variant="outline"
@@ -764,7 +1310,9 @@ function DeployResourceSheet({
             <Button disabled={busy} onClick={handleDeploy}>
               {phase === "creating"
                 ? t("databases.deploy.creating_btn")
-                : t("projects.addResource")}
+                : flowType === "git"
+                  ? "Build & Deploy"
+                  : t("projects.addResource")}
             </Button>
           </SheetFooter>
         )}

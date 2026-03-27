@@ -15,11 +15,20 @@ const (
 )
 
 const (
-	ResourceStatusCreating ResourceStatus = "creating"
-	ResourceStatusPulling  ResourceStatus = "pulling"
-	ResourceStatusRunning  ResourceStatus = "running"
-	ResourceStatusStopped  ResourceStatus = "stopped"
-	ResourceStatusError    ResourceStatus = "error"
+	ResourceStatusCreating     ResourceStatus = "creating"
+	ResourceStatusPulling      ResourceStatus = "pulling"
+	ResourceStatusRunning      ResourceStatus = "running"
+	ResourceStatusStopped      ResourceStatus = "stopped"
+	ResourceStatusError        ResourceStatus = "error"
+	ResourceStatusPendingBuild ResourceStatus = "pending_build" // waiting for build job
+	ResourceStatusBuilding     ResourceStatus = "building"      // build job running
+)
+
+// SourceType describes where the resource image comes from.
+const (
+	ResourceSourcePreset = "preset" // pre-built Docker image (postgres, redis, etc.)
+	ResourceSourceGit    = "git"    // build from a git repository
+	ResourceSourceImage  = "image"  // user-supplied image URL
 )
 
 type ResourcePort struct {
@@ -50,10 +59,17 @@ type Resource struct {
 	Config        map[string]any
 	EnvironmentID string
 	CreatedBy     string
-	Ports         []ResourcePort
-	EnvVars       []ResourceEnvVar
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	// Source fields
+	SourceType string // "preset" | "git" | "image"
+	GitURL     string
+	GitBranch  string
+	BuildMode  string // "auto" | "dockerfile"
+	BuildJobID string // populated when SourceType == "git"
+	GitToken   string // encrypted access token for private repos
+	Ports      []ResourcePort
+	EnvVars    []ResourceEnvVar
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 type CreateResourceInput struct {
@@ -65,6 +81,12 @@ type CreateResourceInput struct {
 	Config        map[string]any
 	EnvironmentID string
 	CreatedBy     string
+	SourceType    string
+	GitURL        string
+	GitBranch     string
+	BuildMode     string
+	BuildJobID    string
+	GitToken      string
 	Ports         []ResourcePort
 	EnvVars       []ResourceEnvVar
 }
@@ -80,6 +102,8 @@ type ResourceRepository interface {
 	GetByID(ctx context.Context, id string) (*Resource, error)
 	Update(ctx context.Context, id string, input UpdateResourceInput) (*Resource, error)
 	UpdateStatus(ctx context.Context, id string, status ResourceStatus, containerID string) error
+	// UpdateBuildComplete sets the image, tag, build_job_id and transitions status to stopped.
+	UpdateBuildComplete(ctx context.Context, id string, image string, buildJobID string) error
 	Delete(ctx context.Context, id string) error
 	SetEnvVars(ctx context.Context, resourceID string, vars []ResourceEnvVar) error
 }

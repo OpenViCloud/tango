@@ -31,6 +31,10 @@ func (r *ResourceRepository) Create(ctx context.Context, input domain.CreateReso
 		return nil, fmt.Errorf("marshal config: %w", err)
 	}
 
+	sourceType := input.SourceType
+	if sourceType == "" {
+		sourceType = domain.ResourceSourcePreset
+	}
 	now := time.Now().UTC()
 	record := models.ResourceRecord{
 		ID:            input.ID,
@@ -43,6 +47,12 @@ func (r *ResourceRepository) Create(ctx context.Context, input domain.CreateReso
 		Config:        configJSON,
 		EnvironmentID: input.EnvironmentID,
 		CreatedBy:     input.CreatedBy,
+		SourceType:    sourceType,
+		GitURL:        input.GitURL,
+		GitBranch:     input.GitBranch,
+		BuildMode:     input.BuildMode,
+		BuildJobID:    input.BuildJobID,
+		GitToken:      input.GitToken,
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
@@ -178,6 +188,25 @@ func (r *ResourceRepository) Update(ctx context.Context, id string, input domain
 	return r.GetByID(ctx, id)
 }
 
+func (r *ResourceRepository) UpdateBuildComplete(ctx context.Context, id string, image string, buildJobID string) error {
+	result := r.db.WithContext(ctx).Model(&models.ResourceRecord{}).
+		Where("id = ?", id).
+		Updates(map[string]any{
+			"image":        image,
+			"tag":          "",
+			"build_job_id": buildJobID,
+			"status":       domain.ResourceStatusStopped,
+			"updated_at":   time.Now().UTC(),
+		})
+	if result.Error != nil {
+		return fmt.Errorf("update resource build complete: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return domain.ErrResourceNotFound
+	}
+	return nil
+}
+
 func (r *ResourceRepository) UpdateStatus(ctx context.Context, id string, status domain.ResourceStatus, containerID string) error {
 	result := r.db.WithContext(ctx).Model(&models.ResourceRecord{}).
 		Where("id = ?", id).
@@ -269,6 +298,12 @@ func toDomainResource(record models.ResourceRecord, portRecords []models.Resourc
 		Config:        config,
 		EnvironmentID: record.EnvironmentID,
 		CreatedBy:     record.CreatedBy,
+		SourceType:    record.SourceType,
+		GitURL:        record.GitURL,
+		GitBranch:     record.GitBranch,
+		BuildMode:     record.BuildMode,
+		BuildJobID:    record.BuildJobID,
+		GitToken:      record.GitToken,
 		Ports:         ports,
 		EnvVars:       envVars,
 		CreatedAt:     record.CreatedAt,

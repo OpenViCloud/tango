@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -196,52 +197,92 @@ func (r *Repository) GetContainerLogs(ctx context.Context, containerID string, i
 	return lines, nil
 }
 
+// probeShell checks whether the given shell binary exists inside a container
+// by running `test -x <shell>` as a detached exec and inspecting the exit code.
+// Docker's ContainerExecCreate/Attach does NOT surface "file not found" errors
+// until the stream is read, so we probe first to avoid returning a broken session.
+func (r *Repository) probeShell(ctx context.Context, containerID, shell string) bool {
+	probeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	resp, err := r.client.ContainerExecCreate(probeCtx, containerID, container.ExecOptions{
+		Cmd:          []string{"test", "-x", shell},
+		AttachStdout: false,
+		AttachStderr: false,
+	})
+	if err != nil {
+		return false
+	}
+	if err := r.client.ContainerExecStart(probeCtx, resp.ID, container.ExecStartOptions{Detach: true}); err != nil {
+		return false
+	}
+	// Poll until the test exec finishes (usually <50 ms)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		inspect, err := r.client.ContainerExecInspect(probeCtx, resp.ID)
+		if err != nil {
+			return false
+		}
+		if !inspect.Running {
+			return inspect.ExitCode == 0
+		}
+		time.Sleep(30 * time.Millisecond)
+	}
+	return false
+}
+
 func (r *Repository) ExecContainer(ctx context.Context, containerID string, input domain.ContainerExecInput) (domain.ContainerExecSession, error) {
 	shells := input.Shell
 	if len(shells) == 0 {
 		shells = []string{"/bin/bash", "/bin/sh"}
 	}
 
-	var lastErr error
+	// Probe which shell actually exists before opening an interactive session.
+	// Docker does not return an error from ContainerExecAttach when the binary
+	// is missing — the failure only appears in the stream data, so the old
+	// try/continue loop never triggered the fallback.
+	chosen := ""
 	for _, shell := range shells {
-		execResp, err := r.client.ContainerExecCreate(ctx, containerID, container.ExecOptions{
-			AttachStderr: true,
-			AttachStdin:  true,
-			AttachStdout: true,
-			Cmd:          []string{shell},
-			Tty:          true,
-		})
-		if err != nil {
-			lastErr = err
-			continue
+		if r.probeShell(ctx, containerID, shell) {
+			chosen = shell
+			break
 		}
-
-		attachResp, err := r.client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{
-			Tty: true,
-		})
-		if err != nil {
-			lastErr = err
-			continue
-		}
-
-		session := &execSession{
-			client: r.client,
-			execID: execResp.ID,
-			conn:   attachResp.Conn,
-			reader: attachResp.Reader,
-		}
-
-		if input.Cols > 0 && input.Rows > 0 {
-			_ = session.Resize(ctx, input.Cols, input.Rows)
-		}
-
-		return session, nil
+	}
+	if chosen == "" {
+		// Fallback: try /bin/sh unconditionally (always present on Linux)
+		chosen = "/bin/sh"
 	}
 
-	if lastErr != nil {
-		return nil, fmt.Errorf("exec container %s: %w", containerID, lastErr)
+	execResp, err := r.client.ContainerExecCreate(ctx, containerID, container.ExecOptions{
+		AttachStderr: true,
+		AttachStdin:  true,
+		AttachStdout: true,
+		Cmd:          []string{chosen},
+		Tty:          true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("exec container %s: %w", containerID, err)
 	}
-	return nil, fmt.Errorf("exec container %s: no shell available", containerID)
+
+	attachResp, err := r.client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{
+		Tty: true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("exec attach %s: %w", containerID, err)
+	}
+
+	session := &execSession{
+		client: r.client,
+		execID: execResp.ID,
+		conn:   attachResp.Conn,
+		reader: attachResp.Reader,
+	}
+
+	if input.Cols > 0 && input.Rows > 0 {
+		_ = session.Resize(ctx, input.Cols, input.Rows)
+	}
+
+	return session, nil
 }
 
 // StartContainer starts a stopped or newly created container.

@@ -8,12 +8,14 @@ import (
 	"tango/internal/domain"
 )
 
-// ── CreateBuildJob ────────────────────────────────────────────────────────────
+// ── CreateBuildJob (git source) ───────────────────────────────────────────────
 
 type CreateBuildJobCommand struct {
-	GitURL    string
-	GitBranch string
-	ImageTag  string
+	GitURL     string
+	GitBranch  string
+	BuildMode  string // "auto" | "dockerfile"
+	ImageTag   string
+	ResourceID string // optional: auto-start this resource after build
 }
 
 type BuildService interface {
@@ -30,7 +32,7 @@ func NewCreateBuildJobHandler(repo domain.BuildJobRepository, builder BuildServi
 }
 
 func (h *CreateBuildJobHandler) Handle(ctx context.Context, cmd CreateBuildJobCommand) (*domain.BuildJob, error) {
-	job, err := domain.NewBuildJob(newBuildJobID(), cmd.GitURL, cmd.GitBranch, cmd.ImageTag)
+	job, err := domain.NewBuildJob(newBuildJobID(), cmd.GitURL, cmd.GitBranch, cmd.BuildMode, cmd.ImageTag, cmd.ResourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -42,10 +44,36 @@ func (h *CreateBuildJobHandler) Handle(ctx context.Context, cmd CreateBuildJobCo
 	return saved, nil
 }
 
-func newBuildJobID() string {
-	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	return "build_" + hex.EncodeToString(b)
+// ── CreateBuildJobFromUpload (archive source) ─────────────────────────────────
+
+type CreateBuildJobFromUploadCommand struct {
+	ArchivePath string
+	ArchiveName string
+	BuildMode   string // "auto" | "dockerfile"
+	ImageTag    string
+	ResourceID  string // optional: auto-start this resource after build
+}
+
+type CreateBuildJobFromUploadHandler struct {
+	repo    domain.BuildJobRepository
+	builder BuildService
+}
+
+func NewCreateBuildJobFromUploadHandler(repo domain.BuildJobRepository, builder BuildService) *CreateBuildJobFromUploadHandler {
+	return &CreateBuildJobFromUploadHandler{repo: repo, builder: builder}
+}
+
+func (h *CreateBuildJobFromUploadHandler) Handle(ctx context.Context, cmd CreateBuildJobFromUploadCommand) (*domain.BuildJob, error) {
+	job, err := domain.NewBuildJobFromUpload(newBuildJobID(), cmd.ArchivePath, cmd.ArchiveName, cmd.BuildMode, cmd.ImageTag, cmd.ResourceID)
+	if err != nil {
+		return nil, err
+	}
+	saved, err := h.repo.Save(ctx, job)
+	if err != nil {
+		return nil, err
+	}
+	h.builder.RunAsync(saved)
+	return saved, nil
 }
 
 // ── CancelBuildJob ────────────────────────────────────────────────────────────
@@ -72,4 +100,10 @@ func (h *CancelBuildJobHandler) Handle(ctx context.Context, cmd CancelBuildJobCo
 	}
 	job.Status = domain.BuildJobStatusCanceled
 	return h.repo.Update(ctx, job)
+}
+
+func newBuildJobID() string {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return "build_" + hex.EncodeToString(b)
 }

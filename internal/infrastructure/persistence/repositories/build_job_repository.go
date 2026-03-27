@@ -38,13 +38,17 @@ func (r *BuildJobRepository) Update(ctx context.Context, job *domain.BuildJob) (
 		Model(&models.BuildJobRecord{}).
 		Where("id = ?", job.ID).
 		Updates(map[string]any{
-			"status":      string(job.Status),
-			"logs":        job.Logs,
-			"error_msg":   job.ErrorMsg,
-			"image_tag":   job.ImageTag,
-			"started_at":  job.StartedAt,
-			"finished_at": job.FinishedAt,
-			"updated_at":  job.UpdatedAt,
+			"status":       string(job.Status),
+			"source_type":  job.SourceType,
+			"build_mode":   job.BuildMode,
+			"archive_path": job.ArchivePath,
+			"archive_name": job.ArchiveName,
+			"logs":         job.Logs,
+			"error_msg":    job.ErrorMsg,
+			"image_tag":    job.ImageTag,
+			"started_at":   job.StartedAt,
+			"finished_at":  job.FinishedAt,
+			"updated_at":   job.UpdatedAt,
 		})
 	if result.Error != nil {
 		return nil, fmt.Errorf("update build job: %w", result.Error)
@@ -110,33 +114,42 @@ func (r *BuildJobRepository) List(ctx context.Context, opts domain.BuildJobListO
 
 func toBuildJobRecord(j *domain.BuildJob) models.BuildJobRecord {
 	return models.BuildJobRecord{
-		ID:         j.ID,
-		Status:     string(j.Status),
-		GitURL:     j.GitURL,
-		GitBranch:  j.GitBranch,
-		ImageTag:   j.ImageTag,
-		Logs:       j.Logs,
-		ErrorMsg:   j.ErrorMsg,
-		StartedAt:  j.StartedAt,
-		FinishedAt: j.FinishedAt,
-		CreatedAt:  j.CreatedAt,
-		UpdatedAt:  j.UpdatedAt,
+		ID:          j.ID,
+		Status:      string(j.Status),
+		SourceType:  j.SourceType,
+		BuildMode:   j.BuildMode,
+		GitURL:      j.GitURL,
+		GitBranch:   j.GitBranch,
+		ArchivePath: j.ArchivePath,
+		ArchiveName: j.ArchiveName,
+		ImageTag:    j.ImageTag,
+		ResourceID:  j.ResourceID,
+		Logs:        j.Logs,
+		ErrorMsg:    j.ErrorMsg,
+		StartedAt:   j.StartedAt,
+		FinishedAt:  j.FinishedAt,
+		CreatedAt:   j.CreatedAt,
+		UpdatedAt:   j.UpdatedAt,
 	}
 }
 
 func toDomainBuildJob(r *models.BuildJobRecord) *domain.BuildJob {
 	return &domain.BuildJob{
-		ID:         r.ID,
-		Status:     domain.BuildJobStatus(r.Status),
-		GitURL:     r.GitURL,
-		GitBranch:  r.GitBranch,
-		ImageTag:   r.ImageTag,
-		Logs:       r.Logs,
-		ErrorMsg:   r.ErrorMsg,
-		StartedAt:  r.StartedAt,
-		FinishedAt: r.FinishedAt,
-		CreatedAt:  r.CreatedAt,
-		UpdatedAt:  r.UpdatedAt,
+		ID:          r.ID,
+		Status:      domain.BuildJobStatus(r.Status),
+		SourceType:  r.SourceType,
+		BuildMode:   r.BuildMode,
+		GitURL:      r.GitURL,
+		GitBranch:   r.GitBranch,
+		ArchivePath: r.ArchivePath,
+		ArchiveName: r.ArchiveName,
+		ImageTag:    r.ImageTag,
+		ResourceID:  r.ResourceID,
+		Logs:        r.Logs,
+		ErrorMsg:    r.ErrorMsg,
+		StartedAt:   r.StartedAt,
+		FinishedAt:  r.FinishedAt,
+		CreatedAt:   r.CreatedAt,
+		UpdatedAt:   r.UpdatedAt,
 	}
 }
-

@@ -27,6 +27,7 @@ import { Route as AuthProjectsProjectIdRouteImport } from './routes/_auth/projec
 import { Route as AuthChannelsCreateRouteImport } from './routes/_auth/channels/create'
 import { Route as AuthUsersUserIdEditRouteImport } from './routes/_auth/users/$userId/edit'
 import { Route as AuthChannelsChannelIdEditRouteImport } from './routes/_auth/channels/$channelId/edit'
+import { Route as AuthEnvironmentsEnvIdResourcesNewRouteImport } from './routes/_auth/environments/$envId/resources/new'
 
 const GuestRoute = GuestRouteImport.update({
   id: '/_guest',
@@ -117,6 +118,12 @@ const AuthChannelsChannelIdEditRoute =
     path: '/channels/$channelId/edit',
     getParentRoute: () => AuthRoute,
   } as any)
+const AuthEnvironmentsEnvIdResourcesNewRoute =
+  AuthEnvironmentsEnvIdResourcesNewRouteImport.update({
+    id: '/environments/$envId/resources/new',
+    path: '/environments/$envId/resources/new',
+    getParentRoute: () => AuthRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/users/': typeof AuthUsersIndexRoute
   '/channels/$channelId/edit': typeof AuthChannelsChannelIdEditRoute
   '/users/$userId/edit': typeof AuthUsersUserIdEditRoute
+  '/environments/$envId/resources/new': typeof AuthEnvironmentsEnvIdResourcesNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -153,6 +161,7 @@ export interface FileRoutesByTo {
   '/users': typeof AuthUsersIndexRoute
   '/channels/$channelId/edit': typeof AuthChannelsChannelIdEditRoute
   '/users/$userId/edit': typeof AuthUsersUserIdEditRoute
+  '/environments/$envId/resources/new': typeof AuthEnvironmentsEnvIdResourcesNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -174,6 +183,7 @@ export interface FileRoutesById {
   '/_auth/users/': typeof AuthUsersIndexRoute
   '/_auth/channels/$channelId/edit': typeof AuthChannelsChannelIdEditRoute
   '/_auth/users/$userId/edit': typeof AuthUsersUserIdEditRoute
+  '/_auth/environments/$envId/resources/new': typeof AuthEnvironmentsEnvIdResourcesNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
     | '/users/'
     | '/channels/$channelId/edit'
     | '/users/$userId/edit'
+    | '/environments/$envId/resources/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -212,6 +223,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/channels/$channelId/edit'
     | '/users/$userId/edit'
+    | '/environments/$envId/resources/new'
   id:
     | '__root__'
     | '/'
@@ -232,6 +244,7 @@ export interface FileRouteTypes {
     | '/_auth/users/'
     | '/_auth/channels/$channelId/edit'
     | '/_auth/users/$userId/edit'
+    | '/_auth/environments/$envId/resources/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -368,6 +381,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthChannelsChannelIdEditRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/environments/$envId/resources/new': {
+      id: '/_auth/environments/$envId/resources/new'
+      path: '/environments/$envId/resources/new'
+      fullPath: '/environments/$envId/resources/new'
+      preLoaderRoute: typeof AuthEnvironmentsEnvIdResourcesNewRouteImport
+      parentRoute: typeof AuthRoute
+    }
   }
 }
 
@@ -386,6 +406,7 @@ interface AuthRouteChildren {
   AuthUsersIndexRoute: typeof AuthUsersIndexRoute
   AuthChannelsChannelIdEditRoute: typeof AuthChannelsChannelIdEditRoute
   AuthUsersUserIdEditRoute: typeof AuthUsersUserIdEditRoute
+  AuthEnvironmentsEnvIdResourcesNewRoute: typeof AuthEnvironmentsEnvIdResourcesNewRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
@@ -403,6 +424,8 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthUsersIndexRoute: AuthUsersIndexRoute,
   AuthChannelsChannelIdEditRoute: AuthChannelsChannelIdEditRoute,
   AuthUsersUserIdEditRoute: AuthUsersUserIdEditRoute,
+  AuthEnvironmentsEnvIdResourcesNewRoute:
+    AuthEnvironmentsEnvIdResourcesNewRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)

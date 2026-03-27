@@ -16,7 +16,7 @@ export const resourceSchema = z.object({
   image: z.string(),
   tag: z.string(),
   container_id: z.string(),
-  config: z.record(z.unknown()),
+  config: z.record(z.string(), z.unknown()),
   environment_id: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -94,7 +94,7 @@ export const createResourceSchema = z.object({
   type: z.string().default("db"),
   image: z.string().min(1, "validation.required"),
   tag: z.string().default("latest"),
-  config: z.record(z.unknown()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
   ports: z
     .array(
       z.object({
@@ -139,19 +139,19 @@ export const createResourceFromGitSchema = z.object({
   name: z.string().min(1, "validation.required"),
   git_url: z.string().min(1, "validation.required"),
   git_branch: z.string().optional(),
-  build_mode: z.enum(["auto", "dockerfile"]).default("auto"),
+  build_mode: z.enum(["auto", "dockerfile"]),
   git_token: z.string().optional(),
   image_tag: z.string().min(1, "validation.required"),
   ports: z.array(z.object({
     host_port: z.number(),
     internal_port: z.number(),
-    proto: z.string().default("tcp"),
+    proto: z.string(),
     label: z.string().optional(),
   })).optional(),
   env_vars: z.array(z.object({
     key: z.string(),
     value: z.string(),
-    is_secret: z.boolean().default(false),
+    is_secret: z.boolean(),
   })).optional(),
 })
 export type CreateResourceFromGitModel = z.infer<typeof createResourceFromGitSchema>

@@ -210,9 +210,11 @@ func main() {
 	beginGitHubAppManifestHandler := command.NewBeginGitHubAppManifestHandler(integrationStateStore, githubAppService)
 	completeGitHubAppManifestHandler := command.NewCompleteGitHubAppManifestHandler(sourceProviderRepo, integrationStateStore, githubAppService, cipherService)
 	completeGitHubAppSetupHandler := command.NewCompleteGitHubAppSetupHandler(sourceProviderRepo, sourceConnectionRepo, integrationStateStore, githubAppService, cipherService)
+	connectPATHandler := command.NewConnectPATHandler(sourceProviderRepo, sourceConnectionRepo, cipherService, githubAppService)
 	resolveSourceConnectionTokenHandler := command.NewResolveSourceConnectionTokenHandler(sourceConnectionRepo, sourceProviderRepo, cipherService, githubAppService)
 	listSourceConnectionsHandler := query.NewListSourceConnectionsHandler(sourceConnectionRepo)
 	listGitHubRepositoriesHandler := query.NewListGitHubRepositoriesHandler(githubAppService)
+	listGitHubUserRepositoriesHandler := query.NewListGitHubUserRepositoriesHandler(githubAppService)
 	listGitHubBranchesHandler := query.NewListGitHubBranchesHandler(githubAppService)
 
 	// HTTP handlers
@@ -238,9 +240,11 @@ func main() {
 		beginGitHubAppManifestHandler,
 		completeGitHubAppManifestHandler,
 		completeGitHubAppSetupHandler,
+		connectPATHandler,
 		resolveSourceConnectionTokenHandler,
 		listSourceConnectionsHandler,
 		listGitHubRepositoriesHandler,
+		listGitHubUserRepositoriesHandler,
 		listGitHubBranchesHandler,
 		strings.TrimRight(cfg.FrontendBaseURL, "/")+"/projects",
 		strings.TrimRight(cfg.BaseURL, "/"),

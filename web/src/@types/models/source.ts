@@ -51,3 +51,8 @@ export type BeginGitHubAppManifestResponseModel = {
   create_url: string
   manifest: GitHubAppManifestModel
 }
+
+export type ConnectPATModel = {
+  token: string
+  display_name?: string
+}

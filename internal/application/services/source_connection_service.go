@@ -75,6 +75,11 @@ type GitHubInstallation struct {
 	AccountType  string
 }
 
+type GitHubUser struct {
+	ID    int64
+	Login string
+}
+
 type GitHubAppService interface {
 	BuildManifest(appName, redirectURL, setupURL, webhookURL string) GitHubAppManifest
 	ExchangeManifest(ctx context.Context, code string) (*GitHubAppRegistration, error)
@@ -82,6 +87,11 @@ type GitHubAppService interface {
 	BuildInstallURL(appSlug, state string) string
 	GetInstallation(ctx context.Context, credentials GitHubAppCredentials, installationID int64) (*GitHubInstallation, error)
 	CreateInstallationToken(ctx context.Context, credentials GitHubAppCredentials, installationID int64) (string, error)
+	// ListRepositories lists repositories accessible via a GitHub App installation token.
 	ListRepositories(ctx context.Context, installationToken string) ([]GitRepository, error)
-	ListBranches(ctx context.Context, installationToken, owner, repo string) ([]GitBranch, error)
+	// ListUserRepositories lists repositories accessible via a PAT (uses /user/repos).
+	ListUserRepositories(ctx context.Context, pat string) ([]GitRepository, error)
+	ListBranches(ctx context.Context, token, owner, repo string) ([]GitBranch, error)
+	// VerifyPAT validates a Personal Access Token and returns the authenticated user.
+	VerifyPAT(ctx context.Context, token string) (*GitHubUser, error)
 }

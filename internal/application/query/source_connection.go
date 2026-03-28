@@ -64,6 +64,18 @@ func (h *ListGitHubRepositoriesHandler) Handle(ctx context.Context, q ListGitHub
 	return h.github.ListRepositories(ctx, strings.TrimSpace(q.AccessToken))
 }
 
+type ListGitHubUserRepositoriesHandler struct {
+	github appservices.GitHubAppService
+}
+
+func NewListGitHubUserRepositoriesHandler(github appservices.GitHubAppService) *ListGitHubUserRepositoriesHandler {
+	return &ListGitHubUserRepositoriesHandler{github: github}
+}
+
+func (h *ListGitHubUserRepositoriesHandler) Handle(ctx context.Context, q ListGitHubRepositoriesQuery) ([]appservices.GitRepository, error) {
+	return h.github.ListUserRepositories(ctx, strings.TrimSpace(q.AccessToken))
+}
+
 type ListGitHubBranchesQuery struct {
 	AccessToken string
 	Owner       string

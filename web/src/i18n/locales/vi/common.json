@@ -707,7 +707,22 @@
       "githubAppDescription": "Tạo và cài đặt GitHub App, sau đó cấp quyền repository trước khi deploy.",
       "installFlow": "Xác thực qua cài đặt",
       "repoAccess": "Quyền truy cập repo",
-      "noTokenPaste": "Không cần dán token"
+      "noTokenPaste": "Không cần dán token",
+      "pat": "Repository Riêng Tư",
+      "patDescription": "Kết nối bằng Personal Access Token. Phù hợp cho repo riêng tư khi bạn đã có key.",
+      "patDirectToken": "Token trực tiếp",
+      "patPrivate": "Repo riêng tư",
+      "patNoOAuth": "Không cần OAuth"
+    },
+    "pat": {
+      "tokenLabel": "Personal Access Token",
+      "tokenPlaceholder": "ghp_...",
+      "displayNameLabel": "Tên hiển thị",
+      "displayNamePlaceholder": "Token GitHub của tôi (tùy chọn)",
+      "connect": "Kết nối",
+      "connecting": "Đang kết nối...",
+      "back": "Quay lại",
+      "connected": "Đã kết nối source qua PAT."
     },
     "empty": {
       "title": "Chưa có source nào",
@@ -716,6 +731,9 @@
     },
     "card": {
       "provider": "Provider",
+      "connectionType": "Loại kết nối",
+      "githubApp": "GitHub App",
+      "githubPat": "GitHub PAT",
       "accountType": "Loại tài khoản",
       "unknown": "Không rõ",
       "connectedOn": "Kết nối lúc {{date}}"

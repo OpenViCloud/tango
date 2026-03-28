@@ -707,7 +707,22 @@
       "githubAppDescription": "Create and install a GitHub App, then grant repository access before you deploy.",
       "installFlow": "Install-based auth",
       "repoAccess": "Repository access",
-      "noTokenPaste": "No token paste"
+      "noTokenPaste": "No token paste",
+      "pat": "Private Repository",
+      "patDescription": "Connect using a Personal Access Token. Ideal for private repos where you already have a key.",
+      "patDirectToken": "Direct token",
+      "patPrivate": "Private repos",
+      "patNoOAuth": "No OAuth flow"
+    },
+    "pat": {
+      "tokenLabel": "Personal Access Token",
+      "tokenPlaceholder": "ghp_...",
+      "displayNameLabel": "Display Name",
+      "displayNamePlaceholder": "My GitHub Token (optional)",
+      "connect": "Connect",
+      "connecting": "Connecting...",
+      "back": "Back",
+      "connected": "PAT source connected."
     },
     "empty": {
       "title": "No sources connected yet",
@@ -716,6 +731,9 @@
     },
     "card": {
       "provider": "Provider",
+      "connectionType": "Connection Type",
+      "githubApp": "GitHub App",
+      "githubPat": "GitHub PAT",
       "accountType": "Account Type",
       "unknown": "Unknown",
       "connectedOn": "Connected on {{date}}"

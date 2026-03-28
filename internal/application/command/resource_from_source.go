@@ -184,7 +184,7 @@ func (h *StartBuildForResourceHandler) Handle(ctx context.Context, cmd StartBuil
 		if h.resolveToken == nil {
 			return nil, fmt.Errorf("source connection resolver is not configured")
 		}
-		resolvedToken, err := h.resolveToken.Handle(ctx, cmd.UserID, resource.ConnectionID)
+		resolvedToken, _, err := h.resolveToken.Handle(ctx, cmd.UserID, resource.ConnectionID)
 		if err != nil {
 			return nil, fmt.Errorf("resolve source connection token: %w", err)
 		}

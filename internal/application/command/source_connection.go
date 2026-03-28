@@ -260,35 +260,178 @@ func NewResolveSourceConnectionTokenHandler(
 	}
 }
 
-func (h *ResolveSourceConnectionTokenHandler) Handle(ctx context.Context, userID, connectionID string) (string, error) {
+// Handle resolves a short-lived access token for the given source connection.
+// It returns the token and the connection type (connectionTypePAT or connectionTypeApp).
+func (h *ResolveSourceConnectionTokenHandler) Handle(ctx context.Context, userID, connectionID string) (token, connType string, err error) {
 	connection, err := h.connectionRepo.GetByID(ctx, strings.TrimSpace(connectionID))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if connection.UserID != strings.TrimSpace(userID) {
-		return "", domain.ErrSourceConnectionNotFound
+		return "", "", domain.ErrSourceConnectionNotFound
 	}
 	provider, err := h.providerRepo.GetByID(ctx, connection.SourceProviderID)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if provider.UserID != connection.UserID {
-		return "", domain.ErrSourceProviderNotFound
+		return "", "", domain.ErrSourceProviderNotFound
 	}
+
+	// Detect PAT vs GitHub App by provider metadata.
+	if providerConnectionType(provider) == connectionTypePAT {
+		t, err := resolvePATToken(ctx, h.cipher, provider, h.connectionRepo, connection.ID)
+		return t, connectionTypePAT, err
+	}
+
 	credentials, err := decryptGitHubAppCredentials(ctx, h.cipher, provider)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	installationID, err := strconv.ParseInt(strings.TrimSpace(connection.ExternalID), 10, 64)
 	if err != nil || installationID <= 0 {
-		return "", domain.ErrSourceConnectionCredentialsAbsent
+		return "", "", domain.ErrSourceConnectionCredentialsAbsent
 	}
-	token, err := h.github.CreateInstallationToken(ctx, credentials, installationID)
+	t, err := h.github.CreateInstallationToken(ctx, credentials, installationID)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	_ = h.connectionRepo.TouchUsedAt(ctx, connection.ID, time.Now().UTC())
-	return token, nil
+	return t, connectionTypeApp, nil
+}
+
+func providerConnectionType(provider *domain.SourceProvider) string {
+	var meta map[string]string
+	if err := json.Unmarshal([]byte(provider.MetadataJSON), &meta); err != nil {
+		return connectionTypeApp
+	}
+	if t, ok := meta["connection_type"]; ok {
+		return t
+	}
+	return connectionTypeApp
+}
+
+func resolvePATToken(ctx context.Context, cipher appservices.SecretCipher, provider *domain.SourceProvider, repo domain.SourceConnectionRepository, connectionID string) (string, error) {
+	raw, err := cipher.Decrypt(ctx, provider.EncryptedCredentials)
+	if err != nil {
+		return "", domain.ErrSourceProviderEncryptionFailed
+	}
+	var creds map[string]string
+	if err := json.Unmarshal([]byte(raw), &creds); err != nil {
+		return "", domain.ErrSourceProviderEncryptionFailed
+	}
+	pat, ok := creds["pat"]
+	if !ok || strings.TrimSpace(pat) == "" {
+		return "", domain.ErrSourceConnectionCredentialsAbsent
+	}
+	_ = repo.TouchUsedAt(ctx, connectionID, time.Now().UTC())
+	return pat, nil
+}
+
+// ── Connect PAT ───────────────────────────────────────────────────────────────
+
+// connectionTypePAT is stored in SourceProvider.MetadataJSON to identify
+// a Personal-Access-Token backed connection.
+const connectionTypePAT = "github_pat"
+const connectionTypeApp = "github_app"
+
+type ConnectPATCommand struct {
+	UserID      string
+	Token       string // plaintext PAT — encrypted before storage
+	DisplayName string // optional; defaults to GitHub login
+}
+
+type ConnectPATHandler struct {
+	providerRepo   domain.SourceProviderRepository
+	connectionRepo domain.SourceConnectionRepository
+	cipher         appservices.SecretCipher
+	github         appservices.GitHubAppService
+}
+
+func NewConnectPATHandler(
+	providerRepo domain.SourceProviderRepository,
+	connectionRepo domain.SourceConnectionRepository,
+	cipher appservices.SecretCipher,
+	github appservices.GitHubAppService,
+) *ConnectPATHandler {
+	return &ConnectPATHandler{
+		providerRepo:   providerRepo,
+		connectionRepo: connectionRepo,
+		cipher:         cipher,
+		github:         github,
+	}
+}
+
+func (h *ConnectPATHandler) Handle(ctx context.Context, cmd ConnectPATCommand) (*domain.SourceConnection, error) {
+	token := strings.TrimSpace(cmd.Token)
+	if token == "" {
+		return nil, domain.ErrInvalidInput
+	}
+
+	// Verify the PAT against GitHub API and resolve the account identity.
+	user, err := h.github.VerifyPAT(ctx, token)
+	if err != nil {
+		return nil, domain.NewUserFacingError("Invalid token: " + err.Error())
+	}
+
+	// Encrypt the raw token for storage.
+	credJSON, err := json.Marshal(map[string]string{"pat": token})
+	if err != nil {
+		return nil, err
+	}
+	encrypted, err := h.cipher.Encrypt(ctx, string(credJSON))
+	if err != nil {
+		return nil, domain.ErrSourceConnectionEncryptionFailed
+	}
+
+	metaJSON, err := json.Marshal(map[string]string{"connection_type": connectionTypePAT})
+	if err != nil {
+		return nil, err
+	}
+
+	displayName := strings.TrimSpace(cmd.DisplayName)
+	if displayName == "" {
+		displayName = user.Login
+	}
+
+	provider, err := domain.NewSourceProvider(
+		newSourceProviderID(),
+		strings.TrimSpace(cmd.UserID),
+		string(domain.SourceConnectionProviderGitHub),
+		displayName,
+		encrypted,
+		string(metaJSON),
+		string(domain.SourceProviderStatusActive),
+	)
+	if err != nil {
+		return nil, err
+	}
+	savedProvider, err := h.providerRepo.Save(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+
+	connMeta, err := json.Marshal(map[string]string{"connection_type": connectionTypePAT})
+	if err != nil {
+		return nil, err
+	}
+
+	connection, err := domain.NewSourceConnection(
+		newSourceConnectionID(),
+		strings.TrimSpace(cmd.UserID),
+		string(domain.SourceConnectionProviderGitHub),
+		savedProvider.ID,
+		displayName,
+		user.Login,
+		strconv.FormatInt(user.ID, 10),
+		string(connMeta),
+		string(domain.SourceConnectionStatusActive),
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return h.connectionRepo.Save(ctx, connection)
 }
 
 func decryptGitHubAppCredentials(ctx context.Context, cipher appservices.SecretCipher, provider *domain.SourceProvider) (appservices.GitHubAppCredentials, error) {

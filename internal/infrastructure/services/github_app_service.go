@@ -182,6 +182,41 @@ func (s *gitHubAppService) ListRepositories(ctx context.Context, installationTok
 	return items, nil
 }
 
+func (s *gitHubAppService) ListUserRepositories(ctx context.Context, pat string) ([]appservices.GitRepository, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/repos?per_page=100&sort=updated", nil)
+	if err != nil {
+		return nil, err
+	}
+	s.applyInstallationHeaders(req, pat)
+
+	var payload []struct {
+		Name          string `json:"name"`
+		FullName      string `json:"full_name"`
+		Private       bool   `json:"private"`
+		DefaultBranch string `json:"default_branch"`
+		CloneURL      string `json:"clone_url"`
+		Owner         struct {
+			Login string `json:"login"`
+		} `json:"owner"`
+	}
+	if err := s.doJSON(req, &payload); err != nil {
+		return nil, err
+	}
+
+	items := make([]appservices.GitRepository, 0, len(payload))
+	for _, repo := range payload {
+		items = append(items, appservices.GitRepository{
+			Owner:      repo.Owner.Login,
+			Name:       repo.Name,
+			FullName:   repo.FullName,
+			CloneURL:   repo.CloneURL,
+			Private:    repo.Private,
+			DefaultRef: repo.DefaultBranch,
+		})
+	}
+	return items, nil
+}
+
 func (s *gitHubAppService) ListBranches(ctx context.Context, installationToken, owner, repo string) ([]appservices.GitBranch, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/repos/"+url.PathEscape(owner)+"/"+url.PathEscape(repo)+"/branches?per_page=100", nil)
 	if err != nil {
@@ -249,6 +284,26 @@ func (s *gitHubAppService) applyAppHeaders(req *http.Request, jwtToken string) {
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(jwtToken))
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+}
+
+func (s *gitHubAppService) VerifyPAT(ctx context.Context, token string) (*appservices.GitHubUser, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user", nil)
+	if err != nil {
+		return nil, err
+	}
+	s.applyInstallationHeaders(req, token)
+
+	var payload struct {
+		ID    int64  `json:"id"`
+		Login string `json:"login"`
+	}
+	if err := s.doJSON(req, &payload); err != nil {
+		return nil, fmt.Errorf("verify PAT: %w", err)
+	}
+	if payload.ID == 0 || payload.Login == "" {
+		return nil, fmt.Errorf("verify PAT: unexpected empty response")
+	}
+	return &appservices.GitHubUser{ID: payload.ID, Login: payload.Login}, nil
 }
 
 func (s *gitHubAppService) applyInstallationHeaders(req *http.Request, installationToken string) {

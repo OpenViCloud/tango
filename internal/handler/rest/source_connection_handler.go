@@ -8,6 +8,7 @@ import (
 
 	"tango/internal/application/command"
 	"tango/internal/application/query"
+	appservices "tango/internal/application/services"
 	"tango/internal/domain"
 	response "tango/internal/handler/rest/response"
 
@@ -18,9 +19,11 @@ type SourceConnectionHandler struct {
 	beginManifest    *command.BeginGitHubAppManifestHandler
 	completeManifest *command.CompleteGitHubAppManifestHandler
 	completeSetup    *command.CompleteGitHubAppSetupHandler
+	connectPAT       *command.ConnectPATHandler
 	resolveToken     *command.ResolveSourceConnectionTokenHandler
 	listConnections  *query.ListSourceConnectionsHandler
 	listRepos        *query.ListGitHubRepositoriesHandler
+	listUserRepos    *query.ListGitHubUserRepositoriesHandler
 	listBranches     *query.ListGitHubBranchesHandler
 	defaultRedirect  string
 	apiBaseURL       string
@@ -30,9 +33,11 @@ func NewSourceConnectionHandler(
 	beginManifest *command.BeginGitHubAppManifestHandler,
 	completeManifest *command.CompleteGitHubAppManifestHandler,
 	completeSetup *command.CompleteGitHubAppSetupHandler,
+	connectPAT *command.ConnectPATHandler,
 	resolveToken *command.ResolveSourceConnectionTokenHandler,
 	listConnections *query.ListSourceConnectionsHandler,
 	listRepos *query.ListGitHubRepositoriesHandler,
+	listUserRepos *query.ListGitHubUserRepositoriesHandler,
 	listBranches *query.ListGitHubBranchesHandler,
 	defaultRedirect string,
 	apiBaseURL string,
@@ -41,9 +46,11 @@ func NewSourceConnectionHandler(
 		beginManifest:    beginManifest,
 		completeManifest: completeManifest,
 		completeSetup:    completeSetup,
+		connectPAT:       connectPAT,
 		resolveToken:     resolveToken,
 		listConnections:  listConnections,
 		listRepos:        listRepos,
+		listUserRepos:    listUserRepos,
 		listBranches:     listBranches,
 		defaultRedirect:  defaultRedirect,
 		apiBaseURL:       apiBaseURL,
@@ -59,6 +66,7 @@ func (h *SourceConnectionHandler) RegisterPublic(rg *gin.RouterGroup) {
 func (h *SourceConnectionHandler) RegisterProtected(rg *gin.RouterGroup) {
 	rg.GET("/source-connections", h.List)
 	rg.POST("/source-connections/github/apps", h.BeginGitHubAppManifest)
+	rg.POST("/source-connections/pat", h.ConnectPAT)
 	rg.GET("/source-connections/:id/repos", h.ListGitHubRepos)
 	rg.GET("/source-connections/:id/repos/:owner/:repo/branches", h.ListGitHubBranches)
 }
@@ -66,6 +74,11 @@ func (h *SourceConnectionHandler) RegisterProtected(rg *gin.RouterGroup) {
 type beginGitHubAppManifestRequest struct {
 	AppName    string `json:"app_name" binding:"required"`
 	RedirectTo string `json:"redirect_to"`
+}
+
+type connectPATRequest struct {
+	Token       string `json:"token"        binding:"required"`
+	DisplayName string `json:"display_name"`
 }
 
 func (h *SourceConnectionHandler) List(c *gin.Context) {
@@ -140,17 +153,41 @@ func (h *SourceConnectionHandler) CompleteGitHubAppSetup(c *gin.Context) {
 	c.Redirect(http.StatusFound, redirectTo)
 }
 
+func (h *SourceConnectionHandler) ConnectPAT(c *gin.Context) {
+	var req connectPATRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(response.Validation(nil, err.Error()))
+		return
+	}
+	connection, err := h.connectPAT.Handle(c.Request.Context(), command.ConnectPATCommand{
+		UserID:      c.GetString("user_id"),
+		Token:       req.Token,
+		DisplayName: req.DisplayName,
+	})
+	if err != nil {
+		writeSourceConnectionError(c, err)
+		return
+	}
+	response.Created(c, connection)
+}
+
 func (h *SourceConnectionHandler) Webhook(c *gin.Context) {
 	response.NoContent(c)
 }
 
 func (h *SourceConnectionHandler) ListGitHubRepos(c *gin.Context) {
-	token, err := h.resolveToken.Handle(c.Request.Context(), c.GetString("user_id"), c.Param("id"))
+	token, connType, err := h.resolveToken.Handle(c.Request.Context(), c.GetString("user_id"), c.Param("id"))
 	if err != nil {
 		writeSourceConnectionError(c, err)
 		return
 	}
-	items, err := h.listRepos.Handle(c.Request.Context(), query.ListGitHubRepositoriesQuery{AccessToken: token})
+	q := query.ListGitHubRepositoriesQuery{AccessToken: token}
+	var items []appservices.GitRepository
+	if connType == "github_pat" {
+		items, err = h.listUserRepos.Handle(c.Request.Context(), q)
+	} else {
+		items, err = h.listRepos.Handle(c.Request.Context(), q)
+	}
 	if err != nil {
 		writeSourceConnectionError(c, err)
 		return
@@ -159,7 +196,7 @@ func (h *SourceConnectionHandler) ListGitHubRepos(c *gin.Context) {
 }
 
 func (h *SourceConnectionHandler) ListGitHubBranches(c *gin.Context) {
-	token, err := h.resolveToken.Handle(c.Request.Context(), c.GetString("user_id"), c.Param("id"))
+	token, _, err := h.resolveToken.Handle(c.Request.Context(), c.GetString("user_id"), c.Param("id"))
 	if err != nil {
 		writeSourceConnectionError(c, err)
 		return
@@ -188,6 +225,10 @@ func writeSourceConnectionError(c *gin.Context, err error) {
 		_ = c.Error(response.BadRequest(err.Error()))
 	case errors.Is(err, domain.ErrSourceConnectionEncryptionFailed), errors.Is(err, domain.ErrSourceProviderEncryptionFailed):
 		_ = c.Error(response.Internal(err.Error()))
+	case domain.IsUserFacing(err):
+		var ufErr *domain.UserFacingError
+		errors.As(err, &ufErr)
+		_ = c.Error(response.BadRequest(ufErr.Error()))
 	default:
 		_ = c.Error(response.InternalCause(err, ""))
 	}

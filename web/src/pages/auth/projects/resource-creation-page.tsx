@@ -53,6 +53,8 @@ type ResourcePreset = {
   ports: PortEntry[]
   env: { key: string; value: string }[]
   type: string
+  volumes?: string[]
+  cmd?: string[]
 }
 
 // ── Presets ───────────────────────────────────────────────────────────────────
@@ -244,6 +246,32 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     ],
     env: [],
     type: "service",
+  },
+  {
+    id: "traefik",
+    name: "Traefik",
+    image: "traefik",
+    description:
+      "Cloud-native reverse proxy and load balancer with automatic SSL and Docker-based routing.",
+    color: "#24A1C1",
+    abbr: "TR",
+    tags: ["v3.3", "v3.2", "v2.11", "latest"],
+    ports: [
+      { host: "80", container: "80" },
+      { host: "443", container: "443" },
+      { host: "8080", container: "8080" },
+    ],
+    env: [],
+    type: "service",
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock:ro"],
+    cmd: [
+      "--providers.docker=true",
+      "--providers.docker.exposedbydefault=false",
+      "--entrypoints.web.address=:80",
+      "--entrypoints.websecure.address=:443",
+      "--api.dashboard=true",
+      "--api.insecure=true",
+    ],
   },
 ]
 
@@ -679,12 +707,20 @@ export function ResourceCreationPage({
       const envVars = envEntries
         .filter((e) => e.key.trim())
         .map((e) => ({ key: e.key.trim(), value: e.value, is_secret: false }))
+      const presetConfig: Record<string, unknown> = {}
+      if (selectedPreset?.volumes?.length) {
+        presetConfig.volumes = selectedPreset.volumes
+      }
+      if (selectedPreset?.cmd?.length) {
+        presetConfig.cmd = selectedPreset.cmd
+      }
       createMutation.mutate(
         {
           name: name.trim(),
           type: resourceType,
           image,
           tag,
+          config: Object.keys(presetConfig).length ? presetConfig : undefined,
           ports: portList,
           env_vars: envVars,
         },

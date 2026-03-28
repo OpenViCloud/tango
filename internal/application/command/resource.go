@@ -213,11 +213,34 @@ func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceComm
 			EnvVars: envInputs,
 		})
 
+		var volumes []string
+		if v, ok := resource.Config["volumes"]; ok {
+			if raw, ok := v.([]interface{}); ok {
+				for _, item := range raw {
+					if s, ok := item.(string); ok {
+						volumes = append(volumes, s)
+					}
+				}
+			}
+		}
+		var cmd []string
+		if v, ok := resource.Config["cmd"]; ok {
+			if raw, ok := v.([]interface{}); ok {
+				for _, item := range raw {
+					if s, ok := item.(string); ok {
+						cmd = append(cmd, s)
+					}
+				}
+			}
+		}
+
 		ct, err := h.dockerRepo.CreateContainer(ctx, domain.CreateContainerInput{
 			Name:         resource.Name,
 			Image:        imageRef,
 			Env:          env,
 			PortBindings: portBindings,
+			Volumes:      volumes,
+			Cmd:          cmd,
 		})
 		if err != nil {
 			return fmt.Errorf("create container: %w", err)

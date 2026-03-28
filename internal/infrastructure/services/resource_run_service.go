@@ -138,6 +138,24 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 	logLine("[check] loading resource metadata")
 	logLine(fmt.Sprintf("[check] image reference: %s", imageRef))
 
+	// Check for host-port conflicts with other running resources.
+	for _, p := range resource.Ports {
+		if p.HostPort <= 0 {
+			continue
+		}
+		owner, err := s.resourceRepo.FindRunningByHostPort(ctx, p.HostPort)
+		if err != nil {
+			return fail("check port availability", err)
+		}
+		if owner != nil && owner.ID != resource.ID {
+			return fail("port conflict", &domain.ErrHostPortConflict{
+				Port:           p.HostPort,
+				OccupiedByID:   owner.ID,
+				OccupiedByName: owner.Name,
+			})
+		}
+	}
+
 	if s.dockerRepo == nil {
 		return fail("docker is unavailable", nil)
 	}

@@ -111,4 +111,7 @@ type ResourceRepository interface {
 	UpdateBuildComplete(ctx context.Context, id string, image string, buildJobID string) error
 	Delete(ctx context.Context, id string) error
 	SetEnvVars(ctx context.Context, resourceID string, vars []ResourceEnvVar) error
+	// FindRunningByHostPort returns the running resource that already owns the given
+	// host port, or nil when the port is free.
+	FindRunningByHostPort(ctx context.Context, hostPort int) (*Resource, error)
 }

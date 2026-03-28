@@ -237,6 +237,32 @@ func (r *ResourceRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+func (r *ResourceRepository) FindRunningByHostPort(ctx context.Context, hostPort int) (*domain.Resource, error) {
+	var portRecord models.ResourcePortRecord
+	err := r.db.WithContext(ctx).
+		Where("host_port = ?", hostPort).
+		First(&portRecord).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find port record: %w", err)
+	}
+
+	var resourceRecord models.ResourceRecord
+	err = r.db.WithContext(ctx).
+		Where("id = ? AND status = ?", portRecord.ResourceID, domain.ResourceStatusRunning).
+		First(&resourceRecord).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find resource by port: %w", err)
+	}
+
+	return r.GetByID(ctx, resourceRecord.ID)
+}
+
 func (r *ResourceRepository) SetEnvVars(ctx context.Context, resourceID string, vars []domain.ResourceEnvVar) error {
 	now := time.Now().UTC()
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

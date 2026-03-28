@@ -786,7 +786,9 @@
       "envDescription": "Cập nhật biến môi trường runtime cho tài nguyên này.",
       "typeLabel": "Loại",
       "statusLabel": "Trạng thái",
-      "portsLabel": "Cổng"
+      "portsLabel": "Cổng",
+      "portConflict": "Trùng host port — tài nguyên khác đang dùng port này. Hãy cập nhật trước khi chạy.",
+      "portUnset": "Chưa đặt host port — hãy cập nhật trước khi chạy."
     }
   },
   "databases": {

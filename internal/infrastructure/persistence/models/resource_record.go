@@ -33,7 +33,7 @@ func (ResourceRecord) TableName() string { return "resources" }
 type ResourcePortRecord struct {
 	ID           string         `gorm:"primaryKey;type:text"`
 	ResourceID   string         `gorm:"column:resource_id;type:text;not null;index"`
-	HostPort     int            `gorm:"column:host_port;not null;uniqueIndex"`
+	HostPort     int            `gorm:"column:host_port;not null"`
 	InternalPort int            `gorm:"column:internal_port;not null"`
 	Proto        string         `gorm:"column:proto;not null;default:'tcp'"`
 	Label        string         `gorm:"column:label"`

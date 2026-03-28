@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -12,6 +13,18 @@ var (
 	ErrResourceNotFound   = errors.New("resource not found")
 	ErrResourceNotStarted = errors.New("resource container has not been created yet")
 )
+
+// ErrHostPortConflict is returned when a host port is already occupied by
+// another running resource.
+type ErrHostPortConflict struct {
+	Port         int
+	OccupiedByID   string
+	OccupiedByName string
+}
+
+func (e *ErrHostPortConflict) Error() string {
+	return fmt.Sprintf("host port %d is already in use by resource %q", e.Port, e.OccupiedByName)
+}
 
 // UserFacingError is an error whose message is safe to return directly to the
 // API caller as a 400 Bad Request (e.g. port conflict, invalid image).

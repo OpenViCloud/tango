@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useNavigate } from "@tanstack/react-router"
 import {
+  AlertTriangleIcon,
   ArrowLeftIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -33,6 +34,12 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import {
   PROJECT_QUERY_KEYS,
   useCreateEnvironment,
@@ -80,12 +87,14 @@ function ResourceCard({
   onStop,
   onDelete,
   busy,
+  conflictingHostPorts,
 }: {
   resource: ResourceModel
   onStart: (resource: ResourceModel) => void
   onStop: (id: string) => void
   onDelete: (id: string) => void
   busy: boolean
+  conflictingHostPorts: Set<number>
 }) {
   const { t } = useTranslation()
   const isRunning = resource.status === "running"
@@ -94,8 +103,13 @@ function ResourceCard({
   const canStop = isRunning && hasContainer
 
   const portSummary = resource.ports
-    .map((p) => `${p.host_port}→${p.internal_port}`)
+    .map((p) => `${p.host_port > 0 ? p.host_port : "?"}→${p.internal_port}`)
     .join(", ")
+
+  const hasPortConflict = resource.ports.some(
+    (p) => p.host_port > 0 && conflictingHostPorts.has(p.host_port)
+  )
+  const hasUnsetPort = resource.ports.some((p) => p.host_port === 0)
 
   // Derive abbr from name or image
   const abbr = resource.name.slice(0, 2).toUpperCase()
@@ -107,7 +121,7 @@ function ResourceCard({
   const color = typeColor[resource.type] ?? "#6b7280"
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+    <div className={`flex flex-col gap-3 rounded-xl border bg-card p-4 ${hasPortConflict ? "border-yellow-500/50" : ""}`}>
       <div className="flex items-start gap-3">
         <div
           className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
@@ -132,7 +146,23 @@ function ResourceCard({
       </div>
 
       {portSummary && (
-        <p className="font-mono text-xs text-muted-foreground">{portSummary}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="font-mono text-xs text-muted-foreground">{portSummary}</p>
+          {(hasPortConflict || hasUnsetPort) && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertTriangleIcon className="size-3.5 shrink-0 text-yellow-500" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  {hasPortConflict
+                    ? t("projects.resource.portConflict")
+                    : t("projects.resource.portUnset")}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       )}
 
       <div className="mt-auto flex items-center gap-1.5">
@@ -497,9 +527,11 @@ function DeleteEnvironmentDialog({
 function EnvironmentSection({
   env,
   projectId,
+  conflictingHostPorts,
 }: {
   env: EnvironmentModel
   projectId: string
+  conflictingHostPorts: Set<number>
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -625,6 +657,7 @@ function EnvironmentSection({
                   onStop={handleStop}
                   onDelete={handleDelete}
                   busy={actionBusy}
+                  conflictingHostPorts={conflictingHostPorts}
                 />
               ))}
             </div>
@@ -669,6 +702,26 @@ export function ProjectDetailPage() {
   const [addEnvOpen, setAddEnvOpen] = useState(false)
 
   const { data: project, isLoading } = useGetProject(projectId)
+
+  // Compute which host_ports appear in more than one resource across the project.
+  const conflictingHostPorts = React.useMemo(() => {
+    if (!project) return new Set<number>()
+    const portCount = new Map<number, number>()
+    for (const env of project.environments) {
+      for (const resource of env.resources) {
+        for (const p of resource.ports) {
+          if (p.host_port > 0) {
+            portCount.set(p.host_port, (portCount.get(p.host_port) ?? 0) + 1)
+          }
+        }
+      }
+    }
+    const result = new Set<number>()
+    for (const [port, count] of portCount) {
+      if (count > 1) result.add(port)
+    }
+    return result
+  }, [project])
 
   return (
     <div className="flex flex-col gap-6">
@@ -724,6 +777,7 @@ export function ProjectDetailPage() {
                 key={env.id}
                 env={env}
                 projectId={projectId}
+                conflictingHostPorts={conflictingHostPorts}
               />
             ))}
           </div>

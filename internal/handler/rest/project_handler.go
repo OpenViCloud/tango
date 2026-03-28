@@ -709,6 +709,7 @@ func toResourceRunResponse(run *domain.ResourceRun) resourceRunResponse {
 }
 
 func writeProjectError(c *gin.Context, err error) {
+	var portConflict *domain.ErrHostPortConflict
 	switch {
 	case errors.Is(err, domain.ErrProjectNotFound):
 		_ = c.Error(response.NotFound(err.Error()))
@@ -720,6 +721,8 @@ func writeProjectError(c *gin.Context, err error) {
 		_ = c.Error(response.NotFound(err.Error()))
 	case errors.Is(err, domain.ErrResourceNotStarted):
 		_ = c.Error(response.BadRequest(err.Error()))
+	case errors.As(err, &portConflict):
+		_ = c.Error(response.BadRequest(portConflict.Error()))
 	case domain.IsUserFacing(err):
 		var ufErr *domain.UserFacingError
 		errors.As(err, &ufErr)

@@ -786,7 +786,9 @@
       "envDescription": "Update runtime environment variables for this resource.",
       "typeLabel": "Type",
       "statusLabel": "Status",
-      "portsLabel": "Ports"
+      "portsLabel": "Ports",
+      "portConflict": "Host port conflict — another resource is using this port. Update before running.",
+      "portUnset": "Host port not set — update before running."
     }
   },
   "databases": {

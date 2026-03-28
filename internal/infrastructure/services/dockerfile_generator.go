@@ -1,25 +1,60 @@
 package services
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // GenerateDockerfile writes a Dockerfile into dir based on the detected stack.
 // Returns an error if the stack has no template.
 func GenerateDockerfile(dir string, stack DetectedStack) error {
-	content, err := dockerfileTemplate(stack)
+	content, err := dockerfileTemplate(dir, stack)
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte(content), 0o644)
 }
 
-func dockerfileTemplate(stack DetectedStack) (string, error) {
+// detectGoVersion reads go.mod in dir and returns the major.minor version string
+// (e.g. "1.26"), or "latest" if the file is missing or unparseable.
+func detectGoVersion(dir string) string {
+	f, err := os.Open(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		return "latest"
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "go ") {
+			parts := strings.Fields(line)
+			if len(parts) >= 2 {
+				// Keep only major.minor (strip patch if present: "1.26.1" → "1.26")
+				ver := parts[1]
+				if dots := strings.Count(ver, "."); dots >= 2 {
+					idx := strings.LastIndex(ver, ".")
+					ver = ver[:idx]
+				}
+				return ver
+			}
+		}
+	}
+	return "latest"
+}
+
+func dockerfileTemplate(dir string, stack DetectedStack) (string, error) {
 	switch stack {
 	case StackGo:
-		return `FROM golang:1.25-alpine AS builder
+		goVer := detectGoVersion(dir)
+		goImage := "golang:" + goVer + "-alpine"
+		if goVer == "latest" {
+			goImage = "golang:latest"
+		}
+		return `FROM ` + goImage + ` AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download

@@ -86,7 +86,6 @@ function CreateProjectSheet({
         toast.success(t("projects.resource.created"))
         handleClose(false)
       },
-      onError: (err) => toast.error(err.message),
     })
   })
 

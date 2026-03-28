@@ -254,6 +254,10 @@ func (h *StopResourceHandler) Handle(ctx context.Context, cmd StopResourceComman
 	if err != nil {
 		return err
 	}
+	if resource.ContainerID == "" {
+		// Already stopped / never started — just ensure status is correct.
+		return h.resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusStopped, "")
+	}
 	if err := h.dockerRepo.StopContainer(ctx, resource.ContainerID); err != nil {
 		return fmt.Errorf("stop container: %w", err)
 	}

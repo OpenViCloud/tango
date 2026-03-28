@@ -682,8 +682,45 @@
     "containerList": "Docker",
     "databases": "Databases",
     "databaseList": "Databases",
+    "sources": "Sources",
+    "sourceList": "Sources",
     "projects": "Projects",
     "projectList": "Projects"
+  },
+  "sources": {
+    "page": {
+      "title": "Sources",
+      "description": "Connect code providers once, then reuse them when deploying apps and services."
+    },
+    "connected": {
+      "title": "Connected Sources",
+      "description": "Each source represents an installed provider connection that can expose repositories for build and deploy flows."
+    },
+    "add": {
+      "action": "Add Source",
+      "title": "Add Source",
+      "description": "Choose a source provider to connect. More providers can be added here later without changing the deployment flow.",
+      "cancel": "Close"
+    },
+    "providers": {
+      "githubApp": "GitHub App",
+      "githubAppDescription": "Create and install a GitHub App, then grant repository access before you deploy.",
+      "installFlow": "Install-based auth",
+      "repoAccess": "Repository access",
+      "noTokenPaste": "No token paste"
+    },
+    "empty": {
+      "title": "No sources connected yet",
+      "description": "Start with GitHub App. After installation, repositories can be selected directly in deploy flows.",
+      "cta": "Connect GitHub App"
+    },
+    "card": {
+      "provider": "Provider",
+      "accountType": "Account Type",
+      "unknown": "Unknown",
+      "connectedOn": "Connected on {{date}}"
+    },
+    "githubConnected": "GitHub source connected."
   },
   "projects": {
     "page": {
@@ -705,6 +742,19 @@
     "envNamePlaceholder": "production",
     "deleteEnv": "Delete",
     "environments": "Environments",
+    "fork": "Fork",
+    "forking": "Forking...",
+    "forkEnvTitle": "Fork Environment",
+    "forkEnvNameLabel": "New Environment Name",
+    "forkEnvNamePlaceholder": "staging-fork",
+    "forkEnvSuccess": "Environment forked.",
+    "deleteEnvTitle": "Delete Environment",
+    "deleteEnvConfirmHint": "Type",
+    "deleteEnvConfirmHint2": "to confirm deletion.",
+    "deleteEnvInputLabel": "Environment name",
+    "deleteEnvButton": "Delete Environment",
+    "deleteEnvSuccess": "Environment deleted.",
+    "deleting": "Deleting...",
     "noResources": "No resources deployed yet.",
     "addResource": "Add Resource",
     "deployResource": "Deploy Resource",

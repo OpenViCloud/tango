@@ -352,14 +352,12 @@ function DeployDatabaseSheet({
             setPhase("done")
             onOpenChange(false)
           },
-          onError: (err) => {
-            toast.error(err.message)
+          onError: () => {
             setPhase("idle")
           },
         })
       },
-      onError: (err) => {
-        toast.error(err.message)
+      onError: () => {
         setPhase("idle")
       },
     })

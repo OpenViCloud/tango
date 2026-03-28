@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as GuestLoginRouteImport } from './routes/_guest/login'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
 import { Route as AuthUsersIndexRouteImport } from './routes/_auth/users/index'
+import { Route as AuthSourcesIndexRouteImport } from './routes/_auth/sources/index'
 import { Route as AuthRolesIndexRouteImport } from './routes/_auth/roles/index'
 import { Route as AuthProjectsIndexRouteImport } from './routes/_auth/projects/index'
 import { Route as AuthDatabasesIndexRouteImport } from './routes/_auth/databases/index'
@@ -55,6 +56,11 @@ const AuthDashboardRoute = AuthDashboardRouteImport.update({
 const AuthUsersIndexRoute = AuthUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthSourcesIndexRoute = AuthSourcesIndexRouteImport.update({
+  id: '/sources/',
+  path: '/sources/',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthRolesIndexRoute = AuthRolesIndexRouteImport.update({
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/databases/': typeof AuthDatabasesIndexRoute
   '/projects/': typeof AuthProjectsIndexRoute
   '/roles/': typeof AuthRolesIndexRoute
+  '/sources/': typeof AuthSourcesIndexRoute
   '/users/': typeof AuthUsersIndexRoute
   '/channels/$channelId/edit': typeof AuthChannelsChannelIdEditRoute
   '/users/$userId/edit': typeof AuthUsersUserIdEditRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/databases': typeof AuthDatabasesIndexRoute
   '/projects': typeof AuthProjectsIndexRoute
   '/roles': typeof AuthRolesIndexRoute
+  '/sources': typeof AuthSourcesIndexRoute
   '/users': typeof AuthUsersIndexRoute
   '/channels/$channelId/edit': typeof AuthChannelsChannelIdEditRoute
   '/users/$userId/edit': typeof AuthUsersUserIdEditRoute
@@ -180,6 +188,7 @@ export interface FileRoutesById {
   '/_auth/databases/': typeof AuthDatabasesIndexRoute
   '/_auth/projects/': typeof AuthProjectsIndexRoute
   '/_auth/roles/': typeof AuthRolesIndexRoute
+  '/_auth/sources/': typeof AuthSourcesIndexRoute
   '/_auth/users/': typeof AuthUsersIndexRoute
   '/_auth/channels/$channelId/edit': typeof AuthChannelsChannelIdEditRoute
   '/_auth/users/$userId/edit': typeof AuthUsersUserIdEditRoute
@@ -201,6 +210,7 @@ export interface FileRouteTypes {
     | '/databases/'
     | '/projects/'
     | '/roles/'
+    | '/sources/'
     | '/users/'
     | '/channels/$channelId/edit'
     | '/users/$userId/edit'
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
     | '/databases'
     | '/projects'
     | '/roles'
+    | '/sources'
     | '/users'
     | '/channels/$channelId/edit'
     | '/users/$userId/edit'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/_auth/databases/'
     | '/_auth/projects/'
     | '/_auth/roles/'
+    | '/_auth/sources/'
     | '/_auth/users/'
     | '/_auth/channels/$channelId/edit'
     | '/_auth/users/$userId/edit'
@@ -295,6 +307,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users/'
       preLoaderRoute: typeof AuthUsersIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/sources/': {
+      id: '/_auth/sources/'
+      path: '/sources'
+      fullPath: '/sources/'
+      preLoaderRoute: typeof AuthSourcesIndexRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/roles/': {
@@ -403,6 +422,7 @@ interface AuthRouteChildren {
   AuthDatabasesIndexRoute: typeof AuthDatabasesIndexRoute
   AuthProjectsIndexRoute: typeof AuthProjectsIndexRoute
   AuthRolesIndexRoute: typeof AuthRolesIndexRoute
+  AuthSourcesIndexRoute: typeof AuthSourcesIndexRoute
   AuthUsersIndexRoute: typeof AuthUsersIndexRoute
   AuthChannelsChannelIdEditRoute: typeof AuthChannelsChannelIdEditRoute
   AuthUsersUserIdEditRoute: typeof AuthUsersUserIdEditRoute
@@ -421,6 +441,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthDatabasesIndexRoute: AuthDatabasesIndexRoute,
   AuthProjectsIndexRoute: AuthProjectsIndexRoute,
   AuthRolesIndexRoute: AuthRolesIndexRoute,
+  AuthSourcesIndexRoute: AuthSourcesIndexRoute,
   AuthUsersIndexRoute: AuthUsersIndexRoute,
   AuthChannelsChannelIdEditRoute: AuthChannelsChannelIdEditRoute,
   AuthUsersUserIdEditRoute: AuthUsersUserIdEditRoute,

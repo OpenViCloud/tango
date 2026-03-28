@@ -24,6 +24,8 @@ export const resourceSchema = z.object({
   source_type: z.string().optional(),
   git_url: z.string().optional(),
   build_job_id: z.string().optional(),
+  image_tag: z.string().optional(),
+  connection_id: z.string().optional(),
 })
 
 export const resourceRunSchema = z.object({
@@ -137,6 +139,7 @@ export const updateResourceSchema = z.object({
 
 export const createResourceFromGitSchema = z.object({
   name: z.string().min(1, "validation.required"),
+  connection_id: z.string().optional(),
   git_url: z.string().min(1, "validation.required"),
   git_branch: z.string().optional(),
   build_mode: z.enum(["auto", "dockerfile"]),

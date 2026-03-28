@@ -152,13 +152,13 @@ func (s *BuildService) run(job *domain.BuildJob) error {
 		cloneCtx, cloneCancel := context.WithTimeout(ctx, s.cfg.CloneTimeout)
 		defer cloneCancel()
 
-		cloneArgs := []string{"clone", "--depth", "1", "--branch", job.GitBranch, job.GitURL, workDir}
-		if err := runCmd(cloneCtx, "", b, "git", cloneArgs...); err != nil {
+		cloneArgs := []string{"clone", "--depth", "1", "--single-branch", "--branch", job.GitBranch, job.GitURL, workDir}
+		if err := runGit(cloneCtx, "", b, cloneArgs...); err != nil {
 			log("[clone] branch not found, retrying on default branch")
 			_ = os.RemoveAll(workDir)
 			_ = os.MkdirAll(workDir, 0o755)
-			cloneArgs = []string{"clone", "--depth", "1", job.GitURL, workDir}
-			if err2 := runCmd(cloneCtx, "", b, "git", cloneArgs...); err2 != nil {
+			cloneArgs = []string{"clone", "--depth", "1", "--single-branch", job.GitURL, workDir}
+			if err2 := runGit(cloneCtx, "", b, cloneArgs...); err2 != nil {
 				return fail("git clone failed", err2)
 			}
 		}
@@ -415,6 +415,19 @@ func runCmd(ctx context.Context, dir string, w io.Writer, name string, args ...s
 	}
 	cmd.Stdout = w
 	cmd.Stderr = w
+	return cmd.Run()
+}
+
+// runGit runs a git command with GIT_TERMINAL_PROMPT=0 so git never hangs
+// waiting for a password prompt — it fails immediately on auth errors instead.
+func runGit(ctx context.Context, dir string, w io.Writer, args ...string) error {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	cmd.Stdout = w
+	cmd.Stderr = w
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	return cmd.Run()
 }
 

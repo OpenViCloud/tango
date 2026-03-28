@@ -682,8 +682,45 @@
     "containerList": "Docker",
     "databases": "Databases",
     "databaseList": "Databases",
+    "sources": "Sources",
+    "sourceList": "Sources",
     "projects": "Dự án",
     "projectList": "Dự án"
+  },
+  "sources": {
+    "page": {
+      "title": "Sources",
+      "description": "Kết nối các nguồn mã một lần, rồi tái sử dụng khi triển khai app và service."
+    },
+    "connected": {
+      "title": "Nguồn đã kết nối",
+      "description": "Mỗi source đại diện cho một provider đã được cài đặt và có thể cung cấp repository cho các flow build/deploy."
+    },
+    "add": {
+      "action": "Thêm Source",
+      "title": "Thêm Source",
+      "description": "Chọn provider muốn kết nối. Sau này có thể bổ sung thêm provider khác mà không đổi flow deploy.",
+      "cancel": "Đóng"
+    },
+    "providers": {
+      "githubApp": "GitHub App",
+      "githubAppDescription": "Tạo và cài đặt GitHub App, sau đó cấp quyền repository trước khi deploy.",
+      "installFlow": "Xác thực qua cài đặt",
+      "repoAccess": "Quyền truy cập repo",
+      "noTokenPaste": "Không cần dán token"
+    },
+    "empty": {
+      "title": "Chưa có source nào",
+      "description": "Bắt đầu với GitHub App. Sau khi cài đặt xong, repository có thể được chọn trực tiếp trong flow deploy.",
+      "cta": "Kết nối GitHub App"
+    },
+    "card": {
+      "provider": "Provider",
+      "accountType": "Loại tài khoản",
+      "unknown": "Không rõ",
+      "connectedOn": "Kết nối lúc {{date}}"
+    },
+    "githubConnected": "Đã kết nối GitHub source."
   },
   "projects": {
     "page": {
@@ -705,6 +742,19 @@
     "envNamePlaceholder": "production",
     "deleteEnv": "Xóa",
     "environments": "Môi trường",
+    "fork": "Fork",
+    "forking": "Đang fork...",
+    "forkEnvTitle": "Fork môi trường",
+    "forkEnvNameLabel": "Tên môi trường mới",
+    "forkEnvNamePlaceholder": "staging-fork",
+    "forkEnvSuccess": "Đã fork môi trường.",
+    "deleteEnvTitle": "Xóa môi trường",
+    "deleteEnvConfirmHint": "Nhập",
+    "deleteEnvConfirmHint2": "để xác nhận xóa.",
+    "deleteEnvInputLabel": "Tên môi trường",
+    "deleteEnvButton": "Xóa môi trường",
+    "deleteEnvSuccess": "Đã xóa môi trường.",
+    "deleting": "Đang xóa...",
     "noResources": "Chưa có tài nguyên nào được triển khai.",
     "addResource": "Thêm tài nguyên",
     "deployResource": "Triển khai tài nguyên",

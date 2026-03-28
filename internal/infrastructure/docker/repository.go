@@ -150,11 +150,12 @@ func (r *Repository) CreateContainer(ctx context.Context, input domain.CreateCon
 		AutoRemove:   input.AutoRemove,
 		PortBindings: portMap,
 		Binds:        input.Volumes,
+		ExtraHosts:   []string{"host.docker.internal:host-gateway"},
 	}
 
 	resp, err := r.client.ContainerCreate(ctx, cfg, hostCfg, nil, nil, input.Name)
 	if err != nil {
-		return domain.Container{}, fmt.Errorf("create container: %w", err)
+		return domain.Container{}, classifyDockerError("create container", err)
 	}
 
 	inspect, err := r.client.ContainerInspect(ctx, resp.ID)
@@ -288,7 +289,7 @@ func (r *Repository) ExecContainer(ctx context.Context, containerID string, inpu
 // StartContainer starts a stopped or newly created container.
 func (r *Repository) StartContainer(ctx context.Context, containerID string) error {
 	if err := r.client.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
-		return fmt.Errorf("start container %s: %w", containerID, err)
+		return classifyDockerError("start container", err)
 	}
 	return nil
 }
@@ -479,3 +480,42 @@ func (s *execSession) Resize(ctx context.Context, cols, rows uint) error {
 }
 
 var _ domain.ContainerExecSession = (*execSession)(nil)
+
+// classifyDockerError inspects the Docker daemon error message and converts
+// known patterns into UserFacingError so the REST layer can return 400.
+func classifyDockerError(op string, err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "port is already allocated"),
+		strings.Contains(msg, "address already in use"),
+		strings.Contains(msg, "Bind for") && strings.Contains(msg, "failed"):
+		// Extract the port number if possible
+		if idx := strings.Index(msg, "Bind for"); idx >= 0 {
+			// "Bind for 0.0.0.0:5432 failed: port is already allocated"
+			part := msg[idx:]
+			fields := strings.Fields(part)
+			if len(fields) >= 2 {
+				addr := fields[2] // "0.0.0.0:5432"
+				if _, port, e := net.SplitHostPort(addr); e == nil {
+					return domain.NewUserFacingError(fmt.Sprintf("Port %s is already in use by another process or container", port))
+				}
+			}
+		}
+		return domain.NewUserFacingError("One or more ports are already in use by another process or container")
+	case strings.Contains(msg, "already in use by container"):
+		// "Conflict. The container name "/foo" is already in use by container ..."
+		return domain.NewUserFacingError("A resource with this name already exists. Please choose a different name")
+	case strings.Contains(msg, "No such image"):
+		return domain.NewUserFacingError("Image not found. Check the image name and tag, then try again")
+	case strings.Contains(msg, "pull access denied"),
+		strings.Contains(msg, "unauthorized"):
+		return domain.NewUserFacingError("Cannot pull image: access denied. The image may be private or the name may be incorrect")
+	case strings.Contains(msg, "invalid reference format"):
+		return domain.NewUserFacingError("Invalid image reference format. Please check the image name")
+	default:
+		return fmt.Errorf("%s: %w", op, err)
+	}
+}

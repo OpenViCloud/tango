@@ -5,8 +5,9 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   FolderIcon,
+  GitForkIcon,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
@@ -37,6 +38,7 @@ import {
   useCreateEnvironment,
   useDeleteEnvironment,
   useDeleteResource,
+  useForkEnvironment,
   useGetProject,
   useStartResource,
   useStopResource,
@@ -212,7 +214,6 @@ function AddEnvironmentDialog({
         toast.success("Environment added.")
         handleClose(false)
       },
-      onError: (err) => toast.error(err.message),
     })
   })
 
@@ -343,22 +344,168 @@ function ResourceRunLogSheet({
   )
 }
 
+// ── Fork environment dialog ───────────────────────────────────────────────────
+
+function ForkEnvironmentDialog({
+  env,
+  projectId,
+  open,
+  onOpenChange,
+}: {
+  env: EnvironmentModel
+  projectId: string
+  open: boolean
+  onOpenChange: (v: boolean) => void
+}) {
+  const { t } = useTranslation()
+  const forkMutation = useForkEnvironment(projectId)
+  const [name, setName] = useState(`${env.name}-fork`)
+
+  const handleClose = (v: boolean) => {
+    if (!v) setName(`${env.name}-fork`)
+    onOpenChange(v)
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name.trim()) return
+    forkMutation.mutate(
+      { envId: env.id, name: name.trim() },
+      {
+        onSuccess: () => {
+          toast.success(t("projects.forkEnvSuccess"))
+          handleClose(false)
+        },
+      }
+    )
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={handleClose}>
+      <SheetContent className="sm:max-w-sm">
+        <SheetHeader>
+          <SheetTitle>{t("projects.forkEnvTitle")}</SheetTitle>
+        </SheetHeader>
+        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="fork-env-name">{t("projects.forkEnvNameLabel")}</Label>
+            <Input
+              id="fork-env-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t("projects.forkEnvNamePlaceholder")}
+            />
+          </div>
+          <SheetFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={forkMutation.isPending}
+              onClick={() => handleClose(false)}
+            >
+              {t("projects.cancel")}
+            </Button>
+            <Button
+              type="submit"
+              disabled={forkMutation.isPending || !name.trim()}
+            >
+              {forkMutation.isPending ? t("projects.forking") : t("projects.fork")}
+            </Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// ── Delete environment confirm dialog ─────────────────────────────────────────
+
+function DeleteEnvironmentDialog({
+  env,
+  open,
+  onOpenChange,
+  onConfirm,
+  isDeleting,
+}: {
+  env: EnvironmentModel
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  onConfirm: () => void
+  isDeleting: boolean
+}) {
+  const { t } = useTranslation()
+  const [input, setInput] = useState("")
+
+  const handleClose = (v: boolean) => {
+    if (!v) setInput("")
+    onOpenChange(v)
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (input !== env.name) return
+    onConfirm()
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={handleClose}>
+      <SheetContent className="sm:max-w-sm">
+        <SheetHeader>
+          <SheetTitle>{t("projects.deleteEnvTitle")}</SheetTitle>
+        </SheetHeader>
+        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">
+            {t("projects.deleteEnvConfirmHint")}{" "}
+            <span className="font-medium text-foreground">{env.name}</span>{" "}
+            {t("projects.deleteEnvConfirmHint2")}
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="delete-env-input">{t("projects.deleteEnvInputLabel")}</Label>
+            <Input
+              id="delete-env-input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={env.name}
+              autoComplete="off"
+            />
+          </div>
+          <SheetFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isDeleting}
+              onClick={() => handleClose(false)}
+            >
+              {t("projects.cancel")}
+            </Button>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={isDeleting || input !== env.name}
+            >
+              {isDeleting ? t("projects.deleting") : t("projects.deleteEnvButton")}
+            </Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 // ── Environment section ───────────────────────────────────────────────────────
 
 function EnvironmentSection({
   env,
   projectId,
-  onDeleteEnv,
-  deletingEnvId,
 }: {
   env: EnvironmentModel
   projectId: string
-  onDeleteEnv: (envId: string) => void
-  deletingEnvId: string | null
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(true)
+  const [forkOpen, setForkOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [activeRun, setActiveRun] = useState<ResourceRunModel | null>(null)
   const [activeRunResourceName, setActiveRunResourceName] = useState<
     string | null
@@ -366,6 +513,7 @@ function EnvironmentSection({
   const startMutation = useStartResource()
   const stopMutation = useStopResource()
   const deleteMutation = useDeleteResource(projectId)
+  const deleteEnvMutation = useDeleteEnvironment(projectId)
 
   const actionBusy =
     activeRun !== null ||
@@ -379,7 +527,6 @@ function EnvironmentSection({
         setActiveRun(run)
         setActiveRunResourceName(resource.name)
       },
-      onError: (err) => toast.error(err.message),
     })
   }
 
@@ -392,18 +539,23 @@ function EnvironmentSection({
   const handleStop = (id: string) => {
     stopMutation.mutate(id, {
       onSuccess: () => toast.success(t("projects.resource.stopped")),
-      onError: (err) => toast.error(err.message),
     })
   }
 
   const handleDelete = (id: string) => {
     deleteMutation.mutate(id, {
       onSuccess: () => toast.success(t("projects.resource.deleted")),
-      onError: (err) => toast.error(err.message),
     })
   }
 
-  const isDeleting = deletingEnvId === env.id
+  const handleConfirmDeleteEnv = () => {
+    deleteEnvMutation.mutate(env.id, {
+      onSuccess: () => {
+        toast.success(t("projects.deleteEnvSuccess"))
+        setDeleteOpen(false)
+      },
+    })
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border">
@@ -438,9 +590,17 @@ function EnvironmentSection({
           </Button>
           <Button
             size="sm"
+            variant="outline"
+            onClick={() => setForkOpen(true)}
+          >
+            <GitForkIcon className="mr-1 size-3.5" />
+            {t("projects.fork")}
+          </Button>
+          <Button
+            size="sm"
             variant="ghost"
-            disabled={isDeleting}
-            onClick={() => onDeleteEnv(env.id)}
+            disabled={deleteEnvMutation.isPending}
+            onClick={() => setDeleteOpen(true)}
             className="text-destructive hover:text-destructive"
           >
             <DeleteIcon className="size-3.5" />
@@ -481,6 +641,21 @@ function EnvironmentSection({
         }}
         onCompleted={handleRunCompleted}
       />
+
+      <ForkEnvironmentDialog
+        env={env}
+        projectId={projectId}
+        open={forkOpen}
+        onOpenChange={setForkOpen}
+      />
+
+      <DeleteEnvironmentDialog
+        env={env}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onConfirm={handleConfirmDeleteEnv}
+        isDeleting={deleteEnvMutation.isPending}
+      />
     </div>
   )
 }
@@ -494,22 +669,6 @@ export function ProjectDetailPage() {
   const [addEnvOpen, setAddEnvOpen] = useState(false)
 
   const { data: project, isLoading } = useGetProject(projectId)
-  const deleteEnvMutation = useDeleteEnvironment(projectId)
-  const [deletingEnvId, setDeletingEnvId] = useState<string | null>(null)
-
-  const handleDeleteEnv = (envId: string) => {
-    setDeletingEnvId(envId)
-    deleteEnvMutation.mutate(envId, {
-      onSuccess: () => {
-        toast.success("Environment deleted.")
-        setDeletingEnvId(null)
-      },
-      onError: (err) => {
-        toast.error(err.message)
-        setDeletingEnvId(null)
-      },
-    })
-  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -565,8 +724,6 @@ export function ProjectDetailPage() {
                 key={env.id}
                 env={env}
                 projectId={projectId}
-                onDeleteEnv={handleDeleteEnv}
-                deletingEnvId={deletingEnvId}
               />
             ))}
           </div>

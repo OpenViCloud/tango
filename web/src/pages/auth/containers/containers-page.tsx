@@ -17,10 +17,7 @@ import type {
   ImageModel,
   PullImageModel,
 } from "@/@types/models"
-import {
-  createContainerSchema,
-  pullImageSchema,
-} from "@/@types/models/container"
+import { pullImageSchema } from "@/@types/models/container"
 import {
   useGetContainerList,
   useGetImageList,
@@ -273,14 +270,12 @@ function ContainersTab() {
   const handleStart = (id: string) => {
     startMutation.mutate(id, {
       onSuccess: () => toast.success(t("docker.container.started")),
-      onError: (err) => toast.error(err.message),
     })
   }
 
   const handleStop = (id: string) => {
     stopMutation.mutate(id, {
       onSuccess: () => toast.success(t("docker.container.stopped")),
-      onError: (err) => toast.error(err.message),
     })
   }
 
@@ -289,7 +284,6 @@ function ContainersTab() {
       { id, force: false },
       {
         onSuccess: () => toast.success(t("docker.container.removed")),
-        onError: (err) => toast.error(err.message),
       }
     )
   }
@@ -459,10 +453,8 @@ function RunContainerSheet({
             toast.success(t("docker.container.created"))
             handleClose(false)
           },
-          onError: (err) => toast.error(err.message),
         })
       },
-      onError: (err) => toast.error(err.message),
     })
   })
 
@@ -708,7 +700,6 @@ function ImagesTab() {
       { id, force: false },
       {
         onSuccess: () => toast.success(t("docker.image.removed")),
-        onError: (err) => toast.error(err.message),
       }
     )
   }

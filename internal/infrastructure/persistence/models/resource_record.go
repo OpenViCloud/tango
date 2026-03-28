@@ -19,8 +19,10 @@ type ResourceRecord struct {
 	GitBranch  string `gorm:"column:git_branch;type:varchar(255)"`
 	BuildMode  string `gorm:"column:build_mode;type:varchar(32)"`
 	BuildJobID string `gorm:"column:build_job_id;type:varchar(64)"`
-	GitToken   string `gorm:"column:git_token;type:text"` // stored encrypted
-	CreatedAt  time.Time              `gorm:"column:created_at;not null"`
+	GitToken     string `gorm:"column:git_token;type:text"`     // stored encrypted
+	ImageTag     string `gorm:"column:image_tag;type:text"`     // target registry image tag
+	ConnectionID string `gorm:"column:connection_id;type:text"` // source connection ID
+	CreatedAt    time.Time              `gorm:"column:created_at;not null"`
 	UpdatedAt  time.Time              `gorm:"column:updated_at;not null"`
 	Ports      []ResourcePortRecord   `gorm:"foreignKey:ResourceID;references:ID;constraint:OnDelete:CASCADE"`
 	EnvVars    []ResourceEnvVarRecord `gorm:"foreignKey:ResourceID;references:ID;constraint:OnDelete:CASCADE"`

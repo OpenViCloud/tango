@@ -1,6 +1,7 @@
 import {
   ArrowLeftIcon,
   GitBranchIcon,
+  GithubIcon,
   MinusIcon,
   PlusIcon,
   SearchIcon,
@@ -26,6 +27,11 @@ import {
   useCreateResource,
   useCreateResourceFromGit,
 } from "@/hooks/api/use-project"
+import {
+  useGetSourceBranches,
+  useGetSourceList,
+  useGetSourceRepos,
+} from "@/hooks/api/use-source"
 import { useNavigate } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -33,7 +39,7 @@ import { useQueryClient } from "@tanstack/react-query"
 
 type EnvEntry = { key: string; value: string }
 type PortEntry = { host: string; container: string }
-type FlowType = "preset" | "docker" | "git"
+type FlowType = "preset" | "docker" | "git" | "git-private"
 type Phase = "picker" | "config" | "git" | "submitting"
 
 type ResourcePreset = {
@@ -56,7 +62,8 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "postgres",
     name: "PostgreSQL",
     image: "postgres",
-    description: "Advanced open source relational database with full SQL compliance.",
+    description:
+      "Advanced open source relational database with full SQL compliance.",
     color: "#336791",
     abbr: "PG",
     tags: ["latest", "17", "16", "15", "14", "13"],
@@ -87,7 +94,8 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "sqlserver",
     name: "SQL Server",
     image: "mcr.microsoft.com/mssql/server",
-    description: "Microsoft SQL Server — enterprise relational database engine.",
+    description:
+      "Microsoft SQL Server — enterprise relational database engine.",
     color: "#CC2927",
     abbr: "MS",
     tags: ["latest", "2022-latest", "2019-latest"],
@@ -160,7 +168,8 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "kafka",
     name: "Apache Kafka",
     image: "confluentinc/cp-kafka",
-    description: "Distributed event streaming platform for high-performance data pipelines.",
+    description:
+      "Distributed event streaming platform for high-performance data pipelines.",
     color: "#231F20",
     abbr: "KF",
     tags: ["latest", "7.6", "7.5", "7.4"],
@@ -168,7 +177,10 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     env: [
       { key: "KAFKA_BROKER_ID", value: "1" },
       { key: "KAFKA_ZOOKEEPER_CONNECT", value: "zookeeper:2181" },
-      { key: "KAFKA_ADVERTISED_LISTENERS", value: "PLAINTEXT://localhost:9092" },
+      {
+        key: "KAFKA_ADVERTISED_LISTENERS",
+        value: "PLAINTEXT://localhost:9092",
+      },
     ],
     type: "service",
   },
@@ -194,7 +206,8 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "grafana",
     name: "Grafana",
     image: "grafana/grafana",
-    description: "Open source analytics & interactive visualization web application.",
+    description:
+      "Open source analytics & interactive visualization web application.",
     color: "#F46800",
     abbr: "GF",
     tags: ["latest", "11.0.0", "10.4.0"],
@@ -421,12 +434,15 @@ export function ResourceCreationPage({
   const createMutation = useCreateResource(envId, projectId)
   const createFromGitMutation = useCreateResourceFromGit(envId, projectId)
   const checkRepoMutation = useCheckRepo()
+  const { data: sourceConnections } = useGetSourceList()
 
   // ── Phase & flow ──────────────────────────────────────────────────────────
   const [phase, setPhase] = useState<Phase>("picker")
   const [flowType, setFlowType] = useState<FlowType>("preset")
   const [search, setSearch] = useState("")
-  const [selectedPreset, setSelectedPreset] = useState<ResourcePreset | null>(null)
+  const [selectedPreset, setSelectedPreset] = useState<ResourcePreset | null>(
+    null
+  )
 
   // ── Docker / preset form ──────────────────────────────────────────────────
   const [name, setName] = useState("")
@@ -435,7 +451,9 @@ export function ResourceCreationPage({
   const [customImage, setCustomImage] = useState("")
   const [resourceType, setResourceType] = useState("db")
   const [ports, setPorts] = useState<PortEntry[]>([{ host: "", container: "" }])
-  const [envEntries, setEnvEntries] = useState<EnvEntry[]>([{ key: "", value: "" }])
+  const [envEntries, setEnvEntries] = useState<EnvEntry[]>([
+    { key: "", value: "" },
+  ])
 
   // ── Git form ──────────────────────────────────────────────────────────────
   const [gitUrl, setGitUrl] = useState("")
@@ -444,12 +462,27 @@ export function ResourceCreationPage({
   const [buildMode, setBuildMode] = useState<"auto" | "dockerfile">("auto")
   const [imageTag, setImageTag] = useState("")
   const [gitName, setGitName] = useState("")
-  const [gitPorts, setGitPorts] = useState<PortEntry[]>([{ host: "", container: "" }])
+  const [selectedSourceConnectionId, setSelectedSourceConnectionId] =
+    useState("")
+  const [selectedRepoFullName, setSelectedRepoFullName] = useState("")
+  const [gitPorts, setGitPorts] = useState<PortEntry[]>([
+    { host: "", container: "" },
+  ])
   const [gitEnv, setGitEnv] = useState<EnvEntry[]>([{ key: "", value: "" }])
   const [repoChecked, setRepoChecked] = useState<{
     available: boolean
     defaultBranch?: string
   } | null>(null)
+  const { data: sourceRepos, isLoading: sourceReposLoading } =
+    useGetSourceRepos(selectedSourceConnectionId)
+  const selectedRepo =
+    sourceRepos?.find((repo) => repo.full_name === selectedRepoFullName) ?? null
+  const { data: sourceBranches, isLoading: sourceBranchesLoading } =
+    useGetSourceBranches(
+      selectedSourceConnectionId,
+      selectedRepo?.owner ?? "",
+      selectedRepo?.name ?? ""
+    )
 
   // ── Filtering ─────────────────────────────────────────────────────────────
   const q = search.toLowerCase()
@@ -469,7 +502,8 @@ export function ResourceCreationPage({
     "git".includes(q) ||
     "docker".includes(q) ||
     "repository".includes(q) ||
-    "image".includes(q)
+    "image".includes(q) ||
+    "private".includes(q)
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const goBack = () => {
@@ -488,7 +522,9 @@ export function ResourceCreationPage({
     setTag(preset.tags[0] ?? "latest")
     setName(preset.id)
     setResourceType(preset.type)
-    setPorts(preset.ports.map((p) => ({ host: p.host, container: p.container })))
+    setPorts(
+      preset.ports.map((p) => ({ host: p.host, container: p.container }))
+    )
     setEnvEntries(
       preset.env.length > 0
         ? preset.env.map((e) => ({ key: e.key, value: e.value }))
@@ -506,6 +542,23 @@ export function ResourceCreationPage({
     setPorts([{ host: "", container: "" }])
     setEnvEntries([{ key: "", value: "" }])
     setPhase("config")
+  }
+
+  const selectPrivateRepository = () => {
+    setSelectedPreset(null)
+    setFlowType("git-private")
+    setGitUrl("")
+    setGitBranch("")
+    setGitToken("")
+    setBuildMode("auto")
+    setImageTag("")
+    setGitName("")
+    setSelectedRepoFullName("")
+    setSelectedSourceConnectionId(sourceConnections?.[0]?.id ?? "")
+    setGitPorts([{ host: "", container: "" }])
+    setGitEnv([{ key: "", value: "" }])
+    setRepoChecked(null)
+    setPhase("git")
   }
 
   const handleCheckRepo = () => {
@@ -531,19 +584,23 @@ export function ResourceCreationPage({
             toast.success("Repository verified!")
           }
         },
-        onError: () => toast.error("Could not reach repository"),
       }
     )
   }
 
   const handleSubmit = () => {
-    if (flowType === "git") {
+    if (flowType === "git" || flowType === "git-private") {
+      const isPrivateRepoFlow = flowType === "git-private"
       if (!gitName.trim()) {
         toast.error("Resource name is required")
         return
       }
       if (!gitUrl.trim()) {
         toast.error("Repository URL is required")
+        return
+      }
+      if (isPrivateRepoFlow && !selectedSourceConnectionId) {
+        toast.error("Source connection is required")
         return
       }
       if (!imageTag.trim()) {
@@ -565,27 +622,33 @@ export function ResourceCreationPage({
       createFromGitMutation.mutate(
         {
           name: gitName.trim(),
+          connection_id: isPrivateRepoFlow
+            ? selectedSourceConnectionId || undefined
+            : undefined,
           git_url: gitUrl.trim(),
           git_branch: gitBranch.trim() || undefined,
           build_mode: buildMode,
-          git_token: gitToken.trim() || undefined,
+          git_token: isPrivateRepoFlow
+            ? undefined
+            : gitToken.trim() || undefined,
           image_tag: imageTag.trim(),
           ports: portList,
           env_vars: envVars,
         },
         {
-          onSuccess: () => {
+          onSuccess: (resource) => {
             queryClient.invalidateQueries({
               queryKey: PROJECT_QUERY_KEYS.project(projectId),
             })
-            toast.success("Build started — resource will auto-start when done.")
+            toast.success(
+              "Resource saved. Trigger a build from the detail page."
+            )
             navigate({
-              to: "/projects/$projectId",
-              params: { projectId },
+              to: "/resources/$resourceId",
+              params: { resourceId: resource.id },
             })
           },
-          onError: (err) => {
-            toast.error(err.message)
+          onError: () => {
             setPhase("git")
           },
         }
@@ -597,7 +660,9 @@ export function ResourceCreationPage({
       }
       setNameError("")
       const image =
-        flowType === "docker" ? customImage.trim() : (selectedPreset?.image ?? "")
+        flowType === "docker"
+          ? customImage.trim()
+          : (selectedPreset?.image ?? "")
       if (!image) {
         toast.error("Image is required")
         return
@@ -615,7 +680,14 @@ export function ResourceCreationPage({
         .filter((e) => e.key.trim())
         .map((e) => ({ key: e.key.trim(), value: e.value, is_secret: false }))
       createMutation.mutate(
-        { name: name.trim(), type: resourceType, image, tag, ports: portList, env_vars: envVars },
+        {
+          name: name.trim(),
+          type: resourceType,
+          image,
+          tag,
+          ports: portList,
+          env_vars: envVars,
+        },
         {
           onSuccess: () => {
             queryClient.invalidateQueries({
@@ -627,8 +699,7 @@ export function ResourceCreationPage({
               params: { projectId },
             })
           },
-          onError: (err) => {
-            toast.error(err.message)
+          onError: () => {
             setPhase("config")
           },
         }
@@ -643,7 +714,9 @@ export function ResourceCreationPage({
     phase === "picker"
       ? "New Resource"
       : phase === "git"
-        ? "Git Repository"
+        ? flowType === "git-private"
+          ? "Private Repository"
+          : "Git Repository"
         : selectedPreset
           ? selectedPreset.name
           : flowType === "docker"
@@ -652,7 +725,7 @@ export function ResourceCreationPage({
 
   // ── Layout ────────────────────────────────────────────────────────────────
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
+    <div className="mx-auto flex flex-col gap-6 p-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button
@@ -676,7 +749,7 @@ export function ResourceCreationPage({
         <div className="flex flex-col gap-6">
           {/* Search */}
           <div className="relative">
-            <SearchIcon className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+            <SearchIcon className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
             <Input
               placeholder="Search databases, services…"
               className="pl-9"
@@ -688,7 +761,7 @@ export function ResourceCreationPage({
           {/* Applications */}
           {showApps && (
             <section className="flex flex-col gap-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Applications
               </p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -700,6 +773,8 @@ export function ResourceCreationPage({
                     type="button"
                     onClick={() => {
                       setFlowType("git")
+                      setSelectedSourceConnectionId("")
+                      setSelectedRepoFullName("")
                       setPhase("git")
                     }}
                     className="flex flex-col gap-2 rounded-xl border bg-card p-3 text-left transition-shadow hover:border-primary/40 hover:shadow-sm"
@@ -718,6 +793,34 @@ export function ResourceCreationPage({
                     <p className="line-clamp-2 text-xs text-muted-foreground">
                       Auto-detect stack or use existing Dockerfile. Builds &amp;
                       deploys automatically.
+                    </p>
+                  </button>
+                )}
+                {(!q ||
+                  "private".includes(q) ||
+                  "repo".includes(q) ||
+                  "github".includes(q)) && (
+                  <button
+                    type="button"
+                    onClick={selectPrivateRepository}
+                    className="flex flex-col gap-2 rounded-xl border bg-card p-3 text-left transition-shadow hover:border-primary/40 hover:shadow-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
+                        <GithubIcon className="size-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">
+                          Private Repository
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          connected source
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Choose a repository from a connected GitHub App source,
+                      then pick its branch.
                     </p>
                   </button>
                 )}
@@ -753,12 +856,16 @@ export function ResourceCreationPage({
           {/* Databases */}
           {dbPresets.length > 0 && (
             <section className="flex flex-col gap-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Databases
               </p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {dbPresets.map((p) => (
-                  <PresetCard key={p.id} preset={p} onClick={() => selectPreset(p)} />
+                  <PresetCard
+                    key={p.id}
+                    preset={p}
+                    onClick={() => selectPreset(p)}
+                  />
                 ))}
               </div>
             </section>
@@ -767,67 +874,225 @@ export function ResourceCreationPage({
           {/* Services */}
           {servicePresets.length > 0 && (
             <section className="flex flex-col gap-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Services
               </p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {servicePresets.map((p) => (
-                  <PresetCard key={p.id} preset={p} onClick={() => selectPreset(p)} />
+                  <PresetCard
+                    key={p.id}
+                    preset={p}
+                    onClick={() => selectPreset(p)}
+                  />
                 ))}
               </div>
             </section>
           )}
 
-          {dbPresets.length === 0 && servicePresets.length === 0 && !showApps && (
-            <p className="py-12 text-center text-sm text-muted-foreground">
-              No results for &quot;{search}&quot;
-            </p>
-          )}
+          {dbPresets.length === 0 &&
+            servicePresets.length === 0 &&
+            !showApps && (
+              <p className="py-12 text-center text-sm text-muted-foreground">
+                No results for &quot;{search}&quot;
+              </p>
+            )}
         </div>
       )}
 
       {/* ── Git form ───────────────────────────────────────────── */}
-      {(phase === "git" || (phase === "submitting" && flowType === "git")) && (
+      {(phase === "git" ||
+        (phase === "submitting" &&
+          (flowType === "git" || flowType === "git-private"))) && (
         <div className="flex flex-col gap-5 rounded-xl border bg-card p-6">
-          {/* Repo URL + Check */}
-          <div className="flex flex-col gap-1.5">
-            <Label>Repository URL</Label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="https://github.com/user/repo"
-                value={gitUrl}
-                onChange={(e) => {
-                  setGitUrl(e.target.value)
-                  setRepoChecked(null)
-                }}
-                disabled={busy}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!gitUrl.trim() || checkRepoMutation.isPending || busy}
-                onClick={handleCheckRepo}
-              >
-                {checkRepoMutation.isPending ? "Checking…" : "Check"}
-              </Button>
-            </div>
-            {repoChecked && (
-              <p
-                className={`text-xs ${repoChecked.available ? "text-green-600" : "text-destructive"}`}
-              >
-                {repoChecked.available
-                  ? `✓ Accessible${repoChecked.defaultBranch ? ` · default branch: ${repoChecked.defaultBranch}` : ""}`
-                  : "✗ Not accessible"}
-              </p>
-            )}
-          </div>
+          {flowType === "git-private" ? (
+            !sourceConnections || sourceConnections.length === 0 ? (
+              <div className="rounded-xl border border-dashed bg-muted/40 p-4">
+                <p className="font-medium">No sources connected</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Connect a GitHub App source first, then come back here to
+                  choose a private repository.
+                </p>
+                <Button
+                  type="button"
+                  className="mt-4"
+                  variant="outline"
+                  onClick={() => navigate({ to: "/sources" })}
+                >
+                  Open Sources
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Source</Label>
+                    <Select
+                      value={selectedSourceConnectionId}
+                      onValueChange={(value) => {
+                        setSelectedSourceConnectionId(value)
+                        setSelectedRepoFullName("")
+                        setGitUrl("")
+                        setGitBranch("")
+                        setRepoChecked(null)
+                      }}
+                      disabled={busy}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose source" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sourceConnections.map((source) => (
+                          <SelectItem key={source.id} value={source.id}>
+                            {source.display_name} · {source.account_identifier}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Repository</Label>
+                    <Select
+                      value={selectedRepoFullName}
+                      onValueChange={(value) => {
+                        const repo =
+                          sourceRepos?.find(
+                            (item) => item.full_name === value
+                          ) ?? null
+                        setSelectedRepoFullName(value)
+                        setGitUrl(repo?.clone_url ?? "")
+                        setRepoChecked(
+                          repo
+                            ? {
+                                available: true,
+                                defaultBranch: repo.default_ref,
+                              }
+                            : null
+                        )
+                        setGitBranch(repo?.default_ref ?? "")
+                        setGitName((current) =>
+                          current.trim() !== "" ? current : (repo?.name ?? "")
+                        )
+                      }}
+                      disabled={
+                        busy ||
+                        !selectedSourceConnectionId ||
+                        sourceReposLoading ||
+                        !sourceRepos ||
+                        sourceRepos.length === 0
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            sourceReposLoading
+                              ? "Loading repositories…"
+                              : "Choose repository"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(sourceRepos ?? []).map((repo) => (
+                          <SelectItem
+                            key={repo.full_name}
+                            value={repo.full_name}
+                          >
+                            {repo.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Branch</Label>
+                    <Select
+                      value={gitBranch}
+                      onValueChange={setGitBranch}
+                      disabled={
+                        busy ||
+                        !selectedRepo ||
+                        sourceBranchesLoading ||
+                        !sourceBranches ||
+                        sourceBranches.length === 0
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            sourceBranchesLoading
+                              ? "Loading branches…"
+                              : "Choose branch"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(sourceBranches ?? []).map((branch) => (
+                          <SelectItem key={branch.name} value={branch.name}>
+                            {branch.name}
+                            {branch.is_default ? " (default)" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Clone URL</Label>
+                    <Input
+                      value={gitUrl}
+                      disabled
+                      className="text-muted-foreground"
+                    />
+                  </div>
+                </div>
+              </>
+            )
+          ) : (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Label>Repository URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="https://github.com/user/repo"
+                    value={gitUrl}
+                    onChange={(e) => {
+                      setGitUrl(e.target.value)
+                      setRepoChecked(null)
+                    }}
+                    disabled={busy}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={
+                      !gitUrl.trim() || checkRepoMutation.isPending || busy
+                    }
+                    onClick={handleCheckRepo}
+                  >
+                    {checkRepoMutation.isPending ? "Checking…" : "Check"}
+                  </Button>
+                </div>
+                {repoChecked && (
+                  <p
+                    className={`text-xs ${repoChecked.available ? "text-green-600" : "text-destructive"}`}
+                  >
+                    {repoChecked.available
+                      ? `✓ Accessible${repoChecked.defaultBranch ? ` · default branch: ${repoChecked.defaultBranch}` : ""}`
+                      : "✗ Not accessible"}
+                  </p>
+                )}
+              </div>
+            </>
+          )}
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label>
-                Branch{" "}
-                <span className="text-muted-foreground">(optional)</span>
+                Branch <span className="text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 placeholder={repoChecked?.defaultBranch ?? "main"}
@@ -838,17 +1103,36 @@ export function ResourceCreationPage({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label>
-                Access Token{" "}
-                <span className="text-muted-foreground">(private repos)</span>
-              </Label>
-              <Input
-                type="password"
-                placeholder="ghp_xxxxxxxxxxxx"
-                value={gitToken}
-                onChange={(e) => setGitToken(e.target.value)}
-                disabled={busy}
-              />
+              {flowType === "git-private" ? (
+                <>
+                  <Label>Connection</Label>
+                  <Input
+                    value={
+                      sourceConnections?.find(
+                        (source) => source.id === selectedSourceConnectionId
+                      )?.account_identifier ?? ""
+                    }
+                    disabled
+                    className="text-muted-foreground"
+                  />
+                </>
+              ) : (
+                <>
+                  <Label>
+                    Access Token{" "}
+                    <span className="text-muted-foreground">
+                      (private repos)
+                    </span>
+                  </Label>
+                  <Input
+                    type="password"
+                    placeholder="ghp_xxxxxxxxxxxx"
+                    value={gitToken}
+                    onChange={(e) => setGitToken(e.target.value)}
+                    disabled={busy}
+                  />
+                </>
+              )}
             </div>
           </div>
 
@@ -864,8 +1148,12 @@ export function ResourceCreationPage({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="auto">Auto-detect (recommended)</SelectItem>
-                  <SelectItem value="dockerfile">Use existing Dockerfile</SelectItem>
+                  <SelectItem value="auto">
+                    Auto-detect (recommended)
+                  </SelectItem>
+                  <SelectItem value="dockerfile">
+                    Use existing Dockerfile
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -901,15 +1189,11 @@ export function ResourceCreationPage({
 
           {/* Footer */}
           <div className="flex justify-end gap-2 border-t pt-4">
-            <Button
-              variant="outline"
-              onClick={goBack}
-              disabled={busy}
-            >
+            <Button variant="outline" onClick={goBack} disabled={busy}>
               Back
             </Button>
             <Button onClick={handleSubmit} disabled={busy}>
-              {busy ? "Building…" : "Build & Deploy"}
+              {busy ? "Saving…" : "Save"}
             </Button>
           </div>
         </div>
@@ -1018,7 +1302,11 @@ export function ResourceCreationPage({
           </div>
 
           <PortList ports={ports} onChange={setPorts} disabled={busy} />
-          <EnvList entries={envEntries} onChange={setEnvEntries} disabled={busy} />
+          <EnvList
+            entries={envEntries}
+            onChange={setEnvEntries}
+            disabled={busy}
+          />
 
           {/* Footer */}
           <div className="flex justify-end gap-2 border-t pt-4">
@@ -1026,7 +1314,9 @@ export function ResourceCreationPage({
               Back
             </Button>
             <Button onClick={handleSubmit} disabled={busy}>
-              {busy ? t("databases.deploy.creating_btn") : t("projects.addResource")}
+              {busy
+                ? t("databases.deploy.creating_btn")
+                : t("projects.addResource")}
             </Button>
           </div>
         </div>

@@ -9,9 +9,22 @@ import (
 var (
 	ErrProjectNotFound     = errors.New("project not found")
 	ErrEnvironmentNotFound = errors.New("environment not found")
-	ErrResourceNotFound    = errors.New("resource not found")
-	ErrResourceNotStarted  = errors.New("resource container has not been created yet")
+	ErrResourceNotFound   = errors.New("resource not found")
+	ErrResourceNotStarted = errors.New("resource container has not been created yet")
 )
+
+// UserFacingError is an error whose message is safe to return directly to the
+// API caller as a 400 Bad Request (e.g. port conflict, invalid image).
+type UserFacingError struct{ msg string }
+
+func NewUserFacingError(msg string) *UserFacingError { return &UserFacingError{msg: msg} }
+func (e *UserFacingError) Error() string             { return e.msg }
+
+// IsUserFacing reports whether err (or any in its chain) is a UserFacingError.
+func IsUserFacing(err error) bool {
+	var target *UserFacingError
+	return errors.As(err, &target)
+}
 
 type Project struct {
 	ID           string

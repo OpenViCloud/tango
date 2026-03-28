@@ -70,6 +70,13 @@ func main() {
 	}
 	logger := logService.Logger()
 	slog.SetDefault(logger)
+	logger.Info("config loaded",
+		"port", cfg.Port,
+		"baseUrl", cfg.BaseURL,
+		"frontendBaseUrl", cfg.FrontendBaseURL,
+		"dbDriver", cfg.DBDriver,
+		"frontendEmbedded", hasEmbeddedFrontend(),
+	)
 
 	if err := infradb.EnsureDatabase(ctx, cfg.DBDriver, cfg.DBUrl); err != nil {
 		fatal(logger, "ensure db failed", err)
@@ -103,6 +110,8 @@ func main() {
 	environmentRepo := persistrepo.NewEnvironmentRepository(db)
 	resourceRepo := persistrepo.NewResourceRepository(db)
 	resourceRunRepo := persistrepo.NewResourceRunRepository(db)
+	sourceProviderRepo := persistrepo.NewSourceProviderRepository(db)
+	sourceConnectionRepo := persistrepo.NewSourceConnectionRepository(db)
 
 	if err := auth.SeedDemoData(ctx, userRepo, roleRepo); err != nil {
 		fatal(logger, "seed demo data failed", err)
@@ -118,6 +127,8 @@ func main() {
 
 	channelService := infraservices.NewChannelService(channelRepo, cipherService)
 	roleService := infraservices.NewRoleService(roleRepo)
+	integrationStateStore := infraservices.NewIntegrationStateStore(appCache)
+	githubAppService := infraservices.NewGitHubAppService()
 
 	buildSvc := infraservices.NewBuildService(infraservices.BuildConfig{
 		BuildKitHost:     cfg.BuildKitHost,
@@ -196,6 +207,13 @@ func main() {
 	cancelBuildJobHandler := command.NewCancelBuildJobHandler(buildJobRepo)
 	getBuildJobHandler := query.NewGetBuildJobHandler(buildJobRepo)
 	listBuildJobsHandler := query.NewListBuildJobsHandler(buildJobRepo)
+	beginGitHubAppManifestHandler := command.NewBeginGitHubAppManifestHandler(integrationStateStore, githubAppService)
+	completeGitHubAppManifestHandler := command.NewCompleteGitHubAppManifestHandler(sourceProviderRepo, integrationStateStore, githubAppService, cipherService)
+	completeGitHubAppSetupHandler := command.NewCompleteGitHubAppSetupHandler(sourceProviderRepo, sourceConnectionRepo, integrationStateStore, githubAppService, cipherService)
+	resolveSourceConnectionTokenHandler := command.NewResolveSourceConnectionTokenHandler(sourceConnectionRepo, sourceProviderRepo, cipherService, githubAppService)
+	listSourceConnectionsHandler := query.NewListSourceConnectionsHandler(sourceConnectionRepo)
+	listGitHubRepositoriesHandler := query.NewListGitHubRepositoriesHandler(githubAppService)
+	listGitHubBranchesHandler := query.NewListGitHubBranchesHandler(githubAppService)
 
 	// HTTP handlers
 	authHandler := auth.NewHandler(userRepo)
@@ -216,14 +234,27 @@ func main() {
 	buildHandler := rest.NewBuildHandler(createBuildJobHandler, createBuildJobFromUploadHandler, cancelBuildJobHandler, getBuildJobHandler, listBuildJobsHandler)
 	buildWSHandler := rest.NewBuildWSHandler(buildSvc, getBuildJobHandler)
 	logHandler := rest.NewLogHandler(logService)
+	sourceConnectionHandler := rest.NewSourceConnectionHandler(
+		beginGitHubAppManifestHandler,
+		completeGitHubAppManifestHandler,
+		completeGitHubAppSetupHandler,
+		resolveSourceConnectionTokenHandler,
+		listSourceConnectionsHandler,
+		listGitHubRepositoriesHandler,
+		listGitHubBranchesHandler,
+		strings.TrimRight(cfg.FrontendBaseURL, "/")+"/projects",
+		strings.TrimRight(cfg.BaseURL, "/"),
+	)
 
 	createProjectHandler := command.NewCreateProjectHandler(projectRepo)
 	updateProjectHandler := command.NewUpdateProjectHandler(projectRepo)
 	deleteProjectHandler := command.NewDeleteProjectHandler(projectRepo)
 	createEnvironmentHandler := command.NewCreateEnvironmentHandler(environmentRepo)
 	deleteEnvironmentHandler := command.NewDeleteEnvironmentHandler(environmentRepo)
+	forkEnvironmentHandler := command.NewForkEnvironmentHandler(environmentRepo, resourceRepo)
 	createResourceHandler := command.NewCreateResourceHandler(resourceRepo, dockerRepo)
-	createResourceFromGitHandler := command.NewCreateResourceFromGitHandler(resourceRepo, buildJobRepo, buildSvc)
+	createResourceFromGitHandler := command.NewCreateResourceFromGitHandler(resourceRepo, buildJobRepo, buildSvc, resolveSourceConnectionTokenHandler)
+	startBuildForResourceHandler := command.NewStartBuildForResourceHandler(resourceRepo, buildJobRepo, buildSvc, resolveSourceConnectionTokenHandler)
 	updateResourceHandler := command.NewUpdateResourceHandler(resourceRepo)
 	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, logger)
 	buildSvc.SetResourceAutoStarter(resourceRunSvc)
@@ -246,8 +277,10 @@ func main() {
 		deleteProjectHandler,
 		createEnvironmentHandler,
 		deleteEnvironmentHandler,
+		forkEnvironmentHandler,
 		createResourceHandler,
 		createResourceFromGitHandler,
+		startBuildForResourceHandler,
 		updateResourceHandler,
 		createStartResourceRunHandler,
 		stopResourceHandler,
@@ -280,6 +313,7 @@ func main() {
 		api.POST("/auth/login", authHandler.Login)
 		api.POST("/auth/refresh", authHandler.Refresh)
 		api.POST("/auth/logout", authHandler.Logout)
+		sourceConnectionHandler.RegisterPublic(api)
 
 		protected := api.Group("/")
 		protected.Use(auth.Middleware())
@@ -296,6 +330,7 @@ func main() {
 			}
 			logHandler.Register(protected)
 			projectHandler.Register(protected)
+			sourceConnectionHandler.RegisterProtected(protected)
 			if dockerHandler != nil {
 				dockerHandler.Register(protected)
 				dockerWSHandler.Register(protected)

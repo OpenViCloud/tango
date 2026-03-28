@@ -17,27 +17,27 @@ import (
 )
 
 const (
-	configDirName              = "demo"
-	defaultBuildKitHost        = "tcp://buildkitd:1234"
-	defaultBuildWorkspaceDir   = "/workspace/jobs"
-	configFileName          = "config.json"
-	encryptedValuePrefix    = "enc:v1:"
-	configEncryptionEnv     = "CONFIG_FILE_ENCRYPTION_KEY"
-	defaultPostgresDBURL    = "postgres://postgres:postgres@localhost:5432/tango?sslmode=disable"
-	defaultSQLiteDBURL      = "file:tango.db?_foreign_keys=on"
-	defaultAPIBaseURL       = "http://localhost:8080"
-	defaultChatModel        = "gpt-4.1-mini"
-	defaultDBDriver         = "postgres"
-	defaultPort             = "8080"
-	defaultCacheDriver      = "memory"
-	defaultExecutionEngine  = "custom"
-	defaultSkillsStorageDir = "data/skills"
-	defaultLogFormat        = "text"
-	defaultLogOutput        = "both"
-	defaultLogFilePath      = "logs/tango.log"
-	defaultDiscordMention   = true
-	defaultDiscordTyping    = true
-	defaultTelegramTyping   = true
+	configDirName                = "demo"
+	defaultBuildKitHost          = "tcp://buildkitd:1234"
+	defaultBuildWorkspaceDirName = "tango-builds"
+	configFileName               = "config.json"
+	encryptedValuePrefix         = "enc:v1:"
+	configEncryptionEnv          = "CONFIG_FILE_ENCRYPTION_KEY"
+	defaultPostgresDBURL         = "postgres://postgres:postgres@localhost:5432/tango?sslmode=disable"
+	defaultSQLiteDBURL           = "file:tango.db?_foreign_keys=on"
+	defaultAPIBaseURL            = "http://localhost:8080"
+	defaultChatModel             = "gpt-4.1-mini"
+	defaultDBDriver              = "postgres"
+	defaultPort                  = "8080"
+	defaultCacheDriver           = "memory"
+	defaultExecutionEngine       = "custom"
+	defaultSkillsStorageDir      = "data/skills"
+	defaultLogFormat             = "text"
+	defaultLogOutput             = "both"
+	defaultLogFilePath           = "logs/tango.log"
+	defaultDiscordMention        = true
+	defaultDiscordTyping         = true
+	defaultTelegramTyping        = true
 )
 
 type Config struct {
@@ -74,11 +74,13 @@ type Config struct {
 	TelegramAllowedUserIDs map[string]bool
 
 	// Build service
-	BuildKitHost         string
-	BuildWorkspaceDir    string
-	BuildRegistryHost    string
-	BuildRegistryUser    string
-	BuildRegistryPass    string
+	BuildKitHost      string
+	BuildWorkspaceDir string
+	BuildRegistryHost string
+	BuildRegistryUser string
+	BuildRegistryPass string
+
+	FrontendBaseURL string
 }
 
 type fileConfig struct {
@@ -153,16 +155,21 @@ func Load() *Config {
 	cfg.TelegramEnableTyping = getEnvBool("TELEGRAM_ENABLE_TYPING", cfg.TelegramEnableTyping)
 	cfg.TelegramAllowedUserIDs = getEnvIDSet("TELEGRAM_ALLOWED_USER_IDS")
 	cfg.BuildKitHost = getEnv("BUILDKIT_HOST", defaultBuildKitHost)
-	cfg.BuildWorkspaceDir = getEnv("BUILD_WORKSPACE_DIR", defaultBuildWorkspaceDir)
+	cfg.BuildWorkspaceDir = getEnv("BUILD_WORKSPACE_DIR", defaultBuildWorkspaceDir())
 	cfg.BuildRegistryHost = getEnv("BUILD_REGISTRY_HOST", "")
 	cfg.BuildRegistryUser = getEnv("BUILD_REGISTRY_USER", "")
 	cfg.BuildRegistryPass = getEnv("BUILD_REGISTRY_PASS", "")
+	cfg.FrontendBaseURL = getEnv("FRONTEND_BASE_URL", cfg.BaseURL)
 
 	if cfg.DBDriver == "sqlite" && cfg.DBUrl == defaultPostgresDBURL {
 		cfg.DBUrl = defaultSQLiteDBURL
 	}
 
 	return cfg
+}
+
+func defaultBuildWorkspaceDir() string {
+	return filepath.Join(os.TempDir(), defaultBuildWorkspaceDirName)
 }
 
 func SaveFile(cfg *Config) (string, error) {

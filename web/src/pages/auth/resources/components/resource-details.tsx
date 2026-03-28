@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ChevronRight, Menu, Play, Square, X } from "lucide-react"
+import { ChevronRight, Hammer, Menu, Play, Square, X } from "lucide-react"
 import { useNavigate } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 
@@ -17,6 +17,7 @@ type ResourceDetailsProps = {
   onSave: (entries: EnvEntry[], name: string, ports: PortEntry[]) => void
   onStart: () => void
   onStop: () => void
+  onBuild?: () => void
   pending: boolean
   actionPending: boolean
   isLoadingEnvVars: boolean
@@ -31,6 +32,7 @@ export default function ResourceDetails({
   onSave,
   onStart,
   onStop,
+  onBuild,
   pending,
   actionPending,
   isLoadingEnvVars,
@@ -101,29 +103,43 @@ export default function ResourceDetails({
             </button>
           ))}
         </div>
-        {isRunning ? (
-          <Button
-            type="button"
-            size="sm"
-            disabled={actionPending}
-            onClick={onStop}
-            className="ml-4 shrink-0 gap-2 border border-border bg-transparent text-foreground hover:bg-secondary"
-          >
-            <Square className="h-4 w-4" />
-            {t("projects.resource.stop")}
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            size="sm"
-            disabled={actionPending}
-            onClick={onStart}
-            className="ml-4 shrink-0 gap-2 border border-border bg-transparent text-foreground hover:bg-secondary"
-          >
-            <Play className="h-4 w-4" />
-            {t("projects.resource.start")}
-          </Button>
-        )}
+        <div className="ml-4 flex shrink-0 items-center gap-2">
+          {resource.source_type === "git" && onBuild && (
+            <Button
+              type="button"
+              size="sm"
+              disabled={actionPending || resource.status === "building"}
+              onClick={onBuild}
+              className="gap-2 border border-border bg-transparent text-foreground hover:bg-secondary"
+            >
+              <Hammer className="h-4 w-4" />
+              {resource.status === "building" ? "Building…" : "Build"}
+            </Button>
+          )}
+          {isRunning ? (
+            <Button
+              type="button"
+              size="sm"
+              disabled={actionPending}
+              onClick={onStop}
+              className="gap-2 border border-border bg-transparent text-foreground hover:bg-secondary"
+            >
+              <Square className="h-4 w-4" />
+              {t("projects.resource.stop")}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              disabled={actionPending || resource.status === "building" || resource.status === "created"}
+              onClick={onStart}
+              className="gap-2 border border-border bg-transparent text-foreground hover:bg-secondary"
+            >
+              <Play className="h-4 w-4" />
+              {t("projects.resource.start")}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="relative flex">

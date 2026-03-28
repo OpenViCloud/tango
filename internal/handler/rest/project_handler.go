@@ -19,9 +19,11 @@ type ProjectHandler struct {
 	deleteProject         *command.DeleteProjectHandler
 	createEnvironment     *command.CreateEnvironmentHandler
 	deleteEnvironment     *command.DeleteEnvironmentHandler
+	forkEnvironment       *command.ForkEnvironmentHandler
 	createResource        *command.CreateResourceHandler
-	createResourceFromGit *command.CreateResourceFromGitHandler
-	updateResource        *command.UpdateResourceHandler
+	createResourceFromGit   *command.CreateResourceFromGitHandler
+	startBuildForResource   *command.StartBuildForResourceHandler
+	updateResource          *command.UpdateResourceHandler
 	startResourceRun      *command.CreateStartResourceRunHandler
 	stopResource          *command.StopResourceHandler
 	deleteResource        *command.DeleteResourceHandler
@@ -39,8 +41,10 @@ func NewProjectHandler(
 	deleteProject *command.DeleteProjectHandler,
 	createEnvironment *command.CreateEnvironmentHandler,
 	deleteEnvironment *command.DeleteEnvironmentHandler,
+	forkEnvironment *command.ForkEnvironmentHandler,
 	createResource *command.CreateResourceHandler,
 	createResourceFromGit *command.CreateResourceFromGitHandler,
+	startBuildForResource *command.StartBuildForResourceHandler,
 	updateResource *command.UpdateResourceHandler,
 	startResourceRun *command.CreateStartResourceRunHandler,
 	stopResource *command.StopResourceHandler,
@@ -58,9 +62,11 @@ func NewProjectHandler(
 		deleteProject:         deleteProject,
 		createEnvironment:     createEnvironment,
 		deleteEnvironment:     deleteEnvironment,
+		forkEnvironment:       forkEnvironment,
 		createResource:        createResource,
-		createResourceFromGit: createResourceFromGit,
-		updateResource:        updateResource,
+		createResourceFromGit:   createResourceFromGit,
+		startBuildForResource:   startBuildForResource,
+		updateResource:          updateResource,
 		startResourceRun:      startResourceRun,
 		stopResource:          stopResource,
 		deleteResource:        deleteResource,
@@ -80,10 +86,12 @@ func (h *ProjectHandler) Register(rg *gin.RouterGroup) {
 	rg.PUT("/projects/:id", h.UpdateProject)
 	rg.DELETE("/projects/:id", h.DeleteProject)
 	rg.POST("/projects/:id/environments", h.CreateEnvironment)
+	rg.POST("/environments/:envId/fork", h.ForkEnvironment)
 	rg.DELETE("/environments/:envId", h.DeleteEnvironment)
 	rg.GET("/environments/:envId/resources", h.ListResources)
 	rg.POST("/environments/:envId/resources", h.CreateResource)
 	rg.POST("/environments/:envId/resources/from-git", h.CreateResourceFromGit)
+	rg.POST("/resources/:resourceId/build", h.StartBuildForResource)
 	rg.GET("/resources/:resourceId", h.GetResource)
 	rg.PUT("/resources/:resourceId", h.UpdateResource)
 	rg.DELETE("/resources/:resourceId", h.DeleteResource)
@@ -110,6 +118,10 @@ type createEnvironmentRequest struct {
 	Name string `json:"name"`
 }
 
+type forkEnvironmentRequest struct {
+	Name string `json:"name" binding:"required"`
+}
+
 type createResourcePortRequest struct {
 	HostPort     int    `json:"host_port"`
 	InternalPort int    `json:"internal_port"`
@@ -134,19 +146,20 @@ type createResourceRequest struct {
 }
 
 type createResourceFromGitRequest struct {
-	Name      string                        `json:"name"       binding:"required"`
-	GitURL    string                        `json:"git_url"    binding:"required"`
-	GitBranch string                        `json:"git_branch"`
-	BuildMode string                        `json:"build_mode"` // "auto" | "dockerfile"
-	GitToken  string                        `json:"git_token"`
-	ImageTag  string                        `json:"image_tag"  binding:"required"`
-	Ports     []createResourcePortRequest   `json:"ports"`
-	EnvVars   []createResourceEnvVarRequest `json:"env_vars"`
+	Name         string                        `json:"name"          binding:"required"`
+	ConnectionID string                        `json:"connection_id"`
+	GitURL       string                        `json:"git_url"       binding:"required"`
+	GitBranch    string                        `json:"git_branch"`
+	BuildMode    string                        `json:"build_mode"` // "auto" | "dockerfile"
+	GitToken     string                        `json:"git_token"`
+	ImageTag     string                        `json:"image_tag"     binding:"required"`
+	Ports        []createResourcePortRequest   `json:"ports"`
+	EnvVars      []createResourceEnvVarRequest `json:"env_vars"`
 }
 
 type updateResourceRequest struct {
-	Name  string                        `json:"name"`
-	Ports []createResourcePortRequest   `json:"ports"`
+	Name  string                      `json:"name"`
+	Ports []createResourcePortRequest `json:"ports"`
 }
 
 type setEnvVarsRequest struct {
@@ -181,6 +194,8 @@ type resourceResponse struct {
 	SourceType    string         `json:"source_type,omitempty"`
 	GitURL        string         `json:"git_url,omitempty"`
 	BuildJobID    string         `json:"build_job_id,omitempty"`
+	ImageTag      string         `json:"image_tag,omitempty"`
+	ConnectionID  string         `json:"connection_id,omitempty"`
 	CreatedAt     string         `json:"created_at"`
 	UpdatedAt     string         `json:"updated_at"`
 	Ports         []portResponse `json:"ports"`
@@ -319,6 +334,26 @@ func (h *ProjectHandler) DeleteEnvironment(c *gin.Context) {
 	response.NoContent(c)
 }
 
+func (h *ProjectHandler) ForkEnvironment(c *gin.Context) {
+	var req forkEnvironmentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(response.Validation(nil, err.Error()))
+		return
+	}
+	userID := c.GetString("user_id")
+	env, err := h.forkEnvironment.Handle(c.Request.Context(), command.ForkEnvironmentCommand{
+		SourceEnvID: c.Param("envId"),
+		NewEnvID:    uuid.New().String(),
+		Name:        req.Name,
+		CreatedBy:   userID,
+	})
+	if err != nil {
+		writeProjectError(c, err)
+		return
+	}
+	response.Created(c, toEnvResponse(env))
+}
+
 func (h *ProjectHandler) ListResources(c *gin.Context) {
 	resources, err := h.listEnvResources.Handle(c.Request.Context(), query.ListEnvironmentResourcesQuery{
 		EnvironmentID: c.Param("envId"),
@@ -410,6 +445,7 @@ func (h *ProjectHandler) CreateResourceFromGit(c *gin.Context) {
 		Name:          req.Name,
 		EnvironmentID: c.Param("envId"),
 		CreatedBy:     userID,
+		ConnectionID:  req.ConnectionID,
 		GitURL:        req.GitURL,
 		GitBranch:     req.GitBranch,
 		BuildMode:     req.BuildMode,
@@ -467,6 +503,19 @@ func (h *ProjectHandler) DeleteResource(c *gin.Context) {
 		return
 	}
 	response.NoContent(c)
+}
+
+func (h *ProjectHandler) StartBuildForResource(c *gin.Context) {
+	userID := c.GetString("user_id")
+	job, err := h.startBuildForResource.Handle(c.Request.Context(), command.StartBuildForResourceCommand{
+		ResourceID: c.Param("resourceId"),
+		UserID:     userID,
+	})
+	if err != nil {
+		writeProjectError(c, err)
+		return
+	}
+	response.OK(c, gin.H{"build_job_id": job.ID})
 }
 
 func (h *ProjectHandler) StartResource(c *gin.Context) {
@@ -620,6 +669,8 @@ func toResourceResponse(r *domain.Resource) resourceResponse {
 		SourceType:    r.SourceType,
 		GitURL:        r.GitURL,
 		BuildJobID:    r.BuildJobID,
+		ImageTag:      r.ImageTag,
+		ConnectionID:  r.ConnectionID,
 		CreatedAt:     r.CreatedAt.Format(timeLayout),
 		UpdatedAt:     r.UpdatedAt.Format(timeLayout),
 		Ports:         ports,
@@ -669,6 +720,10 @@ func writeProjectError(c *gin.Context, err error) {
 		_ = c.Error(response.NotFound(err.Error()))
 	case errors.Is(err, domain.ErrResourceNotStarted):
 		_ = c.Error(response.BadRequest(err.Error()))
+	case domain.IsUserFacing(err):
+		var ufErr *domain.UserFacingError
+		errors.As(err, &ufErr)
+		_ = c.Error(response.BadRequest(ufErr.Error()))
 	default:
 		_ = c.Error(response.InternalCause(err, ""))
 	}

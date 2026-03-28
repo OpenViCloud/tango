@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"tango/internal/domain"
@@ -47,13 +48,15 @@ func (r *ResourceRepository) Create(ctx context.Context, input domain.CreateReso
 		Config:        configJSON,
 		EnvironmentID: input.EnvironmentID,
 		CreatedBy:     input.CreatedBy,
-		SourceType:    sourceType,
-		GitURL:        input.GitURL,
-		GitBranch:     input.GitBranch,
-		BuildMode:     input.BuildMode,
-		BuildJobID:    input.BuildJobID,
-		GitToken:      input.GitToken,
-		CreatedAt:     now,
+		SourceType:   sourceType,
+		GitURL:       input.GitURL,
+		GitBranch:    input.GitBranch,
+		BuildMode:    input.BuildMode,
+		BuildJobID:   input.BuildJobID,
+		GitToken:     input.GitToken,
+		ImageTag:     input.ImageTag,
+		ConnectionID: input.ConnectionID,
+		CreatedAt:    now,
 		UpdatedAt:     now,
 	}
 
@@ -75,7 +78,7 @@ func (r *ResourceRepository) Create(ctx context.Context, input domain.CreateReso
 				portRecord.Proto = "tcp"
 			}
 			if err := tx.Create(&portRecord).Error; err != nil {
-				return fmt.Errorf("create resource port record: %w", err)
+				return classifyDBError(err)
 			}
 		}
 
@@ -149,9 +152,8 @@ func (r *ResourceRepository) GetByID(ctx context.Context, id string) (*domain.Re
 func (r *ResourceRepository) Update(ctx context.Context, id string, input domain.UpdateResourceInput) (*domain.Resource, error) {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&models.ResourceRecord{}).Where("id = ?", id).Updates(map[string]any{
-			"name":         input.Name,
-			"container_id": "",
-			"updated_at":   time.Now().UTC(),
+			"name":       input.Name,
+			"updated_at": time.Now().UTC(),
 		})
 		if result.Error != nil {
 			return fmt.Errorf("update resource: %w", result.Error)
@@ -298,13 +300,15 @@ func toDomainResource(record models.ResourceRecord, portRecords []models.Resourc
 		Config:        config,
 		EnvironmentID: record.EnvironmentID,
 		CreatedBy:     record.CreatedBy,
-		SourceType:    record.SourceType,
-		GitURL:        record.GitURL,
-		GitBranch:     record.GitBranch,
-		BuildMode:     record.BuildMode,
-		BuildJobID:    record.BuildJobID,
-		GitToken:      record.GitToken,
-		Ports:         ports,
+		SourceType:   record.SourceType,
+		GitURL:       record.GitURL,
+		GitBranch:    record.GitBranch,
+		BuildMode:    record.BuildMode,
+		BuildJobID:   record.BuildJobID,
+		GitToken:     record.GitToken,
+		ImageTag:     record.ImageTag,
+		ConnectionID: record.ConnectionID,
+		Ports:        ports,
 		EnvVars:       envVars,
 		CreatedAt:     record.CreatedAt,
 		UpdatedAt:     record.UpdatedAt,
@@ -334,3 +338,24 @@ func unmarshalConfig(s string) (map[string]any, error) {
 }
 
 var _ domain.ResourceRepository = (*ResourceRepository)(nil)
+
+// classifyDBError converts known DB constraint violations into UserFacingError
+// so the REST layer can return a 400 instead of 500.
+func classifyDBError(err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := strings.ToLower(err.Error())
+	// Postgres: "duplicate key value violates unique constraint"
+	// SQLite:   "unique constraint failed"
+	if strings.Contains(msg, "unique constraint") || strings.Contains(msg, "duplicate key") {
+		if strings.Contains(msg, "host_port") || strings.Contains(msg, "resource_ports") {
+			return domain.NewUserFacingError("One or more host ports are already assigned to another resource")
+		}
+		if strings.Contains(msg, "resource") && strings.Contains(msg, "name") {
+			return domain.NewUserFacingError("A resource with this name already exists")
+		}
+		return domain.NewUserFacingError("A duplicate value violates a uniqueness constraint")
+	}
+	return err
+}

@@ -13,5 +13,7 @@ func All() []any {
 		&ResourceRunRecord{},
 		&ResourcePortRecord{},
 		&ResourceEnvVarRecord{},
+		&SourceProviderRecord{},
+		&SourceConnectionRecord{},
 	}
 }

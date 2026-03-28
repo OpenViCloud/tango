@@ -22,6 +22,7 @@ const (
 	ResourceStatusError        ResourceStatus = "error"
 	ResourceStatusPendingBuild ResourceStatus = "pending_build" // waiting for build job
 	ResourceStatusBuilding     ResourceStatus = "building"      // build job running
+	ResourceStatusCreated      ResourceStatus = "created"       // saved but never built
 )
 
 // SourceType describes where the resource image comes from.
@@ -60,13 +61,15 @@ type Resource struct {
 	EnvironmentID string
 	CreatedBy     string
 	// Source fields
-	SourceType string // "preset" | "git" | "image"
-	GitURL     string
-	GitBranch  string
-	BuildMode  string // "auto" | "dockerfile"
-	BuildJobID string // populated when SourceType == "git"
-	GitToken   string // encrypted access token for private repos
-	Ports      []ResourcePort
+	SourceType   string // "preset" | "git" | "image"
+	GitURL       string
+	GitBranch    string
+	BuildMode    string // "auto" | "dockerfile"
+	BuildJobID   string // populated when SourceType == "git"
+	GitToken     string // encrypted access token for private repos
+	ImageTag     string // target registry image tag for builds
+	ConnectionID string // source connection ID for private repos
+	Ports        []ResourcePort
 	EnvVars    []ResourceEnvVar
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
@@ -87,6 +90,8 @@ type CreateResourceInput struct {
 	BuildMode     string
 	BuildJobID    string
 	GitToken      string
+	ImageTag      string
+	ConnectionID  string
 	Ports         []ResourcePort
 	EnvVars       []ResourceEnvVar
 }

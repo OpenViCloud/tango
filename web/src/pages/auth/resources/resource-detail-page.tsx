@@ -1,13 +1,17 @@
 import { useMemo, useRef, useState, useEffect } from "react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
+import { Link } from "@tanstack/react-router"
+import { ExternalLink } from "lucide-react"
 
 import type { ResourceRunModel } from "@/@types/models"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   PROJECT_QUERY_KEYS,
+  useBuildResource,
   useGetResource,
   useGetResourceEnvVars,
   useSetResourceEnvVars,
@@ -15,6 +19,8 @@ import {
   useStartResource,
   useStopResource,
 } from "@/hooks/api/use-project"
+import { useGetBuildJob } from "@/hooks/api/use-build"
+import { useBuildLogs } from "@/hooks/api/use-build-logs"
 import { useResourceRunLogs } from "@/hooks/api/use-resource-run-logs"
 import ResourceDetails from "@/pages/auth/resources/components/resource-details"
 import type { EnvEntry, PortEntry } from "@/pages/auth/resources/components/ConfigGeneralForm"
@@ -22,6 +28,17 @@ import { useQueryClient } from "@tanstack/react-query"
 
 type ResourceDetailPageProps = {
   resourceId: string
+}
+
+const BUILD_STATUS_COLOR: Record<string, string> = {
+  queued:     "text-muted-foreground",
+  cloning:    "text-blue-500",
+  detecting:  "text-blue-500",
+  generating: "text-blue-500",
+  building:   "text-yellow-500",
+  done:       "text-green-500",
+  failed:     "text-destructive",
+  canceled:   "text-muted-foreground",
 }
 
 export default function ResourceDetailPage({ resourceId }: ResourceDetailPageProps) {
@@ -41,7 +58,9 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
   const updateResourceMutation = useUpdateResource(resourceId)
   const startMutation = useStartResource()
   const stopMutation = useStopResource()
+  const buildMutation = useBuildResource(resourceId)
   const [activeRun, setActiveRun] = useState<ResourceRunModel | null>(null)
+  const [activeBuildJobId, setActiveBuildJobId] = useState<string | null>(null)
 
   const initialEnvEntries = useMemo<EnvEntry[]>(
     () =>
@@ -88,7 +107,14 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
   const handleStart = () => {
     startMutation.mutate(resourceId, {
       onSuccess: (run) => setActiveRun(run),
-      onError: (err) => toast.error(err.message),
+    })
+  }
+
+  const handleBuild = () => {
+    buildMutation.mutate(undefined, {
+      onSuccess: (result) => {
+        setActiveBuildJobId(result.build_job_id)
+      },
     })
   }
 
@@ -101,7 +127,6 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
           queryKey: PROJECT_QUERY_KEYS.resourceEnvVars(resourceId),
         })
       },
-      onError: (err) => toast.error(err.message),
     })
   }
 
@@ -131,13 +156,23 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
         onSave={handleSave}
         onStart={handleStart}
         onStop={handleStop}
+        onBuild={handleBuild}
         pending={setEnvVarsMutation.isPending || updateResourceMutation.isPending}
         actionPending={
-          startMutation.isPending || stopMutation.isPending || activeRun !== null
+          startMutation.isPending || stopMutation.isPending || buildMutation.isPending || activeRun !== null
         }
         isLoadingEnvVars={isLoadingEnvVars}
         isEnvVarsError={isEnvVarsError}
       />
+
+      <BuildLogSheet
+        buildJobId={activeBuildJobId}
+        onClose={() => setActiveBuildJobId(null)}
+        onCompleted={async () => {
+          await queryClient.invalidateQueries({ queryKey: ["resource", resourceId] })
+        }}
+      />
+
       <ResourceRunLogSheet
         run={activeRun}
         resourceName={resource.name}
@@ -152,6 +187,101 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
     </>
   )
 }
+
+// ── Build log sheet ────────────────────────────────────────────────────────────
+
+function BuildLogSheet({
+  buildJobId,
+  onClose,
+  onCompleted,
+}: {
+  buildJobId: string | null
+  onClose: () => void
+  onCompleted: () => void | Promise<void>
+}) {
+  const { logs, status: wsStatus, connected } = useBuildLogs(buildJobId)
+  const { data: job } = useGetBuildJob(buildJobId)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const notifiedRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [logs])
+
+  useEffect(() => {
+    notifiedRef.current = null
+  }, [buildJobId])
+
+  useEffect(() => {
+    const finalStatus = wsStatus ?? job?.status
+    if (!finalStatus) return
+    if (notifiedRef.current === finalStatus) return
+    if (finalStatus !== "done" && finalStatus !== "failed" && finalStatus !== "canceled") return
+    notifiedRef.current = finalStatus
+    if (finalStatus === "done") {
+      toast.success("Build completed successfully!")
+    } else {
+      toast.error(`Build ${finalStatus}`)
+    }
+    void onCompleted()
+  }, [wsStatus, job?.status, onCompleted])
+
+  const displayStatus = wsStatus ?? job?.status
+  const isEmpty = !logs && !connected
+
+  return (
+    <Sheet open={Boolean(buildJobId)} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent className="flex w-full flex-col sm:max-w-2xl">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2 flex-wrap">
+            <span>Build Logs</span>
+            {displayStatus && (
+              <Badge variant="outline" className="font-normal">
+                <span className={BUILD_STATUS_COLOR[displayStatus] ?? ""}>{displayStatus}</span>
+              </Badge>
+            )}
+            {connected && (
+              <span className="animate-pulse text-xs text-muted-foreground">streaming…</span>
+            )}
+          </SheetTitle>
+
+          {/* image tag + link to builds page */}
+          <div className="flex items-center justify-between gap-2">
+            {job?.image_tag && (
+              <p className="truncate font-mono text-xs text-muted-foreground">{job.image_tag}</p>
+            )}
+            {buildJobId && (
+              <Button asChild variant="ghost" size="sm" className="h-6 gap-1 px-2 text-xs shrink-0">
+                <Link to="/builds">
+                  <ExternalLink className="h-3 w-3" />
+                  View in Builds
+                </Link>
+              </Button>
+            )}
+          </div>
+        </SheetHeader>
+
+        <div className="mt-4 flex-1 overflow-auto">
+          {isEmpty ? (
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-5/6" />
+            </div>
+          ) : (
+            <pre className="min-h-[220px] whitespace-pre-wrap break-all rounded-md bg-muted p-4 font-mono text-xs leading-relaxed">
+              {logs || "Waiting for build output…"}
+              {connected && <span className="animate-pulse">▌</span>}
+              <div ref={bottomRef} />
+            </pre>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// ── Run log sheet ──────────────────────────────────────────────────────────────
 
 function ResourceRunLogSheet({
   run,

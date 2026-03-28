@@ -40,6 +40,9 @@ function AuthLayout() {
   } else if (pathname === "/channels") {
     section = t("shell.workspace")
     title = t("channels.listPageTitle")
+  } else if (pathname === "/sources") {
+    section = t("shell.workspace")
+    title = t("sources.page.title")
   } else if (pathname === "/channels/create") {
     section = t("shell.workspace")
     title = t("channels.createPageTitle")

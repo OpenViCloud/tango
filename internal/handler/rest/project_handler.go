@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/http"
@@ -35,9 +36,10 @@ type ProjectHandler struct {
 	getProject            *query.GetProjectHandler
 	listEnvResources      *query.ListEnvironmentResourcesHandler
 	getResource           *query.GetResourceHandler
-	dockerRepo            domain.DockerRepository
-	domainRepo            domain.ResourceDomainRepository
-	platformConfigRepo    domain.PlatformConfigRepository
+	dockerRepo         domain.DockerRepository
+	domainRepo         domain.ResourceDomainRepository
+	platformConfigRepo domain.PlatformConfigRepository
+	fileProvider       domain.TraefikFileProvider
 }
 
 func NewProjectHandler(
@@ -62,6 +64,7 @@ func NewProjectHandler(
 	dockerRepo         domain.DockerRepository,
 	domainRepo         domain.ResourceDomainRepository,
 	platformConfigRepo domain.PlatformConfigRepository,
+	fileProvider       domain.TraefikFileProvider,
 ) *ProjectHandler {
 	return &ProjectHandler{
 		createProject:         createProject,
@@ -85,6 +88,7 @@ func NewProjectHandler(
 		dockerRepo:            dockerRepo,
 		domainRepo:            domainRepo,
 		platformConfigRepo:    platformConfigRepo,
+		fileProvider:          fileProvider,
 	}
 }
 
@@ -111,6 +115,7 @@ func (h *ProjectHandler) Register(rg *gin.RouterGroup) {
 	rg.PUT("/resources/:resourceId/env-vars", h.SetEnvVars)
 	rg.GET("/resources/:resourceId/domains", h.ListResourceDomains)
 	rg.POST("/resources/:resourceId/domains", h.AddResourceDomain)
+	rg.PATCH("/resources/:resourceId/domains/:domainId", h.UpdateResourceDomain)
 	rg.DELETE("/resources/:resourceId/domains/:domainId", h.RemoveResourceDomain)
 	rg.POST("/resources/:resourceId/domains/:domainId/verify", h.VerifyResourceDomain)
 }
@@ -154,7 +159,6 @@ type createResourceRequest struct {
 	Image      string                        `json:"image"`
 	Tag        string                        `json:"tag"`
 	Config     map[string]any                `json:"config"`
-	TLSEnabled bool                          `json:"tls_enabled"`
 	Ports      []createResourcePortRequest   `json:"ports"`
 	EnvVars    []createResourceEnvVarRequest `json:"env_vars"`
 }
@@ -172,9 +176,8 @@ type createResourceFromGitRequest struct {
 }
 
 type updateResourceRequest struct {
-	Name       string                      `json:"name"`
-	TLSEnabled bool                        `json:"tls_enabled"`
-	Ports      []createResourcePortRequest `json:"ports"`
+	Name  string                      `json:"name"`
+	Ports []createResourcePortRequest `json:"ports"`
 }
 
 type setEnvVarsRequest struct {
@@ -206,7 +209,6 @@ type resourceResponse struct {
 	ContainerID   string         `json:"container_id"`
 	Config        map[string]any `json:"config"`
 	EnvironmentID string         `json:"environment_id"`
-	TLSEnabled    bool           `json:"tls_enabled"`
 	SourceType    string         `json:"source_type,omitempty"`
 	GitURL        string         `json:"git_url,omitempty"`
 	BuildJobID    string         `json:"build_job_id,omitempty"`
@@ -421,7 +423,6 @@ func (h *ProjectHandler) CreateResource(c *gin.Context) {
 		Config:        req.Config,
 		EnvironmentID: c.Param("envId"),
 		CreatedBy:     userID,
-		TLSEnabled:    req.TLSEnabled,
 		Ports:         ports,
 		EnvVars:       envVars,
 	})
@@ -503,10 +504,9 @@ func (h *ProjectHandler) UpdateResource(c *gin.Context) {
 		})
 	}
 	resource, err := h.updateResource.Handle(c.Request.Context(), command.UpdateResourceCommand{
-		ID:         c.Param("resourceId"),
-		Name:       req.Name,
-		TLSEnabled: req.TLSEnabled,
-		Ports:      ports,
+		ID:    c.Param("resourceId"),
+		Name:  req.Name,
+		Ports: ports,
 	})
 	if err != nil {
 		writeProjectError(c, err)
@@ -684,7 +684,6 @@ func toResourceResponse(r *domain.Resource) resourceResponse {
 		ContainerID:   r.ContainerID,
 		Config:        r.Config,
 		EnvironmentID: r.EnvironmentID,
-		TLSEnabled:    r.TLSEnabled,
 		SourceType:    r.SourceType,
 		GitURL:        r.GitURL,
 		BuildJobID:    r.BuildJobID,
@@ -758,6 +757,7 @@ type resourceDomainResponse struct {
 	ResourceID string     `json:"resource_id"`
 	Host       string     `json:"host"`
 	Type       string     `json:"type"`
+	TLSEnabled bool       `json:"tls_enabled"`
 	Verified   bool       `json:"verified"`
 	VerifiedAt *time.Time `json:"verified_at,omitempty"`
 	CreatedAt  time.Time  `json:"created_at"`
@@ -769,6 +769,7 @@ func toResourceDomainResponse(d *domain.ResourceDomain) resourceDomainResponse {
 		ResourceID: d.ResourceID,
 		Host:       d.Host,
 		Type:       d.Type,
+		TLSEnabled: d.TLSEnabled,
 		Verified:   d.Verified,
 		VerifiedAt: d.VerifiedAt,
 		CreatedAt:  d.CreatedAt,
@@ -792,7 +793,8 @@ func (h *ProjectHandler) ListResourceDomains(c *gin.Context) {
 func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
 	resourceID := c.Param("resourceId")
 	var req struct {
-		Host string `json:"host" binding:"required"`
+		Host       string `json:"host" binding:"required"`
+		TLSEnabled bool   `json:"tls_enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		_ = c.Error(response.BadRequest(err.Error()))
@@ -803,6 +805,7 @@ func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
 		ID:         uuid.NewString(),
 		ResourceID: resourceID,
 		Host:       req.Host,
+		TLSEnabled: req.TLSEnabled,
 		Type:       domain.ResourceDomainTypeCustom,
 		Verified:   false,
 	})
@@ -817,12 +820,66 @@ func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
 	c.JSON(http.StatusCreated, toResourceDomainResponse(d))
 }
 
-func (h *ProjectHandler) RemoveResourceDomain(c *gin.Context) {
+func (h *ProjectHandler) UpdateResourceDomain(c *gin.Context) {
+	ctx := c.Request.Context()
 	domainID := c.Param("domainId")
-	if err := h.domainRepo.Delete(c.Request.Context(), domainID); err != nil {
+
+	var req struct {
+		Host       string `json:"host" binding:"required"`
+		TLSEnabled bool   `json:"tls_enabled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(response.BadRequest(err.Error()))
+		return
+	}
+
+	current, err := h.domainRepo.GetByID(ctx, domainID)
+	if err != nil {
+		_ = c.Error(response.NotFound("domain not found"))
+		return
+	}
+
+	hostChanged := current.Host != req.Host
+	updated := *current
+	updated.Host = req.Host
+	updated.TLSEnabled = req.TLSEnabled
+	if hostChanged {
+		updated.Verified = false
+		updated.VerifiedAt = nil
+	}
+
+	next, err := h.domainRepo.Update(ctx, updated)
+	if err != nil {
+		if errors.Is(err, domain.ErrResourceDomainConflict) {
+			_ = c.Error(response.BadRequest("domain already in use"))
+			return
+		}
 		_ = c.Error(response.InternalCause(err, ""))
 		return
 	}
+
+	h.refreshTraefikConfig(ctx, next.ResourceID)
+	c.JSON(http.StatusOK, toResourceDomainResponse(next))
+}
+
+func (h *ProjectHandler) RemoveResourceDomain(c *gin.Context) {
+	ctx := c.Request.Context()
+	domainID := c.Param("domainId")
+
+	d, err := h.domainRepo.GetByID(ctx, domainID)
+	if err != nil {
+		_ = c.Error(response.NotFound("domain not found"))
+		return
+	}
+
+	if err := h.domainRepo.Delete(ctx, domainID); err != nil {
+		_ = c.Error(response.InternalCause(err, ""))
+		return
+	}
+
+	// Refresh Traefik config immediately (best-effort)
+	h.refreshTraefikConfig(ctx, d.ResourceID)
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -860,7 +917,50 @@ func (h *ProjectHandler) VerifyResourceDomain(c *gin.Context) {
 
 	if verified {
 		_ = h.domainRepo.SetVerified(ctx, d.ID, time.Now())
+		// Refresh Traefik config immediately now that domain is verified (best-effort)
+		h.refreshTraefikConfig(ctx, d.ResourceID)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"verified": verified, "resolved_ips": addrs})
+}
+
+// refreshTraefikConfig rewrites the Traefik file config for a resource using its
+// current container (if running) and latest domain list.
+func (h *ProjectHandler) refreshTraefikConfig(ctx context.Context, resourceID string) {
+	if h.fileProvider == nil || h.dockerRepo == nil {
+		return
+	}
+
+	resource, err := h.getResource.Handle(ctx, query.GetResourceQuery{ID: resourceID})
+	if err != nil || resource.ContainerID == "" {
+		return
+	}
+
+	info, err := h.dockerRepo.InspectContainer(ctx, resource.ContainerID)
+	if err != nil {
+		return
+	}
+
+	domains, err := h.domainRepo.ListByResource(ctx, resourceID)
+	if err != nil || len(domains) == 0 {
+		_ = h.fileProvider.Delete(resourceID)
+		return
+	}
+
+	certResolver := ""
+	if h.platformConfigRepo != nil {
+		if cfg, err := h.platformConfigRepo.Get(ctx, domain.PlatformConfigCertResolver); err == nil {
+			certResolver = cfg.Value
+		}
+	}
+
+	internalPort := 80
+	for _, p := range resource.Ports {
+		if p.Proto == "tcp" || p.Proto == "" {
+			internalPort = p.InternalPort
+			break
+		}
+	}
+
+	_ = h.fileProvider.Write(resourceID, domains, info.Name, internalPort, certResolver)
 }

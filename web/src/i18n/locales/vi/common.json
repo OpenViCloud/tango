@@ -716,7 +716,38 @@
     "certResolver": {
       "label": "Tên Cert Resolver",
       "hint": "Tên cert resolver Let's Encrypt đã cấu hình trong Traefik (vd: letsencrypt)."
+    },
+    "appDomain": {
+      "label": "Domain của App",
+      "hint": "Domain public cho chính app Tango (vd: app.example.com). Áp dụng ngay qua Traefik file provider."
+    },
+    "appTLS": {
+      "label": "Bật HTTPS cho App",
+      "hint": "Bật HTTPS kèm redirect HTTP→HTTPS. Yêu cầu có domain và cert resolver Let's Encrypt."
+    },
+    "appBackendURL": {
+      "label": "App Backend URL",
+      "hint": "URL nội bộ Traefik dùng để kết nối app. Mặc định: http://app:8080 (tên service Docker Compose)."
+    },
+    "baseDomains": {
+      "title": "Base Domains",
+      "description": "Các domain wildcard dùng để tự động gán subdomain cho resource.",
+      "empty": "Chưa có base domain nào.",
+      "addPlaceholder": "example.com",
+      "wildcardLabel": "Wildcard",
+      "added": "Đã thêm base domain",
+      "addFailed": "Thêm base domain thất bại",
+      "deleted": "Đã xóa base domain",
+      "deleteFailed": "Xóa base domain thất bại",
+      "conflict": "Domain đã tồn tại"
     }
+  },
+  "domains": {
+    "subdomainPlaceholder": "myapp",
+    "customDomain": "Custom domain...",
+    "checking": "Đang kiểm tra...",
+    "available": "Khả dụng",
+    "inUse": "Đã được sử dụng"
   },
   "sources": {
     "page": {

@@ -15,7 +15,7 @@ import { ResourceTerminalTab } from "./tabs/ResourceTerminalTab"
 type ResourceDetailsProps = {
   resource: ResourceModel
   initialEnvEntries: EnvEntry[]
-  onSave: (entries: EnvEntry[], name: string, ports: PortEntry[], tlsEnabled: boolean) => void
+  onSave: (entries: EnvEntry[], name: string, ports: PortEntry[]) => void
   onStart: () => void
   onStop: () => void
   onBuild?: () => void
@@ -46,7 +46,6 @@ export default function ResourceDetails({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [envEntries, setEnvEntries] = useState<EnvEntry[]>(initialEnvEntries)
   const [resourceName, setResourceName] = useState(resource.name)
-  const [tlsEnabled, setTlsEnabled] = useState(resource.tls_enabled ?? false)
   const [portEntries, setPortEntries] = useState<PortEntry[]>(
     resource.ports.length > 0
       ? resource.ports.map((p) => ({
@@ -160,13 +159,11 @@ export default function ResourceDetails({
               onSelectSection={setActiveSection}
               resourceName={resourceName}
               setResourceName={setResourceName}
-              tlsEnabled={tlsEnabled}
-              setTlsEnabled={setTlsEnabled}
               portEntries={portEntries}
               setPortEntries={setPortEntries}
               envEntries={envEntries}
               setEnvEntries={setEnvEntries}
-              onSave={() => onSave(envEntries, resourceName, portEntries, tlsEnabled)}
+              onSave={() => onSave(envEntries, resourceName, portEntries)}
               pending={pending}
               isLoadingEnvVars={isLoadingEnvVars}
               isEnvVarsError={isEnvVarsError}

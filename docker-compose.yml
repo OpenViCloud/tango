@@ -8,6 +8,8 @@ services:
       - "--api.insecure=false"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.directory=/traefik/config"
+      - "--providers.file.watch=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       # Optional Let's Encrypt — only activated when TRAEFIK_ACME_EMAIL is set
@@ -21,6 +23,7 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./letsencrypt:/letsencrypt"
+      - "./traefik/config:/traefik/config"
     networks:
       - tango_net
 
@@ -36,18 +39,15 @@ services:
       BUILDKIT_HOST: "tcp://buildkitd:1234"
       BUILD_WORKSPACE_DIR: "/workspace/jobs"
       LLM_CONFIG_ENCRYPTION_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      BASE_URL: "http://test.openrepo.cloud"
-      FRONTEND_BASE_URL: "http://test.openrepo.cloud"
       DOCKER_HOST: "unix:///var/run/docker.sock"
+      TRAEFIK_CONFIG_DIR: "/traefik/config"
+      APP_DOMAIN: "${APP_DOMAIN:-}"
+      APP_TLS_ENABLED: "${APP_TLS_ENABLED:-false}"
+      APP_BACKEND_URL: "http://app:8080"
     volumes:
       - workspace:/workspace/jobs
       - /var/run/docker.sock:/var/run/docker.sock
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=tango_net
-      - traefik.http.routers.tango.rule=Host(`test.openrepo.cloud`)
-      - traefik.http.routers.tango.entrypoints=web
-      - traefik.http.services.tango.loadbalancer.server.port=8080
+      - ./traefik/config:/traefik/config
     depends_on:
       db:
         condition: service_healthy

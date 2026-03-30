@@ -36,6 +36,7 @@ func (r *resourceDomainRepository) Create(ctx context.Context, d domain.Resource
 		ID:         id,
 		ResourceID: d.ResourceID,
 		Host:       d.Host,
+		TLSEnabled: d.TLSEnabled,
 		Type:       d.Type,
 		Verified:   d.Verified,
 		VerifiedAt: d.VerifiedAt,
@@ -86,6 +87,26 @@ func (r *resourceDomainRepository) GetByHost(ctx context.Context, host string) (
 	return r.toEntity(&rec), nil
 }
 
+func (r *resourceDomainRepository) Update(ctx context.Context, d domain.ResourceDomain) (*domain.ResourceDomain, error) {
+	updates := map[string]any{
+		"host":        d.Host,
+		"tls_enabled": d.TLSEnabled,
+		"verified":    d.Verified,
+		"verified_at": d.VerifiedAt,
+		"updated_at":  time.Now(),
+	}
+	if err := r.db.WithContext(ctx).
+		Model(&models.ResourceDomainRecord{}).
+		Where("id = ?", d.ID).
+		Updates(updates).Error; err != nil {
+		if isUniqueConstraintError(err) {
+			return nil, domain.ErrResourceDomainConflict
+		}
+		return nil, err
+	}
+	return r.GetByID(ctx, d.ID)
+}
+
 func (r *resourceDomainRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&models.ResourceDomainRecord{}, "id = ?", id).Error
 }
@@ -110,6 +131,7 @@ func (r *resourceDomainRepository) toEntity(rec *models.ResourceDomainRecord) *d
 		ID:         rec.ID,
 		ResourceID: rec.ResourceID,
 		Host:       rec.Host,
+		TLSEnabled: rec.TLSEnabled,
 		Type:       rec.Type,
 		Verified:   rec.Verified,
 		VerifiedAt: rec.VerifiedAt,

@@ -26,6 +26,7 @@ import (
 	persistrepo "tango/internal/infrastructure/persistence/repositories"
 	infrahttp "tango/internal/infrastructure/server"
 	infraservices "tango/internal/infrastructure/services"
+	infratraefik "tango/internal/infrastructure/traefik"
 	"tango/internal/messaging/inbound"
 
 	docs "tango/docs"
@@ -114,6 +115,7 @@ func main() {
 	sourceConnectionRepo := persistrepo.NewSourceConnectionRepository(db)
 	platformConfigRepo := persistrepo.NewPlatformConfigRepository(db)
 	resourceDomainRepo := persistrepo.NewResourceDomainRepository(db)
+	baseDomainRepo := persistrepo.NewBaseDomainRepository(db)
 
 	bootstrapPlatformConfig(ctx, cfg, platformConfigRepo, logger)
 
@@ -264,11 +266,18 @@ func main() {
 	createResourceFromGitHandler := command.NewCreateResourceFromGitHandler(resourceRepo, buildJobRepo, buildSvc, resolveSourceConnectionTokenHandler)
 	startBuildForResourceHandler := command.NewStartBuildForResourceHandler(resourceRepo, buildJobRepo, buildSvc, resolveSourceConnectionTokenHandler)
 	updateResourceHandler := command.NewUpdateResourceHandler(resourceRepo)
-	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, resourceDomainRepo, platformConfigRepo, logger)
+
+	// Traefik file provider — optional, only active when TRAEFIK_CONFIG_DIR is set
+	var traefikFileProvider domain.TraefikFileProvider
+	if cfg.TraefikConfigDir != "" {
+		traefikFileProvider = infratraefik.NewFileProvider(cfg.TraefikConfigDir)
+	}
+
+	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, resourceDomainRepo, platformConfigRepo, traefikFileProvider, logger)
 	buildSvc.SetResourceAutoStarter(resourceRunSvc)
 	createStartResourceRunHandler := command.NewCreateStartResourceRunHandler(resourceRepo, resourceRunRepo, resourceRunSvc)
-	stopResourceHandler := command.NewStopResourceHandler(resourceRepo, dockerRepo)
-	deleteResourceHandler := command.NewDeleteResourceHandler(resourceRepo, dockerRepo)
+	stopResourceHandler := command.NewStopResourceHandler(resourceRepo, dockerRepo, traefikFileProvider)
+	deleteResourceHandler := command.NewDeleteResourceHandler(resourceRepo, dockerRepo, traefikFileProvider)
 	setEnvVarsHandler := command.NewSetResourceEnvVarsHandler(resourceRepo)
 	listProjectsHandler := query.NewListProjectsHandler(projectRepo, environmentRepo)
 	getProjectHandler := query.NewGetProjectHandler(projectRepo, environmentRepo, resourceRepo)
@@ -279,7 +288,13 @@ func main() {
 	if dockerRepo != nil {
 		resourceTerminalWSHandler = rest.NewResourceTerminalWSHandler(dockerRepo, getResourceHandler)
 	}
-	settingsHandler := rest.NewSettingsHandler(platformConfigRepo)
+	settingsHandler := rest.NewSettingsHandler(platformConfigRepo, traefikFileProvider)
+	baseDomainHandler := rest.NewBaseDomainHandler(baseDomainRepo, resourceDomainRepo, resourceRepo)
+
+	// Write app Traefik config on every startup (picks up any env-seeded domain)
+	if traefikFileProvider != nil {
+		refreshAppTraefikConfig(ctx, platformConfigRepo, traefikFileProvider, logger)
+	}
 
 	projectHandler := rest.NewProjectHandler(
 		createProjectHandler,
@@ -303,6 +318,7 @@ func main() {
 		dockerRepo,
 		resourceDomainRepo,
 		platformConfigRepo,
+		traefikFileProvider,
 	)
 
 	docs.SwaggerInfo.BasePath = "/api"
@@ -344,6 +360,7 @@ func main() {
 			projectHandler.Register(protected)
 			sourceConnectionHandler.RegisterProtected(protected)
 			settingsHandler.RegisterRoutes(protected)
+			baseDomainHandler.RegisterRoutes(protected)
 			if dockerHandler != nil {
 				dockerHandler.Register(protected)
 				dockerWSHandler.Register(protected)
@@ -414,7 +431,49 @@ func bootstrapPlatformConfig(ctx context.Context, cfg *config.Config, repo domai
 	if err := repo.Set(ctx, domain.PlatformConfigCertResolver, "letsencrypt"); err != nil {
 		logger.Warn("seed cert_resolver failed", "err", err)
 	}
-	logger.Info("platform config seeded", "public_ip", ip)
+	if err := repo.Set(ctx, domain.PlatformConfigAppDomain, cfg.AppDomain); err != nil {
+		logger.Warn("seed app_domain failed", "err", err)
+	}
+	appTLS := "false"
+	if cfg.AppTLSEnabled {
+		appTLS = "true"
+	}
+	if err := repo.Set(ctx, domain.PlatformConfigAppTLSEnabled, appTLS); err != nil {
+		logger.Warn("seed app_tls_enabled failed", "err", err)
+	}
+	if err := repo.Set(ctx, domain.PlatformConfigAppBackendURL, cfg.AppBackendURL); err != nil {
+		logger.Warn("seed app_backend_url failed", "err", err)
+	}
+	logger.Info("platform config seeded", "public_ip", ip, "app_domain", cfg.AppDomain)
+}
+
+func refreshAppTraefikConfig(ctx context.Context, repo domain.PlatformConfigRepository, fp domain.TraefikFileProvider, logger *slog.Logger) {
+	appDomain := ""
+	appTLS := false
+	certResolver := ""
+	backendURL := "http://app:8080"
+
+	if cfg, err := repo.Get(ctx, domain.PlatformConfigAppDomain); err == nil {
+		appDomain = cfg.Value
+	}
+	if cfg, err := repo.Get(ctx, domain.PlatformConfigAppTLSEnabled); err == nil {
+		appTLS = cfg.Value == "true"
+	}
+	if cfg, err := repo.Get(ctx, domain.PlatformConfigCertResolver); err == nil {
+		certResolver = cfg.Value
+	}
+	if cfg, err := repo.Get(ctx, domain.PlatformConfigAppBackendURL); err == nil && cfg.Value != "" {
+		backendURL = cfg.Value
+	}
+
+	if appDomain == "" {
+		return
+	}
+	if err := fp.WriteAppConfig(appDomain, appTLS, certResolver, backendURL); err != nil {
+		logger.Warn("write app traefik config failed", "err", err)
+	} else {
+		logger.Info("app traefik config written", "domain", appDomain, "tls", appTLS)
+	}
 }
 
 func detectPublicIP() (string, error) {

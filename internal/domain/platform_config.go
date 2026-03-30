@@ -14,6 +14,9 @@ const (
 	PlatformConfigWildcardEnabled = "wildcard_enabled"
 	PlatformConfigTraefikNetwork  = "traefik_network"
 	PlatformConfigCertResolver    = "cert_resolver"
+	PlatformConfigAppDomain       = "app_domain"
+	PlatformConfigAppTLSEnabled   = "app_tls_enabled"
+	PlatformConfigAppBackendURL   = "app_backend_url"
 )
 
 type PlatformConfig struct {

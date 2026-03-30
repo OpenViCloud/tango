@@ -132,30 +132,7 @@ func (h *CreateResourceHandler) Handle(ctx context.Context, cmd CreateResourceCo
 		return nil, fmt.Errorf("update resource status: %w", err)
 	}
 
-	// Auto-assign subdomain when wildcard is enabled
-	if h.domainRepo != nil && h.platformConfig != nil {
-		h.tryAutoAssignSubdomain(ctx, resource.ID, cmd.Name)
-	}
-
 	return h.resourceRepo.GetByID(ctx, resource.ID)
-}
-
-func (h *CreateResourceHandler) tryAutoAssignSubdomain(ctx context.Context, resourceID, name string) {
-	wildcardCfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigWildcardEnabled)
-	if err != nil || wildcardCfg.Value != "true" {
-		return
-	}
-	baseDomainCfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigBaseDomain)
-	if err != nil || baseDomainCfg.Value == "" {
-		return
-	}
-	host := name + "." + baseDomainCfg.Value
-	_, _ = h.domainRepo.Create(ctx, domain.ResourceDomain{
-		ResourceID: resourceID,
-		Host:       host,
-		Type:       domain.ResourceDomainTypeAuto,
-		Verified:   true, // auto domains are always trusted
-	})
 }
 
 // ── Update Resource ───────────────────────────────────────────────────────────
@@ -207,6 +184,7 @@ type StartResourceHandler struct {
 	dockerRepo     domain.DockerRepository
 	domainRepo     domain.ResourceDomainRepository
 	platformConfig domain.PlatformConfigRepository
+	fileProvider   domain.TraefikFileProvider
 }
 
 func NewStartResourceHandler(
@@ -214,8 +192,9 @@ func NewStartResourceHandler(
 	dockerRepo domain.DockerRepository,
 	domainRepo domain.ResourceDomainRepository,
 	platformConfig domain.PlatformConfigRepository,
+	fileProvider domain.TraefikFileProvider,
 ) *StartResourceHandler {
-	return &StartResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo, domainRepo: domainRepo, platformConfig: platformConfig}
+	return &StartResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo, domainRepo: domainRepo, platformConfig: platformConfig, fileProvider: fileProvider}
 }
 
 func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceCommand) error {
@@ -280,34 +259,16 @@ func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceComm
 			}
 		}
 
-		// Build Traefik labels from resource domains (first TCP port as backend)
-		var labels map[string]string
-		var networks []string
-		if h.domainRepo != nil {
-			if domains, err := h.domainRepo.ListByResource(ctx, resource.ID); err == nil && len(domains) > 0 {
-				internalPort := 80 // fallback
-				for _, p := range resource.Ports {
-					if p.Proto == "tcp" || p.Proto == "" {
-						internalPort = p.InternalPort
-						break
-					}
-				}
-				traefikCfg := domain.TraefikConfig{
-					TLSEnabled: resource.TLSEnabled,
-				}
-				if h.platformConfig != nil {
-					if cfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigTraefikNetwork); err == nil {
-						traefikCfg.Network = cfg.Value
-					}
-					if cfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigCertResolver); err == nil {
-						traefikCfg.CertResolver = cfg.Value
-					}
-				}
-				labels = domain.TraefikLabels(resource.ID, domains, internalPort, traefikCfg)
-				if traefikCfg.Network != "" {
-					networks = []string{traefikCfg.Network}
-				}
+		// Resolve Traefik network from platform config
+		traefikNetwork := ""
+		if h.platformConfig != nil {
+			if cfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigTraefikNetwork); err == nil {
+				traefikNetwork = cfg.Value
 			}
+		}
+		var networks []string
+		if traefikNetwork != "" {
+			networks = []string{traefikNetwork}
 		}
 
 		ct, err := h.dockerRepo.CreateContainer(ctx, domain.CreateContainerInput{
@@ -317,7 +278,6 @@ func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceComm
 			PortBindings: portBindings,
 			Volumes:      volumes,
 			Cmd:          cmd,
-			Labels:       labels,
 			Networks:     networks,
 		})
 		if err != nil {
@@ -332,7 +292,32 @@ func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceComm
 	if err := h.dockerRepo.StartContainer(ctx, containerID); err != nil {
 		return fmt.Errorf("start container: %w", err)
 	}
-	return h.resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusRunning, containerID)
+	if err := h.resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusRunning, containerID); err != nil {
+		return err
+	}
+
+	// Write Traefik file config after container is running
+	if h.fileProvider != nil && h.domainRepo != nil && h.dockerRepo != nil {
+		if info, err := h.dockerRepo.InspectContainer(ctx, containerID); err == nil {
+			if domains, err := h.domainRepo.ListByResource(ctx, resource.ID); err == nil && len(domains) > 0 {
+				internalPort := 80
+				for _, p := range resource.Ports {
+					if p.Proto == "tcp" || p.Proto == "" {
+						internalPort = p.InternalPort
+						break
+					}
+				}
+				certResolver := ""
+				if h.platformConfig != nil {
+					if cfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigCertResolver); err == nil {
+						certResolver = cfg.Value
+					}
+				}
+				_ = h.fileProvider.Write(resource.ID, domains, info.Name, internalPort, certResolver)
+			}
+		}
+	}
+	return nil
 }
 
 // ── Stop Resource ─────────────────────────────────────────────────────────────
@@ -344,10 +329,11 @@ type StopResourceCommand struct {
 type StopResourceHandler struct {
 	resourceRepo domain.ResourceRepository
 	dockerRepo   domain.DockerRepository
+	fileProvider domain.TraefikFileProvider
 }
 
-func NewStopResourceHandler(resourceRepo domain.ResourceRepository, dockerRepo domain.DockerRepository) *StopResourceHandler {
-	return &StopResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo}
+func NewStopResourceHandler(resourceRepo domain.ResourceRepository, dockerRepo domain.DockerRepository, fileProvider domain.TraefikFileProvider) *StopResourceHandler {
+	return &StopResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo, fileProvider: fileProvider}
 }
 
 func (h *StopResourceHandler) Handle(ctx context.Context, cmd StopResourceCommand) error {
@@ -363,6 +349,9 @@ func (h *StopResourceHandler) Handle(ctx context.Context, cmd StopResourceComman
 		return fmt.Errorf("stop container: %w", err)
 	}
 	_ = h.dockerRepo.RemoveContainer(ctx, resource.ContainerID, false)
+	if h.fileProvider != nil {
+		_ = h.fileProvider.Delete(resource.ID)
+	}
 	return h.resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusStopped, "")
 }
 
@@ -375,10 +364,11 @@ type DeleteResourceCommand struct {
 type DeleteResourceHandler struct {
 	resourceRepo domain.ResourceRepository
 	dockerRepo   domain.DockerRepository
+	fileProvider domain.TraefikFileProvider
 }
 
-func NewDeleteResourceHandler(resourceRepo domain.ResourceRepository, dockerRepo domain.DockerRepository) *DeleteResourceHandler {
-	return &DeleteResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo}
+func NewDeleteResourceHandler(resourceRepo domain.ResourceRepository, dockerRepo domain.DockerRepository, fileProvider domain.TraefikFileProvider) *DeleteResourceHandler {
+	return &DeleteResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo, fileProvider: fileProvider}
 }
 
 func (h *DeleteResourceHandler) Handle(ctx context.Context, cmd DeleteResourceCommand) error {
@@ -389,6 +379,9 @@ func (h *DeleteResourceHandler) Handle(ctx context.Context, cmd DeleteResourceCo
 	if resource.ContainerID != "" {
 		_ = h.dockerRepo.StopContainer(ctx, resource.ContainerID)
 		_ = h.dockerRepo.RemoveContainer(ctx, resource.ContainerID, true)
+	}
+	if h.fileProvider != nil {
+		_ = h.fileProvider.Delete(resource.ID)
 	}
 	return h.resourceRepo.Delete(ctx, resource.ID)
 }

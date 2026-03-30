@@ -17,5 +17,6 @@ func All() []any {
 		&SourceConnectionRecord{},
 		&PlatformConfigRecord{},
 		&ResourceDomainRecord{},
+		&BaseDomainRecord{},
 	}
 }

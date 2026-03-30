@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context"
 	"net/http"
 
 	"tango/internal/domain"
@@ -9,11 +10,12 @@ import (
 )
 
 type SettingsHandler struct {
-	configRepo domain.PlatformConfigRepository
+	configRepo   domain.PlatformConfigRepository
+	fileProvider domain.TraefikFileProvider
 }
 
-func NewSettingsHandler(configRepo domain.PlatformConfigRepository) *SettingsHandler {
-	return &SettingsHandler{configRepo: configRepo}
+func NewSettingsHandler(configRepo domain.PlatformConfigRepository, fileProvider domain.TraefikFileProvider) *SettingsHandler {
+	return &SettingsHandler{configRepo: configRepo, fileProvider: fileProvider}
 }
 
 func (h *SettingsHandler) RegisterRoutes(rg *gin.RouterGroup) {
@@ -27,6 +29,9 @@ type settingsResponse struct {
 	WildcardEnabled bool   `json:"wildcard_enabled"`
 	TraefikNetwork  string `json:"traefik_network"`
 	CertResolver    string `json:"cert_resolver"`
+	AppDomain       string `json:"app_domain"`
+	AppTLSEnabled   bool   `json:"app_tls_enabled"`
+	AppBackendURL   string `json:"app_backend_url"`
 }
 
 type updateSettingsRequest struct {
@@ -35,6 +40,9 @@ type updateSettingsRequest struct {
 	WildcardEnabled *bool   `json:"wildcard_enabled"`
 	TraefikNetwork  *string `json:"traefik_network"`
 	CertResolver    *string `json:"cert_resolver"`
+	AppDomain       *string `json:"app_domain"`
+	AppTLSEnabled   *bool   `json:"app_tls_enabled"`
+	AppBackendURL   *string `json:"app_backend_url"`
 }
 
 func (h *SettingsHandler) GetSettings(c *gin.Context) {
@@ -47,6 +55,7 @@ func (h *SettingsHandler) GetSettings(c *gin.Context) {
 	resp := settingsResponse{
 		BaseDomain:      "localhost",
 		WildcardEnabled: true,
+		AppBackendURL:   "http://app:8080",
 	}
 	for _, cfg := range configs {
 		switch cfg.Key {
@@ -60,6 +69,14 @@ func (h *SettingsHandler) GetSettings(c *gin.Context) {
 			resp.TraefikNetwork = cfg.Value
 		case domain.PlatformConfigCertResolver:
 			resp.CertResolver = cfg.Value
+		case domain.PlatformConfigAppDomain:
+			resp.AppDomain = cfg.Value
+		case domain.PlatformConfigAppTLSEnabled:
+			resp.AppTLSEnabled = cfg.Value == "true"
+		case domain.PlatformConfigAppBackendURL:
+			if cfg.Value != "" {
+				resp.AppBackendURL = cfg.Value
+			}
 		}
 	}
 
@@ -109,6 +126,55 @@ func (h *SettingsHandler) UpdateSettings(c *gin.Context) {
 			return
 		}
 	}
+	if req.AppDomain != nil {
+		if err := h.configRepo.Set(ctx, domain.PlatformConfigAppDomain, *req.AppDomain); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	if req.AppTLSEnabled != nil {
+		val := "false"
+		if *req.AppTLSEnabled {
+			val = "true"
+		}
+		if err := h.configRepo.Set(ctx, domain.PlatformConfigAppTLSEnabled, val); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	if req.AppBackendURL != nil {
+		if err := h.configRepo.Set(ctx, domain.PlatformConfigAppBackendURL, *req.AppBackendURL); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	// Refresh app Traefik config whenever domain-related settings change
+	if h.fileProvider != nil && (req.AppDomain != nil || req.AppTLSEnabled != nil || req.CertResolver != nil || req.AppBackendURL != nil) {
+		h.refreshAppConfig(ctx)
+	}
 
 	h.GetSettings(c)
+}
+
+func (h *SettingsHandler) refreshAppConfig(ctx context.Context) {
+	appDomain := ""
+	appTLS := false
+	certResolver := ""
+	backendURL := "http://app:8080"
+
+	if cfg, err := h.configRepo.Get(ctx, domain.PlatformConfigAppDomain); err == nil {
+		appDomain = cfg.Value
+	}
+	if cfg, err := h.configRepo.Get(ctx, domain.PlatformConfigAppTLSEnabled); err == nil {
+		appTLS = cfg.Value == "true"
+	}
+	if cfg, err := h.configRepo.Get(ctx, domain.PlatformConfigCertResolver); err == nil {
+		certResolver = cfg.Value
+	}
+	if cfg, err := h.configRepo.Get(ctx, domain.PlatformConfigAppBackendURL); err == nil && cfg.Value != "" {
+		backendURL = cfg.Value
+	}
+
+	_ = h.fileProvider.WriteAppConfig(appDomain, appTLS, certResolver, backendURL)
 }

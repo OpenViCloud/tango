@@ -19,6 +19,7 @@ type ResourceRunService struct {
 	dockerRepo     domain.DockerRepository
 	domainRepo     domain.ResourceDomainRepository
 	platformConfig domain.PlatformConfigRepository
+	fileProvider   domain.TraefikFileProvider
 	logger         *slog.Logger
 	active         sync.Map // runID -> *LogBroadcaster
 }
@@ -29,6 +30,7 @@ func NewResourceRunService(
 	dockerRepo domain.DockerRepository,
 	domainRepo domain.ResourceDomainRepository,
 	platformConfig domain.PlatformConfigRepository,
+	fileProvider domain.TraefikFileProvider,
 	logger *slog.Logger,
 ) *ResourceRunService {
 	return &ResourceRunService{
@@ -37,6 +39,7 @@ func NewResourceRunService(
 		dockerRepo:     dockerRepo,
 		domainRepo:     domainRepo,
 		platformConfig: platformConfig,
+		fileProvider:   fileProvider,
 		logger:         logger,
 	}
 }
@@ -193,45 +196,36 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 		logLine(fmt.Sprintf("[pull] image ready: %s", imageRef))
 	}
 
+	// Resolve Traefik network and cert resolver from platform config once
+	traefikNetwork := ""
+	certResolver := ""
+	if s.platformConfig != nil {
+		if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigTraefikNetwork); err == nil {
+			traefikNetwork = cfg.Value
+		}
+		if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigCertResolver); err == nil {
+			certResolver = cfg.Value
+		}
+	}
+
+	// Determine the network(s) to join — always join tango_net so Traefik can reach
+	// the container via Docker DNS (container name resolution).
+	var networks []string
+	if traefikNetwork != "" {
+		networks = []string{traefikNetwork}
+	}
+
 	containerID := resource.ContainerID
+	containerName := ""
 	if containerID == "" {
 		updateStatus(domain.ResourceRunStatusCreating)
 		logLine("[create] creating container")
 
-		containerName, err := buildUniqueContainerName(ctx, s.dockerRepo, resource)
+		containerName, err = buildUniqueContainerName(ctx, s.dockerRepo, resource)
 		if err != nil {
 			return fail("allocate container name", err)
 		}
 		logLine(fmt.Sprintf("[create] using container name %s", containerName))
-
-		var labels map[string]string
-		var networks []string
-		if s.domainRepo != nil {
-			if domains, err := s.domainRepo.ListByResource(ctx, resource.ID); err == nil && len(domains) > 0 {
-				internalPort := 80
-				for _, p := range resource.Ports {
-					if p.Proto == "tcp" || p.Proto == "" {
-						internalPort = p.InternalPort
-						break
-					}
-				}
-				traefikCfg := domain.TraefikConfig{
-					TLSEnabled: resource.TLSEnabled,
-				}
-				if s.platformConfig != nil {
-					if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigTraefikNetwork); err == nil {
-						traefikCfg.Network = cfg.Value
-					}
-					if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigCertResolver); err == nil {
-						traefikCfg.CertResolver = cfg.Value
-					}
-				}
-				labels = domain.TraefikLabels(resource.ID, domains, internalPort, traefikCfg)
-				if traefikCfg.Network != "" {
-					networks = []string{traefikCfg.Network}
-				}
-			}
-		}
 
 		ct, err := s.dockerRepo.CreateContainer(ctx, domain.CreateContainerInput{
 			Name:         containerName,
@@ -240,7 +234,6 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 			PortBindings: buildResourcePortBindings(resource.Ports),
 			Volumes:      buildResourceVolumes(resource.Config),
 			Cmd:          buildResourceCmd(resource.Config),
-			Labels:       labels,
 			Networks:     networks,
 		})
 		if err != nil {
@@ -257,6 +250,31 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 	logLine(fmt.Sprintf("[start] starting container %s", containerID))
 	if err := s.dockerRepo.StartContainer(ctx, containerID); err != nil {
 		return fail("start container", err)
+	}
+
+	// Resolve container name if reusing an existing container
+	if containerName == "" && s.dockerRepo != nil {
+		if info, err := s.dockerRepo.InspectContainer(ctx, containerID); err == nil {
+			containerName = info.Name
+		}
+	}
+
+	// Write Traefik file config after container is running
+	if s.fileProvider != nil && containerName != "" && s.domainRepo != nil {
+		if domains, err := s.domainRepo.ListByResource(ctx, resource.ID); err == nil && len(domains) > 0 {
+			internalPort := 80
+			for _, p := range resource.Ports {
+				if p.Proto == "tcp" || p.Proto == "" {
+					internalPort = p.InternalPort
+					break
+				}
+			}
+			if err := s.fileProvider.Write(resource.ID, domains, containerName, internalPort, certResolver); err != nil {
+				s.logger.Warn("write traefik file config", "resource_id", resource.ID, "err", err)
+			} else {
+				logLine("[traefik] routing config written")
+			}
+		}
 	}
 
 	if err := s.resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusRunning, containerID); err != nil {

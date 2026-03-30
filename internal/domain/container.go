@@ -79,12 +79,20 @@ type ContainerExecSession interface {
 }
 
 // DockerRepository abstracts all Docker Engine operations.
+// ContainerInfo holds runtime details about a container returned by InspectContainer.
+type ContainerInfo struct {
+	ID       string
+	Name     string            // container name without leading "/"
+	Networks map[string]string // network name → IP address
+}
+
 type DockerRepository interface {
 	ListImages(ctx context.Context) ([]Image, error)
 	PullImage(ctx context.Context, input PullImageInput) error
 	RemoveImage(ctx context.Context, imageID string, force bool) error
 	ListContainers(ctx context.Context, all bool) ([]Container, error)
 	CreateContainer(ctx context.Context, input CreateContainerInput) (Container, error)
+	InspectContainer(ctx context.Context, containerID string) (ContainerInfo, error)
 	GetContainerLogs(ctx context.Context, containerID string, input GetContainerLogsInput) ([]string, error)
 	ExecContainer(ctx context.Context, containerID string, input ContainerExecInput) (ContainerExecSession, error)
 	StartContainer(ctx context.Context, containerID string) error

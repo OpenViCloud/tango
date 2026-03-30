@@ -6,6 +6,7 @@ type ResourceDomainRecord struct {
 	ID         string         `gorm:"primaryKey;type:text"`
 	ResourceID string         `gorm:"column:resource_id;type:text;not null;index"`
 	Host       string         `gorm:"column:host;type:text;not null;uniqueIndex"`
+	TLSEnabled bool           `gorm:"column:tls_enabled;not null;default:false"`
 	Type       string         `gorm:"column:type;type:varchar(16);not null;default:'custom'"`
 	Verified   bool           `gorm:"column:verified;not null;default:false"`
 	VerifiedAt *time.Time     `gorm:"column:verified_at"`

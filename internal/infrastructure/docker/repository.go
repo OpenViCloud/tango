@@ -102,6 +102,23 @@ func (r *Repository) RemoveImage(ctx context.Context, imageID string, force bool
 	return nil
 }
 
+// InspectContainer returns runtime details for the given container ID.
+func (r *Repository) InspectContainer(ctx context.Context, containerID string) (domain.ContainerInfo, error) {
+	info, err := r.client.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return domain.ContainerInfo{}, fmt.Errorf("inspect container %s: %w", containerID, err)
+	}
+	networks := make(map[string]string, len(info.NetworkSettings.Networks))
+	for name, ep := range info.NetworkSettings.Networks {
+		networks[name] = ep.IPAddress
+	}
+	return domain.ContainerInfo{
+		ID:       info.ID,
+		Name:     strings.TrimPrefix(info.Name, "/"),
+		Networks: networks,
+	}, nil
+}
+
 // ListContainers returns containers. Pass all=true to include stopped ones.
 func (r *Repository) ListContainers(ctx context.Context, all bool) ([]domain.Container, error) {
 	items, err := r.client.ContainerList(ctx, container.ListOptions{All: all})

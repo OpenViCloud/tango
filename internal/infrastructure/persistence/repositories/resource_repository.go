@@ -153,9 +153,8 @@ func (r *ResourceRepository) GetByID(ctx context.Context, id string) (*domain.Re
 func (r *ResourceRepository) Update(ctx context.Context, id string, input domain.UpdateResourceInput) (*domain.Resource, error) {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&models.ResourceRecord{}).Where("id = ?", id).Updates(map[string]any{
-			"name":        input.Name,
-			"tls_enabled": input.TLSEnabled,
-			"updated_at":  time.Now().UTC(),
+			"name":       input.Name,
+			"updated_at": time.Now().UTC(),
 		})
 		if result.Error != nil {
 			return fmt.Errorf("update resource: %w", result.Error)

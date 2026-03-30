@@ -6,11 +6,18 @@ APP_NAME="tango"
 BASE_DIR="$(pwd)"
 LETSENCRYPT_DIR="$BASE_DIR/letsencrypt"
 ACME_FILE="$LETSENCRYPT_DIR/acme.json"
+TRAEFIK_CONFIG_DIR="$BASE_DIR/traefik/config"
 ENV_FILE="$BASE_DIR/.env"
 
 EMAIL=""
+DOMAIN=""
+TLS_ENABLED="false"
 
 # ── Parse args ────────────────────────────────────────────────────────────────
+
+usage() {
+  echo "Usage: ./install-dev.sh [--email your@email.com] [--domain app.example.com] [--https]"
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -20,14 +27,25 @@ while [[ $# -gt 0 ]]; do
         shift 2
       else
         echo "Error: --email requires a value"
-        echo "Usage: ./install-dev.sh [--email your-email@example.com]"
-        exit 1
+        usage; exit 1
       fi
+      ;;
+    --domain)
+      if [ -n "$2" ] && [[ ! "$2" =~ ^-- ]]; then
+        DOMAIN="$2"
+        shift 2
+      else
+        echo "Error: --domain requires a value"
+        usage; exit 1
+      fi
+      ;;
+    --https)
+      TLS_ENABLED="true"
+      shift
       ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: ./install-dev.sh [--email your-email@example.com]"
-      exit 1
+      usage; exit 1
       ;;
   esac
 done
@@ -93,24 +111,41 @@ if [ ! -f "$ACME_FILE" ]; then
 fi
 chmod 600 "$ACME_FILE"
 
+echo "=== TRAEFIK CONFIG DIR ==="
+mkdir -p "$TRAEFIK_CONFIG_DIR"
+
 echo "=== WRITE .env ==="
-if [ -n "$EMAIL" ]; then
-  # --email passed: always write/update with new email
-  cat > "$ENV_FILE" <<EOF
-TRAEFIK_ACME_EMAIL=$EMAIL
-EOF
-  echo "Let's Encrypt: ENABLED (email: $EMAIL)"
-elif [ -f "$ENV_FILE" ] && grep -q "TRAEFIK_ACME_EMAIL=." "$ENV_FILE"; then
-  # no --email passed but existing non-empty value found: keep it
-  existing_email=$(grep "TRAEFIK_ACME_EMAIL=" "$ENV_FILE" | cut -d'=' -f2)
-  echo "Let's Encrypt: keeping existing email ($existing_email)"
-else
-  # no email anywhere: write empty (TLS disabled)
-  cat > "$ENV_FILE" <<EOF
-TRAEFIK_ACME_EMAIL=
-EOF
-  echo "Let's Encrypt: DISABLED (pass --email to enable)"
+
+# Load existing .env values if file exists
+existing_email=""
+existing_domain=""
+existing_tls="false"
+if [ -f "$ENV_FILE" ]; then
+  existing_email=$(grep "^TRAEFIK_ACME_EMAIL=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
+  existing_domain=$(grep "^APP_DOMAIN=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
+  existing_tls=$(grep "^APP_TLS_ENABLED=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2 || echo "false")
 fi
+
+# Resolve final values (args override existing)
+final_email="${EMAIL:-$existing_email}"
+final_domain="${DOMAIN:-$existing_domain}"
+final_tls="${TLS_ENABLED:-$existing_tls}"
+
+# --https requires --email (for Let's Encrypt)
+if [ "$final_tls" = "true" ] && [ -z "$final_email" ]; then
+  echo "Warning: --https requires --email for Let's Encrypt. HTTPS disabled."
+  final_tls="false"
+fi
+
+cat > "$ENV_FILE" <<EOF
+TRAEFIK_ACME_EMAIL=$final_email
+APP_DOMAIN=$final_domain
+APP_TLS_ENABLED=$final_tls
+EOF
+
+echo "Let's Encrypt : ${final_email:-DISABLED}"
+echo "App domain    : ${final_domain:-not set (configure in Settings)}"
+echo "App HTTPS     : $final_tls"
 
 echo "=== PULL LATEST IMAGES ==="
 docker compose pull
@@ -121,11 +156,19 @@ docker compose up -d
 echo ""
 echo "=================================="
 echo " $APP_NAME is up!"
-echo " ACME file : $ACME_FILE"
-echo " ENV file  : $ENV_FILE"
+echo " ACME file      : $ACME_FILE"
+echo " Traefik config : $TRAEFIK_CONFIG_DIR"
+echo " ENV file       : $ENV_FILE"
+if [ -n "$final_domain" ]; then
+  proto="http"
+  [ "$final_tls" = "true" ] && proto="https"
+  echo " App URL        : $proto://$final_domain"
+else
+  echo " App URL        : http://<server-ip>:8080"
+  echo "                  (set domain in Settings UI)"
+fi
 echo "=================================="
 
-
-# RUN
-# chmod +x install-dev.sh
-# ./install-dev.sh --email new@tango.cloud
+# Usage:
+# chmod +x install.sh
+# ./install.sh --email admin@example.com --domain app.example.com --https

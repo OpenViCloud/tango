@@ -74,12 +74,11 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
     [envVars]
   )
 
-  const handleSave = async (entries: EnvEntry[], name: string, ports: PortEntry[], tlsEnabled: boolean) => {
+  const handleSave = async (entries: EnvEntry[], name: string, ports: PortEntry[]) => {
     try {
       await Promise.all([
         updateResourceMutation.mutateAsync({
           name: name.trim() || resource!.name,
-          tls_enabled: tlsEnabled,
           ports: ports
             .filter((p) => p.host_port !== "" && p.internal_port !== "")
             .map((p) => ({

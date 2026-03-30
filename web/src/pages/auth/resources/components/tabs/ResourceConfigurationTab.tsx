@@ -9,8 +9,6 @@ type ResourceConfigurationTabProps = {
   onSelectSection: (section: string) => void
   resourceName: string
   setResourceName: (name: string) => void
-  tlsEnabled: boolean
-  setTlsEnabled: (v: boolean) => void
   portEntries: PortEntry[]
   setPortEntries: (ports: PortEntry[]) => void
   envEntries: EnvEntry[]
@@ -29,8 +27,6 @@ export function ResourceConfigurationTab({
   onSelectSection,
   resourceName,
   setResourceName,
-  tlsEnabled,
-  setTlsEnabled,
   portEntries,
   setPortEntries,
   envEntries,
@@ -68,8 +64,6 @@ export function ResourceConfigurationTab({
           resource={resource}
           resourceName={resourceName}
           setResourceName={setResourceName}
-          tlsEnabled={tlsEnabled}
-          setTlsEnabled={setTlsEnabled}
           portEntries={portEntries}
           setPortEntries={setPortEntries}
           envEntries={envEntries}

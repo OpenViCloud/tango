@@ -716,7 +716,38 @@
     "certResolver": {
       "label": "Cert Resolver Name",
       "hint": "The name of the Let's Encrypt cert resolver configured in Traefik (e.g. letsencrypt)."
+    },
+    "appDomain": {
+      "label": "App Domain",
+      "hint": "Public domain for the Tango app itself (e.g. app.example.com). Applied instantly via Traefik file provider."
+    },
+    "appTLS": {
+      "label": "Enable HTTPS for App",
+      "hint": "Enable HTTPS with HTTP→HTTPS redirect. Requires a domain and Let's Encrypt resolver."
+    },
+    "appBackendURL": {
+      "label": "App Backend URL",
+      "hint": "Internal URL Traefik uses to reach this app. Default: http://app:8080 (Docker Compose service name)."
+    },
+    "baseDomains": {
+      "title": "Base Domains",
+      "description": "Wildcard domains that can be used to auto-assign subdomains to resources.",
+      "empty": "No base domains configured.",
+      "addPlaceholder": "example.com",
+      "wildcardLabel": "Wildcard",
+      "added": "Base domain added",
+      "addFailed": "Failed to add base domain",
+      "deleted": "Base domain removed",
+      "deleteFailed": "Failed to remove base domain",
+      "conflict": "Domain already exists"
     }
+  },
+  "domains": {
+    "subdomainPlaceholder": "myapp",
+    "customDomain": "Custom domain...",
+    "checking": "Checking...",
+    "available": "Available",
+    "inUse": "Already in use"
   },
   "sources": {
     "page": {

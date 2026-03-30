@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Switch } from "@/components/ui/switch"
 import type { ResourceModel } from "@/@types/models"
 import { actionIcons } from "@/lib/icons"
 import { useTranslation } from "react-i18next"
@@ -24,8 +23,6 @@ type ConfigGeneralFormProps = {
   resource: ResourceModel | null
   resourceName: string
   setResourceName: (name: string) => void
-  tlsEnabled: boolean
-  setTlsEnabled: (v: boolean) => void
   portEntries: PortEntry[]
   setPortEntries: (ports: PortEntry[]) => void
   envEntries: EnvEntry[]
@@ -43,8 +40,6 @@ export function ConfigGeneralForm({
   resource,
   resourceName,
   setResourceName,
-  tlsEnabled,
-  setTlsEnabled,
   portEntries,
   setPortEntries,
   envEntries,
@@ -92,16 +87,6 @@ export function ConfigGeneralForm({
           />
         </div>
       ) : null}
-
-      <div className="flex items-center justify-between rounded-lg border p-4">
-        <div className="flex flex-col gap-0.5">
-          <Label>{t("projects.resource.tlsLabel")}</Label>
-          <p className="text-xs text-muted-foreground">
-            {t("projects.resource.tlsHint")}
-          </p>
-        </div>
-        <Switch checked={tlsEnabled} onCheckedChange={setTlsEnabled} />
-      </div>
 
       <div className="flex flex-col gap-4">
         <h3 className="text-lg font-bold text-foreground">
@@ -284,3 +269,4 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
 }
 
 export type { EnvEntry, PortEntry, ConfigGeneralFormProps }
+

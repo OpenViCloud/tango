@@ -83,6 +83,10 @@ type Config struct {
 	FrontendBaseURL      string
 	PublicIP             string
 	TraefikDockerNetwork string
+	TraefikConfigDir     string
+	AppDomain            string
+	AppTLSEnabled        bool
+	AppBackendURL        string
 }
 
 type fileConfig struct {
@@ -164,6 +168,10 @@ func Load() *Config {
 	cfg.FrontendBaseURL = getEnv("FRONTEND_BASE_URL", cfg.BaseURL)
 	cfg.PublicIP = getEnv("PUBLIC_IP", "")
 	cfg.TraefikDockerNetwork = getEnv("TRAEFIK_DOCKER_NETWORK", "tango_net")
+	cfg.TraefikConfigDir = getEnv("TRAEFIK_CONFIG_DIR", "")
+	cfg.AppDomain = getEnv("APP_DOMAIN", "")
+	cfg.AppTLSEnabled = getEnv("APP_TLS_ENABLED", "false") == "true"
+	cfg.AppBackendURL = getEnv("APP_BACKEND_URL", "http://app:8080")
 
 	if cfg.DBDriver == "sqlite" && cfg.DBUrl == defaultPostgresDBURL {
 		cfg.DBUrl = defaultSQLiteDBURL

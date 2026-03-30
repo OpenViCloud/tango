@@ -6,7 +6,7 @@
 
 ## System Overview
 
-Tango Cloud is a self-hosted platform for managing containerized workloads. Users organize their work into **Projects → Environments → Resources**, build Docker images from git repositories via BuildKit, and manage external integrations through **Channels**.
+Tango Cloud is a self-hosted platform for managing containerized workloads. Users organize their work into **Projects → Environments → Resources**, build Docker images from git repositories via BuildKit, publish services behind managed domains, and manage external integrations through **Channels**.
 
 ```mermaid
 graph TD
@@ -15,8 +15,10 @@ graph TD
     API --> RM[Resource Module]
     API --> BM[Build Module]
     API --> SC[Source Connections]
+    API --> ST[Settings + Domains]
     API --> CH[Channel Module]
     RM --> DR[Docker Runtime]
+    RM --> TR[Traefik Routing]
     BM --> BK[BuildKit]
     SC --> GH[GitHub API]
     CH --> MS[Messaging Runtimes]
@@ -34,7 +36,11 @@ Project
     └── Resource (db | app | service)
         ├── ResourcePort
         ├── ResourceEnvVar
+        ├── ResourceDomain
         └── ResourceRun
+
+PlatformConfig
+└── BaseDomain
 ```
 
 ### Resource Types
@@ -59,6 +65,23 @@ stateDiagram-v2
     stopped --> starting: restart
     error --> [*]
 ```
+
+### Domain Routing Model
+
+Resources that expose HTTP traffic can be routed through Traefik using two domain categories:
+
+| Type | Description |
+| ---- | ----------- |
+| `auto` | Generated from a managed base domain, optionally using wildcard DNS |
+| `custom` | User-supplied hostname that must be DNS-verified before secure routing |
+
+Platform settings control:
+
+- public IP used for verification guidance
+- app domain and app TLS exposure
+- Traefik Docker network
+- certificate resolver
+- managed base domains and whether wildcard routing is enabled on each
 
 ---
 
@@ -137,6 +160,40 @@ Channel credentials are encrypted at rest. Each channel runs an independent runt
 
 ---
 
+## Routing & DNS Module
+
+The routing subsystem bridges resources to external hostnames through Traefik.
+
+### Responsibilities
+
+- persist platform-wide routing settings
+- manage reusable base domains
+- attach custom or auto-generated domains to resources
+- verify custom-domain DNS resolution against the server public IP
+- generate Docker labels and Traefik dynamic config for HTTP/HTTPS routing
+
+### Routing Flow
+
+```mermaid
+sequenceDiagram
+    User->>API: Add base domain / custom domain
+    API->>DB: Persist PlatformConfig / BaseDomain / ResourceDomain
+    User->>API: Start or restart resource
+    API->>ResourceRunService: Resolve routing config
+    ResourceRunService->>Traefik: Generate labels / file-provider config
+    ResourceRunService->>Docker: Create or update container
+    Traefik-->>Internet: Route hostnames to the resource
+```
+
+### Routing Rules
+
+- auto domains can be generated from managed base domains
+- custom domains can enable HTTP or HTTPS per domain entry
+- verified custom domains are eligible for TLS/cert resolver routing
+- base-domain availability is checked before assignment to avoid hostname collisions
+
+---
+
 ## Module Architecture
 
 ### Five Main Layers
@@ -146,10 +203,11 @@ graph TD
     H[HTTP Handlers\nREST + WebSocket]
     H --> AS[Application Services\nCommands + Queries]
     AS --> DS[Domain\nEntities + Repository Interfaces]
-    AS --> IS[Infrastructure Services\nDocker · BuildKit · GitHub · Channel Runtimes]
+    AS --> IS[Infrastructure Services\nDocker · BuildKit · GitHub · Traefik · Channel Runtimes]
     IS --> DB[(PostgreSQL / SQLite)]
     IS --> DK[Docker Engine]
     IS --> BK[BuildKit Daemon]
+    IS --> TF[Traefik]
 ```
 
 ---
@@ -219,12 +277,35 @@ erDiagram
     timestamptz updated_at
     timestamptz deleted_at
   }
+  resource_domains {
+    varchar id PK
+    varchar resource_id FK
+    varchar host
+    varchar type "auto | custom"
+    bool tls_enabled
+    bool verified
+    timestamptz verified_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
   resource_ports {
     varchar id PK
     varchar resource_id FK
     int host_port
     int internal_port
     varchar protocol
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  platform_configs {
+    varchar key PK
+    text value
+    timestamptz updated_at
+  }
+  base_domains {
+    varchar id PK
+    varchar domain
+    bool wildcard_enabled
     timestamptz created_at
     timestamptz updated_at
   }
@@ -302,6 +383,7 @@ erDiagram
 
   projects ||--o{ environments : ""
   environments ||--o{ resources : ""
+  resources ||--o{ resource_domains : ""
   resources ||--o{ resource_ports : ""
   resources ||--o{ resource_env_vars : ""
   resources ||--o{ resource_runs : ""

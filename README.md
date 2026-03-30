@@ -2,7 +2,7 @@
 
 Monorepo: Go API + Vite React FE in a single Docker image.
 
-Self-hosted cloud development platform for managing containerized projects, environments, and resources with git-based build pipelines.
+Self-hosted cloud development platform for managing containerized projects, environments, and resources with git-based build pipelines, DNS/domain management, and Traefik-based routing.
 
 ## Core Features
 
@@ -10,6 +10,8 @@ Self-hosted cloud development platform for managing containerized projects, envi
 - Resource Lifecycle (database, app, service containers)
 - Git-based Build Pipelines with BuildKit
 - GitHub Source Connections (OAuth App + PAT)
+- Domain Management (custom domains, base domains, wildcard routing)
+- Platform Settings for Traefik, TLS, and app domain exposure
 - Real-time Build & Run Logs via WebSocket
 - Container Terminal (interactive shell over WebSocket)
 - Multi-Channel Messaging Integrations (Discord, Telegram, Slack, WhatsApp)
@@ -33,7 +35,7 @@ tango-cloud/
 │   └── handler/               ← HTTP handlers + WebSocket
 ├── web/                       ← Vite + React + TanStack Router
 ├── Dockerfile                 ← multi-stage build
-├── docker-compose.yml         ← app + postgres
+├── docker-compose.yml         ← app + postgres + traefik
 ├── Makefile
 └── install.sh
 ```
@@ -118,6 +120,17 @@ queued → pulling_image → creating → starting → running
                                            stopped / error
 ```
 
+### Domain Routing
+
+Resources can expose HTTP services through managed domains:
+
+- **Base domains** — platform-managed domains such as `apps.example.com`
+- **Wildcard mode** — allow generated subdomains like `api.apps.example.com`
+- **Custom domains** — user-managed domains verified by DNS
+- **TLS routing** — per-domain HTTP/HTTPS behavior via Traefik labels and file provider config
+
+Platform-level routing is configured from the Settings page and persisted in platform config tables.
+
 ### Channel Integrations
 
 Channels connect external messaging platforms to the platform:
@@ -135,6 +148,7 @@ Credentials are encrypted at rest.
 - Node.js 20+ and pnpm
 - Docker + Docker Compose
 - BuildKit daemon (for build pipeline)
+- Public DNS / server IP if using custom domains and wildcard routing
 
 ## Run Locally
 
@@ -184,6 +198,15 @@ export BUILDKIT_HOST=tcp://localhost:1234
 export BUILD_WORKSPACE_DIR=/tmp/tango-builds
 ```
 
+Traefik / domain routing (required only for domain exposure):
+
+```bash
+export TRAEFIK_NETWORK=bridge
+export APP_DOMAIN=app.example.com
+export APP_TLS_ENABLED=true
+export APP_BACKEND_URL=http://app:8080
+```
+
 Optional channel integrations:
 
 ```bash
@@ -198,6 +221,7 @@ Notes:
 
 - `LLM_CONFIG_ENCRYPTION_KEY` must be exactly 32 characters long.
 - `BUILDKIT_HOST` is required only if using git-based resource builds.
+- `PUBLIC_IP`, base domains, and wildcard DNS are required only if using custom/base-domain routing.
 
 ### 4. Run BE + FE in parallel
 
@@ -261,6 +285,17 @@ docker compose up --build
 | GET    | /api/resources/:id/logs                       | ✅   | Get run logs                 |
 | GET    | /api/resources/:id/env-vars                   | ✅   | List env vars                |
 | PUT    | /api/resources/:id/env-vars                   | ✅   | Update env vars              |
+
+### Routing & Settings
+
+| Method | Path                               | Auth | Description                         |
+| ------ | ---------------------------------- | ---- | ----------------------------------- |
+| GET    | /api/settings                      | ✅   | Get platform settings               |
+| PATCH  | /api/settings                      | ✅   | Update platform settings            |
+| GET    | /api/settings/base-domains         | ✅   | List managed base domains           |
+| POST   | /api/settings/base-domains         | ✅   | Add base domain                     |
+| DELETE | /api/settings/base-domains/:id     | ✅   | Delete base domain                  |
+| GET    | /api/domains/check                 | ✅   | Check whether a hostname is in use  |
 
 ### Builds
 

@@ -43,6 +43,7 @@ export const appIcons = {
   databases: DatabaseIcon,
   projects: FolderIcon,
   sources: FolderGit2Icon,
+  settings: Settings2Icon,
   dashboard: createSolarIcon(HomeSmile),
   channels: createSolarIcon(ChatRoundDots),
   users: createSolarIcon(UsersGroupRounded),

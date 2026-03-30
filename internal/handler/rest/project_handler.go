@@ -2,6 +2,9 @@ package rest
 
 import (
 	"errors"
+	"net"
+	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -33,6 +36,8 @@ type ProjectHandler struct {
 	listEnvResources      *query.ListEnvironmentResourcesHandler
 	getResource           *query.GetResourceHandler
 	dockerRepo            domain.DockerRepository
+	domainRepo            domain.ResourceDomainRepository
+	platformConfigRepo    domain.PlatformConfigRepository
 }
 
 func NewProjectHandler(
@@ -53,8 +58,10 @@ func NewProjectHandler(
 	listProjects *query.ListProjectsHandler,
 	getProject *query.GetProjectHandler,
 	listEnvResources *query.ListEnvironmentResourcesHandler,
-	getResource *query.GetResourceHandler,
-	dockerRepo domain.DockerRepository,
+	getResource        *query.GetResourceHandler,
+	dockerRepo         domain.DockerRepository,
+	domainRepo         domain.ResourceDomainRepository,
+	platformConfigRepo domain.PlatformConfigRepository,
 ) *ProjectHandler {
 	return &ProjectHandler{
 		createProject:         createProject,
@@ -76,6 +83,8 @@ func NewProjectHandler(
 		listEnvResources:      listEnvResources,
 		getResource:           getResource,
 		dockerRepo:            dockerRepo,
+		domainRepo:            domainRepo,
+		platformConfigRepo:    platformConfigRepo,
 	}
 }
 
@@ -100,6 +109,10 @@ func (h *ProjectHandler) Register(rg *gin.RouterGroup) {
 	rg.GET("/resources/:resourceId/logs", h.GetResourceLogs)
 	rg.GET("/resources/:resourceId/env-vars", h.GetEnvVars)
 	rg.PUT("/resources/:resourceId/env-vars", h.SetEnvVars)
+	rg.GET("/resources/:resourceId/domains", h.ListResourceDomains)
+	rg.POST("/resources/:resourceId/domains", h.AddResourceDomain)
+	rg.DELETE("/resources/:resourceId/domains/:domainId", h.RemoveResourceDomain)
+	rg.POST("/resources/:resourceId/domains/:domainId/verify", h.VerifyResourceDomain)
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -136,13 +149,14 @@ type createResourceEnvVarRequest struct {
 }
 
 type createResourceRequest struct {
-	Name    string                        `json:"name"`
-	Type    string                        `json:"type"`
-	Image   string                        `json:"image"`
-	Tag     string                        `json:"tag"`
-	Config  map[string]any                `json:"config"`
-	Ports   []createResourcePortRequest   `json:"ports"`
-	EnvVars []createResourceEnvVarRequest `json:"env_vars"`
+	Name       string                        `json:"name"`
+	Type       string                        `json:"type"`
+	Image      string                        `json:"image"`
+	Tag        string                        `json:"tag"`
+	Config     map[string]any                `json:"config"`
+	TLSEnabled bool                          `json:"tls_enabled"`
+	Ports      []createResourcePortRequest   `json:"ports"`
+	EnvVars    []createResourceEnvVarRequest `json:"env_vars"`
 }
 
 type createResourceFromGitRequest struct {
@@ -158,8 +172,9 @@ type createResourceFromGitRequest struct {
 }
 
 type updateResourceRequest struct {
-	Name  string                      `json:"name"`
-	Ports []createResourcePortRequest `json:"ports"`
+	Name       string                      `json:"name"`
+	TLSEnabled bool                        `json:"tls_enabled"`
+	Ports      []createResourcePortRequest `json:"ports"`
 }
 
 type setEnvVarsRequest struct {
@@ -191,6 +206,7 @@ type resourceResponse struct {
 	ContainerID   string         `json:"container_id"`
 	Config        map[string]any `json:"config"`
 	EnvironmentID string         `json:"environment_id"`
+	TLSEnabled    bool           `json:"tls_enabled"`
 	SourceType    string         `json:"source_type,omitempty"`
 	GitURL        string         `json:"git_url,omitempty"`
 	BuildJobID    string         `json:"build_job_id,omitempty"`
@@ -405,6 +421,7 @@ func (h *ProjectHandler) CreateResource(c *gin.Context) {
 		Config:        req.Config,
 		EnvironmentID: c.Param("envId"),
 		CreatedBy:     userID,
+		TLSEnabled:    req.TLSEnabled,
 		Ports:         ports,
 		EnvVars:       envVars,
 	})
@@ -486,9 +503,10 @@ func (h *ProjectHandler) UpdateResource(c *gin.Context) {
 		})
 	}
 	resource, err := h.updateResource.Handle(c.Request.Context(), command.UpdateResourceCommand{
-		ID:    c.Param("resourceId"),
-		Name:  req.Name,
-		Ports: ports,
+		ID:         c.Param("resourceId"),
+		Name:       req.Name,
+		TLSEnabled: req.TLSEnabled,
+		Ports:      ports,
 	})
 	if err != nil {
 		writeProjectError(c, err)
@@ -666,6 +684,7 @@ func toResourceResponse(r *domain.Resource) resourceResponse {
 		ContainerID:   r.ContainerID,
 		Config:        r.Config,
 		EnvironmentID: r.EnvironmentID,
+		TLSEnabled:    r.TLSEnabled,
 		SourceType:    r.SourceType,
 		GitURL:        r.GitURL,
 		BuildJobID:    r.BuildJobID,
@@ -730,4 +749,118 @@ func writeProjectError(c *gin.Context, err error) {
 	default:
 		_ = c.Error(response.InternalCause(err, ""))
 	}
+}
+
+// ── Resource Domain handlers ──────────────────────────────────────────────────
+
+type resourceDomainResponse struct {
+	ID         string     `json:"id"`
+	ResourceID string     `json:"resource_id"`
+	Host       string     `json:"host"`
+	Type       string     `json:"type"`
+	Verified   bool       `json:"verified"`
+	VerifiedAt *time.Time `json:"verified_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+}
+
+func toResourceDomainResponse(d *domain.ResourceDomain) resourceDomainResponse {
+	return resourceDomainResponse{
+		ID:         d.ID,
+		ResourceID: d.ResourceID,
+		Host:       d.Host,
+		Type:       d.Type,
+		Verified:   d.Verified,
+		VerifiedAt: d.VerifiedAt,
+		CreatedAt:  d.CreatedAt,
+	}
+}
+
+func (h *ProjectHandler) ListResourceDomains(c *gin.Context) {
+	resourceID := c.Param("resourceId")
+	domains, err := h.domainRepo.ListByResource(c.Request.Context(), resourceID)
+	if err != nil {
+		_ = c.Error(response.InternalCause(err, ""))
+		return
+	}
+	out := make([]resourceDomainResponse, 0, len(domains))
+	for _, d := range domains {
+		out = append(out, toResourceDomainResponse(d))
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
+	resourceID := c.Param("resourceId")
+	var req struct {
+		Host string `json:"host" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(response.BadRequest(err.Error()))
+		return
+	}
+
+	d, err := h.domainRepo.Create(c.Request.Context(), domain.ResourceDomain{
+		ID:         uuid.NewString(),
+		ResourceID: resourceID,
+		Host:       req.Host,
+		Type:       domain.ResourceDomainTypeCustom,
+		Verified:   false,
+	})
+	if err != nil {
+		if errors.Is(err, domain.ErrResourceDomainConflict) {
+			_ = c.Error(response.BadRequest("domain already in use"))
+			return
+		}
+		_ = c.Error(response.InternalCause(err, ""))
+		return
+	}
+	c.JSON(http.StatusCreated, toResourceDomainResponse(d))
+}
+
+func (h *ProjectHandler) RemoveResourceDomain(c *gin.Context) {
+	domainID := c.Param("domainId")
+	if err := h.domainRepo.Delete(c.Request.Context(), domainID); err != nil {
+		_ = c.Error(response.InternalCause(err, ""))
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *ProjectHandler) VerifyResourceDomain(c *gin.Context) {
+	domainID := c.Param("domainId")
+	ctx := c.Request.Context()
+
+	d, err := h.domainRepo.GetByID(ctx, domainID)
+	if err != nil {
+		_ = c.Error(response.NotFound("domain not found"))
+		return
+	}
+
+	// Resolve DNS and compare with configured public IP
+	addrs, err := net.LookupHost(d.Host)
+	if err != nil || len(addrs) == 0 {
+		c.JSON(http.StatusOK, gin.H{"verified": false, "reason": "DNS lookup failed"})
+		return
+	}
+
+	publicIP := ""
+	if h.platformConfigRepo != nil {
+		if cfg, cfgErr := h.platformConfigRepo.Get(ctx, domain.PlatformConfigPublicIP); cfgErr == nil {
+			publicIP = cfg.Value
+		}
+	}
+
+	verified := false
+	for _, addr := range addrs {
+		if addr == publicIP {
+			verified = true
+			break
+		}
+	}
+
+	if verified {
+		_ = h.domainRepo.SetVerified(ctx, d.ID, time.Now())
+	}
+
+	c.JSON(http.StatusOK, gin.H{"verified": verified, "resolved_ips": addrs})
 }

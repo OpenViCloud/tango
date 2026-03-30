@@ -112,6 +112,10 @@ func main() {
 	resourceRunRepo := persistrepo.NewResourceRunRepository(db)
 	sourceProviderRepo := persistrepo.NewSourceProviderRepository(db)
 	sourceConnectionRepo := persistrepo.NewSourceConnectionRepository(db)
+	platformConfigRepo := persistrepo.NewPlatformConfigRepository(db)
+	resourceDomainRepo := persistrepo.NewResourceDomainRepository(db)
+
+	bootstrapPlatformConfig(ctx, cfg, platformConfigRepo, logger)
 
 	if err := auth.SeedDemoData(ctx, userRepo, roleRepo); err != nil {
 		fatal(logger, "seed demo data failed", err)
@@ -256,11 +260,11 @@ func main() {
 	createEnvironmentHandler := command.NewCreateEnvironmentHandler(environmentRepo)
 	deleteEnvironmentHandler := command.NewDeleteEnvironmentHandler(environmentRepo)
 	forkEnvironmentHandler := command.NewForkEnvironmentHandler(environmentRepo, resourceRepo)
-	createResourceHandler := command.NewCreateResourceHandler(resourceRepo, dockerRepo)
+	createResourceHandler := command.NewCreateResourceHandler(resourceRepo, dockerRepo, resourceDomainRepo, platformConfigRepo)
 	createResourceFromGitHandler := command.NewCreateResourceFromGitHandler(resourceRepo, buildJobRepo, buildSvc, resolveSourceConnectionTokenHandler)
 	startBuildForResourceHandler := command.NewStartBuildForResourceHandler(resourceRepo, buildJobRepo, buildSvc, resolveSourceConnectionTokenHandler)
 	updateResourceHandler := command.NewUpdateResourceHandler(resourceRepo)
-	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, logger)
+	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, resourceDomainRepo, platformConfigRepo, logger)
 	buildSvc.SetResourceAutoStarter(resourceRunSvc)
 	createStartResourceRunHandler := command.NewCreateStartResourceRunHandler(resourceRepo, resourceRunRepo, resourceRunSvc)
 	stopResourceHandler := command.NewStopResourceHandler(resourceRepo, dockerRepo)
@@ -275,6 +279,8 @@ func main() {
 	if dockerRepo != nil {
 		resourceTerminalWSHandler = rest.NewResourceTerminalWSHandler(dockerRepo, getResourceHandler)
 	}
+	settingsHandler := rest.NewSettingsHandler(platformConfigRepo)
+
 	projectHandler := rest.NewProjectHandler(
 		createProjectHandler,
 		updateProjectHandler,
@@ -295,6 +301,8 @@ func main() {
 		listEnvResourcesHandler,
 		getResourceHandler,
 		dockerRepo,
+		resourceDomainRepo,
+		platformConfigRepo,
 	)
 
 	docs.SwaggerInfo.BasePath = "/api"
@@ -335,6 +343,7 @@ func main() {
 			logHandler.Register(protected)
 			projectHandler.Register(protected)
 			sourceConnectionHandler.RegisterProtected(protected)
+			settingsHandler.RegisterRoutes(protected)
 			if dockerHandler != nil {
 				dockerHandler.Register(protected)
 				dockerWSHandler.Register(protected)
@@ -373,6 +382,53 @@ func main() {
 	if err := infrahttp.Run(ctx, ":"+cfg.Port, r, logger); err != nil {
 		fatal(logger, "server error", err)
 	}
+}
+
+func bootstrapPlatformConfig(ctx context.Context, cfg *config.Config, repo domain.PlatformConfigRepository, logger *slog.Logger) {
+	if _, err := repo.Get(ctx, domain.PlatformConfigPublicIP); err == nil {
+		return // already seeded, DB is source of truth
+	}
+
+	ip := cfg.PublicIP
+	if ip == "" {
+		var detectErr error
+		ip, detectErr = detectPublicIP()
+		if detectErr != nil {
+			logger.Warn("could not detect public IP, defaulting to 127.0.0.1", "err", detectErr)
+			ip = "127.0.0.1"
+		}
+	}
+
+	if err := repo.Set(ctx, domain.PlatformConfigPublicIP, ip); err != nil {
+		logger.Warn("seed public_ip failed", "err", err)
+	}
+	if err := repo.Set(ctx, domain.PlatformConfigBaseDomain, "localhost"); err != nil {
+		logger.Warn("seed base_domain failed", "err", err)
+	}
+	if err := repo.Set(ctx, domain.PlatformConfigWildcardEnabled, "true"); err != nil {
+		logger.Warn("seed wildcard_enabled failed", "err", err)
+	}
+	if err := repo.Set(ctx, domain.PlatformConfigTraefikNetwork, cfg.TraefikDockerNetwork); err != nil {
+		logger.Warn("seed traefik_network failed", "err", err)
+	}
+	if err := repo.Set(ctx, domain.PlatformConfigCertResolver, "letsencrypt"); err != nil {
+		logger.Warn("seed cert_resolver failed", "err", err)
+	}
+	logger.Info("platform config seeded", "public_ip", ip)
+}
+
+func detectPublicIP() (string, error) {
+	resp, err := http.Get("https://api.ipify.org")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	buf := make([]byte, 64)
+	n, err := resp.Body.Read(buf)
+	if err != nil && n == 0 {
+		return "", err
+	}
+	return strings.TrimSpace(string(buf[:n])), nil
 }
 
 func fatal(logger *slog.Logger, message string, err error) {

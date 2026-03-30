@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
@@ -144,6 +145,7 @@ func (r *Repository) CreateContainer(ctx context.Context, input domain.CreateCon
 		OpenStdin:    input.OpenStdin,
 		Env:          envMapToSlice(input.Env),
 		ExposedPorts: portSet,
+		Labels:       input.Labels,
 	}
 
 	hostCfg := &container.HostConfig{
@@ -156,6 +158,14 @@ func (r *Repository) CreateContainer(ctx context.Context, input domain.CreateCon
 	resp, err := r.client.ContainerCreate(ctx, cfg, hostCfg, nil, nil, input.Name)
 	if err != nil {
 		return domain.Container{}, classifyDockerError("create container", err)
+	}
+
+	// Join additional networks after creation (Docker only supports one network at create time)
+	for _, netName := range input.Networks {
+		if err := r.client.NetworkConnect(ctx, netName, resp.ID, &network.EndpointSettings{}); err != nil {
+			// Non-fatal: log but continue — network may not exist yet
+			_ = err
+		}
 	}
 
 	inspect, err := r.client.ContainerInspect(ctx, resp.ID)

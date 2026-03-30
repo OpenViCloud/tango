@@ -13,6 +13,7 @@ type ResourceRecord struct {
 	Config        string                 `gorm:"column:config;type:text"`
 	EnvironmentID string                 `gorm:"column:environment_id;type:text;not null;index"`
 	CreatedBy     string                 `gorm:"column:created_by;type:text"`
+	TLSEnabled    bool                   `gorm:"column:tls_enabled;not null;default:false"`
 	// Source fields
 	SourceType string `gorm:"column:source_type;type:varchar(32);not null;default:'preset'"`
 	GitURL     string `gorm:"column:git_url;type:text"`

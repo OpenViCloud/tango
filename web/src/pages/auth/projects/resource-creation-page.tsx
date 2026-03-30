@@ -720,6 +720,7 @@ export function ResourceCreationPage({
           type: resourceType,
           image,
           tag,
+          tls_enabled: false,
           config: Object.keys(presetConfig).length ? presetConfig : undefined,
           ports: portList,
           env_vars: envVars,

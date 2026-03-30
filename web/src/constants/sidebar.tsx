@@ -66,6 +66,12 @@ export const appSidebarSections: SidebarSection[] = [
         icon: appIcons.databases,
         children: [{ titleKey: "sidebar.databaseList", url: "/databases" }],
       },
+      {
+        titleKey: "sidebar.settings",
+        url: "/settings",
+        icon: appIcons.settings,
+        children: [{ titleKey: "sidebar.settingsGeneral", url: "/settings" }],
+      },
     ],
   },
   {

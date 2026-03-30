@@ -80,7 +80,9 @@ type Config struct {
 	BuildRegistryUser string
 	BuildRegistryPass string
 
-	FrontendBaseURL string
+	FrontendBaseURL      string
+	PublicIP             string
+	TraefikDockerNetwork string
 }
 
 type fileConfig struct {
@@ -160,6 +162,8 @@ func Load() *Config {
 	cfg.BuildRegistryUser = getEnv("BUILD_REGISTRY_USER", "")
 	cfg.BuildRegistryPass = getEnv("BUILD_REGISTRY_PASS", "")
 	cfg.FrontendBaseURL = getEnv("FRONTEND_BASE_URL", cfg.BaseURL)
+	cfg.PublicIP = getEnv("PUBLIC_IP", "")
+	cfg.TraefikDockerNetwork = getEnv("TRAEFIK_DOCKER_NETWORK", "tango_net")
 
 	if cfg.DBDriver == "sqlite" && cfg.DBUrl == defaultPostgresDBURL {
 		cfg.DBUrl = defaultSQLiteDBURL

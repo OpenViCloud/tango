@@ -14,24 +14,30 @@ import (
 )
 
 type ResourceRunService struct {
-	resourceRepo domain.ResourceRepository
-	runRepo      domain.ResourceRunRepository
-	dockerRepo   domain.DockerRepository
-	logger       *slog.Logger
-	active       sync.Map // runID -> *LogBroadcaster
+	resourceRepo   domain.ResourceRepository
+	runRepo        domain.ResourceRunRepository
+	dockerRepo     domain.DockerRepository
+	domainRepo     domain.ResourceDomainRepository
+	platformConfig domain.PlatformConfigRepository
+	logger         *slog.Logger
+	active         sync.Map // runID -> *LogBroadcaster
 }
 
 func NewResourceRunService(
 	resourceRepo domain.ResourceRepository,
 	runRepo domain.ResourceRunRepository,
 	dockerRepo domain.DockerRepository,
+	domainRepo domain.ResourceDomainRepository,
+	platformConfig domain.PlatformConfigRepository,
 	logger *slog.Logger,
 ) *ResourceRunService {
 	return &ResourceRunService{
-		resourceRepo: resourceRepo,
-		runRepo:      runRepo,
-		dockerRepo:   dockerRepo,
-		logger:       logger,
+		resourceRepo:   resourceRepo,
+		runRepo:        runRepo,
+		dockerRepo:     dockerRepo,
+		domainRepo:     domainRepo,
+		platformConfig: platformConfig,
+		logger:         logger,
 	}
 }
 
@@ -198,11 +204,44 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 		}
 		logLine(fmt.Sprintf("[create] using container name %s", containerName))
 
+		var labels map[string]string
+		var networks []string
+		if s.domainRepo != nil {
+			if domains, err := s.domainRepo.ListByResource(ctx, resource.ID); err == nil && len(domains) > 0 {
+				internalPort := 80
+				for _, p := range resource.Ports {
+					if p.Proto == "tcp" || p.Proto == "" {
+						internalPort = p.InternalPort
+						break
+					}
+				}
+				traefikCfg := domain.TraefikConfig{
+					TLSEnabled: resource.TLSEnabled,
+				}
+				if s.platformConfig != nil {
+					if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigTraefikNetwork); err == nil {
+						traefikCfg.Network = cfg.Value
+					}
+					if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigCertResolver); err == nil {
+						traefikCfg.CertResolver = cfg.Value
+					}
+				}
+				labels = domain.TraefikLabels(resource.ID, domains, internalPort, traefikCfg)
+				if traefikCfg.Network != "" {
+					networks = []string{traefikCfg.Network}
+				}
+			}
+		}
+
 		ct, err := s.dockerRepo.CreateContainer(ctx, domain.CreateContainerInput{
 			Name:         containerName,
 			Image:        imageRef,
 			Env:          buildResourceEnv(resource.EnvVars),
 			PortBindings: buildResourcePortBindings(resource.Ports),
+			Volumes:      buildResourceVolumes(resource.Config),
+			Cmd:          buildResourceCmd(resource.Config),
+			Labels:       labels,
+			Networks:     networks,
 		})
 		if err != nil {
 			return fail("create container", err)
@@ -261,4 +300,46 @@ func buildResourcePortBindings(items []domain.ResourcePort) map[string]string {
 		result[fmt.Sprintf("%d/%s", item.InternalPort, proto)] = fmt.Sprintf("%d", item.HostPort)
 	}
 	return result
+}
+
+func buildResourceVolumes(cfg map[string]any) []string {
+	if cfg == nil {
+		return nil
+	}
+	raw, ok := cfg["volumes"]
+	if !ok {
+		return nil
+	}
+	items, ok := raw.([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		if s, ok := item.(string); ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+func buildResourceCmd(cfg map[string]any) []string {
+	if cfg == nil {
+		return nil
+	}
+	raw, ok := cfg["cmd"]
+	if !ok {
+		return nil
+	}
+	items, ok := raw.([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		if s, ok := item.(string); ok {
+			out = append(out, s)
+		}
+	}
+	return out
 }

@@ -1,176 +1,131 @@
-#!/bin/sh
-# install.sh — cài CLI cho Linux/macOS
-# Usage: curl -fsSL https://yourdomain.com/install.sh | bash
+#!/bin/bash
 
 set -e
 
-VERSION="0.1.0"
-BINARY="demo"
-BASE_URL="https://github.com/yourname/tango/releases/download/v${VERSION}"
-CONFIG_DIR="${HOME}/.config/demo"
-CONFIG_FILE="${CONFIG_DIR}/config.json"
-SYSTEM_INSTALL_DIR="/usr/local/bin"
-USER_INSTALL_DIR="${HOME}/.local/bin"
+APP_NAME="tango"
+BASE_DIR="$(pwd)"
+LETSENCRYPT_DIR="$BASE_DIR/letsencrypt"
+ACME_FILE="$LETSENCRYPT_DIR/acme.json"
+ENV_FILE="$BASE_DIR/.env"
 
-resolve_install_dir() {
-  if [ -d "$SYSTEM_INSTALL_DIR" ] && [ -w "$SYSTEM_INSTALL_DIR" ]; then
-    INSTALL_DIR="$SYSTEM_INSTALL_DIR"
-    INSTALL_MODE="system"
-    return 0
-  fi
+EMAIL=""
 
-  if [ ! -d "$SYSTEM_INSTALL_DIR" ] && [ -w "$(dirname "$SYSTEM_INSTALL_DIR")" ]; then
-    mkdir -p "$SYSTEM_INSTALL_DIR"
-    INSTALL_DIR="$SYSTEM_INSTALL_DIR"
-    INSTALL_MODE="system"
-    return 0
-  fi
+# ── Parse args ────────────────────────────────────────────────────────────────
 
-  mkdir -p "$USER_INSTALL_DIR"
-  chmod 700 "$USER_INSTALL_DIR"
-  INSTALL_DIR="$USER_INSTALL_DIR"
-  INSTALL_MODE="user"
-}
-
-load_existing_llm_key() {
-  if [ ! -f "$CONFIG_FILE" ]; then
-    return 0
-  fi
-
-  sed -n 's/.*"llm_config_encryption_key"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$CONFIG_FILE" | head -n 1
-}
-
-generate_llm_key() {
-  LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32
-}
-
-prompt_llm_key() {
-  existing_key=$(load_existing_llm_key || true)
-
-  if [ -n "$existing_key" ]; then
-    printf 'Found existing LLM_CONFIG_ENCRYPTION_KEY in %s\n' "$CONFIG_FILE"
-    printf 'Press Enter to keep it, type "random" to generate a new one, or enter a new 32-character key.\n'
-    printf '> '
-    IFS= read -r input
-    if [ -z "$input" ]; then
-      LLM_KEY="$existing_key"
-      return 0
-    fi
-  else
-    printf 'LLM_CONFIG_ENCRYPTION_KEY is required for encrypting provider API keys stored in DB.\n'
-    printf 'Enter a 32-character key, or press Enter to generate a random one.\n'
-    printf '> '
-    IFS= read -r input
-  fi
-
-  if [ "$input" = "random" ] || [ -z "$input" ]; then
-    LLM_KEY=$(generate_llm_key)
-    printf 'Generated key: %s\n' "$LLM_KEY"
-  else
-    LLM_KEY="$input"
-  fi
-
-  if [ "${#LLM_KEY}" -ne 32 ]; then
-    echo "❌ LLM_CONFIG_ENCRYPTION_KEY must be exactly 32 characters."
-    exit 1
-  fi
-}
-
-write_llm_key_to_config() {
-  umask 077
-  mkdir -p "$CONFIG_DIR"
-  chmod 700 "$CONFIG_DIR"
-
-  tmp_file="${CONFIG_FILE}.tmp"
-  escaped_key=$(printf '%s' "$LLM_KEY" | sed 's/[\/&]/\\&/g')
-
-  if [ ! -f "$CONFIG_FILE" ] || [ ! -s "$CONFIG_FILE" ]; then
-    cat >"$CONFIG_FILE" <<EOF
-{
-  "llm_config_encryption_key": "$LLM_KEY"
-}
-EOF
-    chmod 600 "$CONFIG_FILE"
-    return 0
-  fi
-
-  if grep -q '"llm_config_encryption_key"[[:space:]]*:' "$CONFIG_FILE"; then
-    sed 's/"llm_config_encryption_key"[[:space:]]*:[[:space:]]*"[^"]*"/"llm_config_encryption_key": "'"$escaped_key"'"/' "$CONFIG_FILE" >"$tmp_file"
-    mv "$tmp_file" "$CONFIG_FILE"
-    chmod 600 "$CONFIG_FILE"
-    return 0
-  fi
-
-  awk -v key="$LLM_KEY" '
-    {
-      lines[NR] = $0
-    }
-    END {
-      if (NR == 0) {
-        print "{"
-        print "  \"llm_config_encryption_key\": \"" key "\""
-        print "}"
-        next
-      }
-
-      insert_at = NR
-      for (i = NR; i >= 1; i--) {
-        if (lines[i] ~ /^[[:space:]]*}[[:space:]]*$/) {
-          insert_at = i
-          break
-        }
-      }
-
-      for (i = 1; i < insert_at; i++) {
-        line = lines[i]
-        if (i == insert_at - 1 && line ~ /"[[:space:]]*$/ && line !~ /,[[:space:]]*$/) {
-          line = line ","
-        }
-        print line
-      }
-      print "  \"llm_config_encryption_key\": \"" key "\""
-      print lines[insert_at]
-      for (i = insert_at + 1; i <= NR; i++) {
-        print lines[i]
-      }
-    }
-  ' "$CONFIG_FILE" >"$tmp_file"
-
-  mv "$tmp_file" "$CONFIG_FILE"
-  chmod 600 "$CONFIG_FILE"
-}
-
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m)
-
-case $ARCH in
-  x86_64) ARCH="amd64" ;;
-  arm64|aarch64) ARCH="arm64" ;;
-  *) echo "❌ Unsupported arch: $ARCH"; exit 1 ;;
-esac
-
-FILENAME="${BINARY}_${OS}_${ARCH}"
-URL="${BASE_URL}/${FILENAME}"
-
-prompt_llm_key
-write_llm_key_to_config
-resolve_install_dir
-
-echo "⬇️  Downloading demo CLI v${VERSION} for ${OS}/${ARCH}..."
-curl -fsSL "$URL" -o "/tmp/${BINARY}"
-chmod +x "/tmp/${BINARY}"
-mv "/tmp/${BINARY}" "${INSTALL_DIR}/${BINARY}"
-chmod 755 "${INSTALL_DIR}/${BINARY}"
-
-echo "✅ Installed! LLM_CONFIG_ENCRYPTION_KEY saved to ${CONFIG_FILE}"
-if [ "$INSTALL_MODE" = "user" ]; then
-  echo "Installed binary to ${INSTALL_DIR}/${BINARY}"
-  case ":$PATH:" in
-    *":${USER_INSTALL_DIR}:"*) ;;
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --email)
+      if [ -n "$2" ] && [[ ! "$2" =~ ^-- ]]; then
+        EMAIL="$2"
+        shift 2
+      else
+        echo "Error: --email requires a value"
+        echo "Usage: ./install-dev.sh [--email your-email@example.com]"
+        exit 1
+      fi
+      ;;
     *)
-      echo "Add this to your shell profile if needed:"
-      echo "  export PATH=\"${USER_INSTALL_DIR}:\$PATH\""
+      echo "Unknown option: $1"
+      echo "Usage: ./install-dev.sh [--email your-email@example.com]"
+      exit 1
       ;;
   esac
+done
+
+# ── Docker install ────────────────────────────────────────────────────────────
+
+install_docker() {
+  echo "=== DOCKER NOT FOUND. INSTALLING DOCKER ==="
+
+  sudo apt-get update
+  sudo apt-get install -y ca-certificates curl gnupg
+
+  sudo install -m 0755 -d /etc/apt/keyrings
+  if [ -f /etc/apt/keyrings/docker.gpg ]; then
+    sudo rm -f /etc/apt/keyrings/docker.gpg
+  fi
+
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+    sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+  echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+    https://download.docker.com/linux/ubuntu \
+    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+  sudo apt-get update
+  sudo apt-get install -y \
+    docker-ce \
+    docker-ce-cli \
+    containerd.io \
+    docker-buildx-plugin \
+    docker-compose-plugin
+
+  sudo systemctl enable docker
+  sudo systemctl start docker
+  sudo usermod -aG docker "$USER" || true
+  sudo docker run --rm hello-world
+
+  echo "Docker installed successfully!"
+  echo "Docker version:"; sudo docker version
+  echo "Docker Compose version:"; docker compose version || sudo docker compose version
+  echo ""
+  echo "NOTE: Run 'newgrp docker' or re-login to use Docker without sudo."
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+echo "=== SETUP: $APP_NAME ==="
+
+echo "=== CHECK DOCKER ==="
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  echo "Docker already installed"
+else
+  install_docker
 fi
-echo "Try: ${BINARY} onboard"
+
+echo "=== LETSENCRYPT SETUP ==="
+mkdir -p "$LETSENCRYPT_DIR"
+if [ ! -f "$ACME_FILE" ]; then
+  touch "$ACME_FILE"
+fi
+chmod 600 "$ACME_FILE"
+
+echo "=== WRITE .env ==="
+if [ -n "$EMAIL" ]; then
+  # --email passed: always write/update with new email
+  cat > "$ENV_FILE" <<EOF
+TRAEFIK_ACME_EMAIL=$EMAIL
+EOF
+  echo "Let's Encrypt: ENABLED (email: $EMAIL)"
+elif [ -f "$ENV_FILE" ] && grep -q "TRAEFIK_ACME_EMAIL=." "$ENV_FILE"; then
+  # no --email passed but existing non-empty value found: keep it
+  existing_email=$(grep "TRAEFIK_ACME_EMAIL=" "$ENV_FILE" | cut -d'=' -f2)
+  echo "Let's Encrypt: keeping existing email ($existing_email)"
+else
+  # no email anywhere: write empty (TLS disabled)
+  cat > "$ENV_FILE" <<EOF
+TRAEFIK_ACME_EMAIL=
+EOF
+  echo "Let's Encrypt: DISABLED (pass --email to enable)"
+fi
+
+echo "=== PULL LATEST IMAGES ==="
+docker compose pull
+
+echo "=== START SERVICES ==="
+docker compose up -d
+
+echo ""
+echo "=================================="
+echo " $APP_NAME is up!"
+echo " ACME file : $ACME_FILE"
+echo " ENV file  : $ENV_FILE"
+echo "=================================="
+
+
+# RUN
+# chmod +x install-dev.sh
+# ./install-dev.sh --email new@tango.cloud

@@ -685,7 +685,38 @@
     "sources": "Sources",
     "sourceList": "Sources",
     "projects": "Projects",
-    "projectList": "Projects"
+    "projectList": "Projects",
+    "settingsGeneral": "General"
+  },
+  "settings": {
+    "page": {
+      "title": "Settings",
+      "description": "Configure platform-wide settings including public IP, domain routing, and Traefik integration."
+    },
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Settings saved",
+    "saveFailed": "Failed to save settings",
+    "publicIp": {
+      "label": "Public IP",
+      "hint": "The public IP address of this server. Used for DNS verification when adding custom domains."
+    },
+    "baseDomain": {
+      "label": "Base Domain",
+      "hint": "Wildcard subdomain root (e.g. example.com). Resources get auto-assigned as <name>.example.com."
+    },
+    "wildcard": {
+      "label": "Wildcard Subdomain",
+      "hint": "Automatically assign a subdomain to each new resource using the base domain above."
+    },
+    "traefikNetwork": {
+      "label": "Traefik Docker Network",
+      "hint": "Docker network name that Traefik is attached to (e.g. bridge). Containers will be joined to this network so Traefik can route to them."
+    },
+    "certResolver": {
+      "label": "Cert Resolver Name",
+      "hint": "The name of the Let's Encrypt cert resolver configured in Traefik (e.g. letsencrypt)."
+    }
   },
   "sources": {
     "page": {
@@ -806,7 +837,9 @@
       "statusLabel": "Status",
       "portsLabel": "Ports",
       "portConflict": "Host port conflict — another resource is using this port. Update before running.",
-      "portUnset": "Host port not set — update before running."
+      "portUnset": "Host port not set — update before running.",
+      "tlsLabel": "Enable HTTPS (TLS)",
+      "tlsHint": "Generates HTTPS router with HTTP→HTTPS redirect. Requires a domain and Let's Encrypt resolver configured in Traefik."
     }
   },
   "databases": {

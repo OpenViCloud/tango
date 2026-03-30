@@ -60,6 +60,7 @@ type Resource struct {
 	Config        map[string]any
 	EnvironmentID string
 	CreatedBy     string
+	TLSEnabled    bool
 	// Source fields
 	SourceType   string // "preset" | "git" | "image"
 	GitURL       string
@@ -84,6 +85,7 @@ type CreateResourceInput struct {
 	Config        map[string]any
 	EnvironmentID string
 	CreatedBy     string
+	TLSEnabled    bool
 	SourceType    string
 	GitURL        string
 	GitBranch     string
@@ -97,8 +99,9 @@ type CreateResourceInput struct {
 }
 
 type UpdateResourceInput struct {
-	Name  string
-	Ports []ResourcePort
+	Name       string
+	Ports      []ResourcePort
+	TLSEnabled bool
 }
 
 type ResourceRepository interface {

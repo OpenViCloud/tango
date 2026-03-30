@@ -685,7 +685,38 @@
     "sources": "Sources",
     "sourceList": "Sources",
     "projects": "Dự án",
-    "projectList": "Dự án"
+    "projectList": "Dự án",
+    "settingsGeneral": "Cài đặt chung"
+  },
+  "settings": {
+    "page": {
+      "title": "Cài đặt",
+      "description": "Cấu hình IP công khai, routing domain và tích hợp Traefik cho toàn nền tảng."
+    },
+    "save": "Lưu",
+    "saving": "Đang lưu...",
+    "saved": "Đã lưu cài đặt",
+    "saveFailed": "Lưu cài đặt thất bại",
+    "publicIp": {
+      "label": "IP công khai",
+      "hint": "Địa chỉ IP công khai của máy chủ. Dùng để xác minh DNS khi thêm domain tùy chỉnh."
+    },
+    "baseDomain": {
+      "label": "Domain gốc",
+      "hint": "Root cho wildcard subdomain (vd: example.com). Resource sẽ được gán tự động dạng <tên>.example.com."
+    },
+    "wildcard": {
+      "label": "Subdomain tự động",
+      "hint": "Tự động gán subdomain cho mỗi resource mới dựa theo domain gốc ở trên."
+    },
+    "traefikNetwork": {
+      "label": "Mạng Docker của Traefik",
+      "hint": "Tên Docker network mà Traefik đang dùng (vd: bridge). Container sẽ được join vào mạng này để Traefik có thể route tới."
+    },
+    "certResolver": {
+      "label": "Tên Cert Resolver",
+      "hint": "Tên cert resolver Let's Encrypt đã cấu hình trong Traefik (vd: letsencrypt)."
+    }
   },
   "sources": {
     "page": {
@@ -806,6 +837,8 @@
       "statusLabel": "Trạng thái",
       "portsLabel": "Cổng",
       "portConflict": "Trùng host port — tài nguyên khác đang dùng port này. Hãy cập nhật trước khi chạy.",
+      "tlsLabel": "Bật HTTPS (TLS)",
+      "tlsHint": "Tạo router HTTPS và tự động redirect HTTP→HTTPS. Yêu cầu domain và cert resolver Let's Encrypt trong Traefik.",
       "portUnset": "Chưa đặt host port — hãy cập nhật trước khi chạy."
     }
   },

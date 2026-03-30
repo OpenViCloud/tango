@@ -58,6 +58,8 @@ type CreateContainerInput struct {
 	ExposedPorts []string
 	PortBindings map[string]string // containerPort -> hostPort
 	Volumes      []string          // host:container bind mounts, e.g. "/data:/data"
+	Labels       map[string]string // container labels, e.g. Traefik routing rules
+	Networks     []string          // Docker networks to join, e.g. ["traefik-net"]
 	AutoRemove   bool
 }
 

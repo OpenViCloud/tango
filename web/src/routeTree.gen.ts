@@ -13,6 +13,7 @@ import { Route as GuestRouteImport } from './routes/_guest'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GuestLoginRouteImport } from './routes/_guest/login'
+import { Route as AuthSettingsRouteImport } from './routes/_auth/settings'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
 import { Route as AuthUsersIndexRouteImport } from './routes/_auth/users/index'
 import { Route as AuthSourcesIndexRouteImport } from './routes/_auth/sources/index'
@@ -47,6 +48,11 @@ const GuestLoginRoute = GuestLoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => GuestRoute,
+} as any)
+const AuthSettingsRoute = AuthSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthDashboardRoute = AuthDashboardRouteImport.update({
   id: '/dashboard',
@@ -134,6 +140,7 @@ const AuthEnvironmentsEnvIdResourcesNewRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof AuthDashboardRoute
+  '/settings': typeof AuthSettingsRoute
   '/login': typeof GuestLoginRoute
   '/channels/create': typeof AuthChannelsCreateRoute
   '/projects/$projectId': typeof AuthProjectsProjectIdRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof AuthDashboardRoute
+  '/settings': typeof AuthSettingsRoute
   '/login': typeof GuestLoginRoute
   '/channels/create': typeof AuthChannelsCreateRoute
   '/projects/$projectId': typeof AuthProjectsProjectIdRoute
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/_guest': typeof GuestRouteWithChildren
   '/_auth/dashboard': typeof AuthDashboardRoute
+  '/_auth/settings': typeof AuthSettingsRoute
   '/_guest/login': typeof GuestLoginRoute
   '/_auth/channels/create': typeof AuthChannelsCreateRoute
   '/_auth/projects/$projectId': typeof AuthProjectsProjectIdRoute
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/settings'
     | '/login'
     | '/channels/create'
     | '/projects/$projectId'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/settings'
     | '/login'
     | '/channels/create'
     | '/projects/$projectId'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/_guest'
     | '/_auth/dashboard'
+    | '/_auth/settings'
     | '/_guest/login'
     | '/_auth/channels/create'
     | '/_auth/projects/$projectId'
@@ -294,6 +306,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/login'
       preLoaderRoute: typeof GuestLoginRouteImport
       parentRoute: typeof GuestRoute
+    }
+    '/_auth/settings': {
+      id: '/_auth/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthSettingsRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_auth/dashboard': {
       id: '/_auth/dashboard'
@@ -412,6 +431,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthRouteChildren {
   AuthDashboardRoute: typeof AuthDashboardRoute
+  AuthSettingsRoute: typeof AuthSettingsRoute
   AuthChannelsCreateRoute: typeof AuthChannelsCreateRoute
   AuthProjectsProjectIdRoute: typeof AuthProjectsProjectIdRoute
   AuthResourcesResourceIdRoute: typeof AuthResourcesResourceIdRoute
@@ -431,6 +451,7 @@ interface AuthRouteChildren {
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthDashboardRoute: AuthDashboardRoute,
+  AuthSettingsRoute: AuthSettingsRoute,
   AuthChannelsCreateRoute: AuthChannelsCreateRoute,
   AuthProjectsProjectIdRoute: AuthProjectsProjectIdRoute,
   AuthResourcesResourceIdRoute: AuthResourcesResourceIdRoute,

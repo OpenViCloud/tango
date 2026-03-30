@@ -61,17 +61,30 @@ type CreateResourceCommand struct {
 	Config        map[string]any
 	EnvironmentID string
 	CreatedBy     string
+	TLSEnabled    bool
 	Ports         []ResourcePortInput
 	EnvVars       []ResourceEnvVarInput
 }
 
 type CreateResourceHandler struct {
-	resourceRepo domain.ResourceRepository
-	dockerRepo   domain.DockerRepository
+	resourceRepo   domain.ResourceRepository
+	dockerRepo     domain.DockerRepository
+	domainRepo     domain.ResourceDomainRepository
+	platformConfig domain.PlatformConfigRepository
 }
 
-func NewCreateResourceHandler(resourceRepo domain.ResourceRepository, dockerRepo domain.DockerRepository) *CreateResourceHandler {
-	return &CreateResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo}
+func NewCreateResourceHandler(
+	resourceRepo domain.ResourceRepository,
+	dockerRepo domain.DockerRepository,
+	domainRepo domain.ResourceDomainRepository,
+	platformConfig domain.PlatformConfigRepository,
+) *CreateResourceHandler {
+	return &CreateResourceHandler{
+		resourceRepo:   resourceRepo,
+		dockerRepo:     dockerRepo,
+		domainRepo:     domainRepo,
+		platformConfig: platformConfig,
+	}
 }
 
 func (h *CreateResourceHandler) Handle(ctx context.Context, cmd CreateResourceCommand) (*domain.Resource, error) {
@@ -107,6 +120,7 @@ func (h *CreateResourceHandler) Handle(ctx context.Context, cmd CreateResourceCo
 		Config:        cmd.Config,
 		EnvironmentID: cmd.EnvironmentID,
 		CreatedBy:     cmd.CreatedBy,
+		TLSEnabled:    cmd.TLSEnabled,
 		Ports:         ports,
 		EnvVars:       envVars,
 	})
@@ -118,15 +132,39 @@ func (h *CreateResourceHandler) Handle(ctx context.Context, cmd CreateResourceCo
 		return nil, fmt.Errorf("update resource status: %w", err)
 	}
 
+	// Auto-assign subdomain when wildcard is enabled
+	if h.domainRepo != nil && h.platformConfig != nil {
+		h.tryAutoAssignSubdomain(ctx, resource.ID, cmd.Name)
+	}
+
 	return h.resourceRepo.GetByID(ctx, resource.ID)
+}
+
+func (h *CreateResourceHandler) tryAutoAssignSubdomain(ctx context.Context, resourceID, name string) {
+	wildcardCfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigWildcardEnabled)
+	if err != nil || wildcardCfg.Value != "true" {
+		return
+	}
+	baseDomainCfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigBaseDomain)
+	if err != nil || baseDomainCfg.Value == "" {
+		return
+	}
+	host := name + "." + baseDomainCfg.Value
+	_, _ = h.domainRepo.Create(ctx, domain.ResourceDomain{
+		ResourceID: resourceID,
+		Host:       host,
+		Type:       domain.ResourceDomainTypeAuto,
+		Verified:   true, // auto domains are always trusted
+	})
 }
 
 // ── Update Resource ───────────────────────────────────────────────────────────
 
 type UpdateResourceCommand struct {
-	ID    string
-	Name  string
-	Ports []ResourcePortInput
+	ID         string
+	Name       string
+	TLSEnabled bool
+	Ports      []ResourcePortInput
 }
 
 type UpdateResourceHandler struct {
@@ -152,8 +190,9 @@ func (h *UpdateResourceHandler) Handle(ctx context.Context, cmd UpdateResourceCo
 		})
 	}
 	return h.resourceRepo.Update(ctx, cmd.ID, domain.UpdateResourceInput{
-		Name:  cmd.Name,
-		Ports: ports,
+		Name:       cmd.Name,
+		TLSEnabled: cmd.TLSEnabled,
+		Ports:      ports,
 	})
 }
 
@@ -164,12 +203,19 @@ type StartResourceCommand struct {
 }
 
 type StartResourceHandler struct {
-	resourceRepo domain.ResourceRepository
-	dockerRepo   domain.DockerRepository
+	resourceRepo   domain.ResourceRepository
+	dockerRepo     domain.DockerRepository
+	domainRepo     domain.ResourceDomainRepository
+	platformConfig domain.PlatformConfigRepository
 }
 
-func NewStartResourceHandler(resourceRepo domain.ResourceRepository, dockerRepo domain.DockerRepository) *StartResourceHandler {
-	return &StartResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo}
+func NewStartResourceHandler(
+	resourceRepo domain.ResourceRepository,
+	dockerRepo domain.DockerRepository,
+	domainRepo domain.ResourceDomainRepository,
+	platformConfig domain.PlatformConfigRepository,
+) *StartResourceHandler {
+	return &StartResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo, domainRepo: domainRepo, platformConfig: platformConfig}
 }
 
 func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceCommand) error {
@@ -234,6 +280,36 @@ func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceComm
 			}
 		}
 
+		// Build Traefik labels from resource domains (first TCP port as backend)
+		var labels map[string]string
+		var networks []string
+		if h.domainRepo != nil {
+			if domains, err := h.domainRepo.ListByResource(ctx, resource.ID); err == nil && len(domains) > 0 {
+				internalPort := 80 // fallback
+				for _, p := range resource.Ports {
+					if p.Proto == "tcp" || p.Proto == "" {
+						internalPort = p.InternalPort
+						break
+					}
+				}
+				traefikCfg := domain.TraefikConfig{
+					TLSEnabled: resource.TLSEnabled,
+				}
+				if h.platformConfig != nil {
+					if cfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigTraefikNetwork); err == nil {
+						traefikCfg.Network = cfg.Value
+					}
+					if cfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigCertResolver); err == nil {
+						traefikCfg.CertResolver = cfg.Value
+					}
+				}
+				labels = domain.TraefikLabels(resource.ID, domains, internalPort, traefikCfg)
+				if traefikCfg.Network != "" {
+					networks = []string{traefikCfg.Network}
+				}
+			}
+		}
+
 		ct, err := h.dockerRepo.CreateContainer(ctx, domain.CreateContainerInput{
 			Name:         resource.Name,
 			Image:        imageRef,
@@ -241,6 +317,8 @@ func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceComm
 			PortBindings: portBindings,
 			Volumes:      volumes,
 			Cmd:          cmd,
+			Labels:       labels,
+			Networks:     networks,
 		})
 		if err != nil {
 			return fmt.Errorf("create container: %w", err)
@@ -284,7 +362,8 @@ func (h *StopResourceHandler) Handle(ctx context.Context, cmd StopResourceComman
 	if err := h.dockerRepo.StopContainer(ctx, resource.ContainerID); err != nil {
 		return fmt.Errorf("stop container: %w", err)
 	}
-	return h.resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusStopped, resource.ContainerID)
+	_ = h.dockerRepo.RemoveContainer(ctx, resource.ContainerID, false)
+	return h.resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusStopped, "")
 }
 
 // ── Delete Resource ───────────────────────────────────────────────────────────

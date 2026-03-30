@@ -18,6 +18,7 @@ export const resourceSchema = z.object({
   container_id: z.string(),
   config: z.record(z.string(), z.unknown()),
   environment_id: z.string(),
+  tls_enabled: z.boolean().default(false),
   created_at: z.string(),
   updated_at: z.string(),
   ports: z.array(resourcePortSchema),
@@ -97,6 +98,7 @@ export const createResourceSchema = z.object({
   image: z.string().min(1, "validation.required"),
   tag: z.string().default("latest"),
   config: z.record(z.string(), z.unknown()).optional(),
+  tls_enabled: z.boolean().default(false),
   ports: z
     .array(
       z.object({
@@ -125,6 +127,7 @@ export const updateProjectSchema = z.object({
 
 export const updateResourceSchema = z.object({
   name: z.string().min(1, "validation.required"),
+  tls_enabled: z.boolean().default(false),
   ports: z
     .array(
       z.object({
@@ -164,3 +167,13 @@ export type CreateEnvironmentModel = z.infer<typeof createEnvironmentSchema>
 export type CreateResourceModel = z.infer<typeof createResourceSchema>
 export type UpdateProjectModel = z.infer<typeof updateProjectSchema>
 export type UpdateResourceModel = z.infer<typeof updateResourceSchema>
+
+export type ResourceDomainModel = {
+  id: string
+  resource_id: string
+  host: string
+  type: "auto" | "custom"
+  verified: boolean
+  verified_at?: string
+  created_at: string
+}

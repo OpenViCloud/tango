@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button"
 import { type EnvEntry, type PortEntry } from "./ConfigGeneralForm"
 import { ResourceBackupsTab } from "./tabs/ResourceBackupsTab"
 import { ResourceConfigurationTab } from "./tabs/ResourceConfigurationTab"
+import { ResourceDomainsTab } from "./tabs/ResourceDomainsTab"
 import { ResourceLogsTab } from "./tabs/ResourceLogsTab"
 import { ResourceTerminalTab } from "./tabs/ResourceTerminalTab"
 
 type ResourceDetailsProps = {
   resource: ResourceModel
   initialEnvEntries: EnvEntry[]
-  onSave: (entries: EnvEntry[], name: string, ports: PortEntry[]) => void
+  onSave: (entries: EnvEntry[], name: string, ports: PortEntry[], tlsEnabled: boolean) => void
   onStart: () => void
   onStop: () => void
   onBuild?: () => void
@@ -24,7 +25,7 @@ type ResourceDetailsProps = {
   isEnvVarsError: boolean
 }
 
-const tabs = ["Configuration", "Logs", "Terminal", "Backups"]
+const tabs = ["Configuration", "Logs", "Terminal", "Domains", "Backups"]
 
 export default function ResourceDetails({
   resource,
@@ -45,6 +46,7 @@ export default function ResourceDetails({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [envEntries, setEnvEntries] = useState<EnvEntry[]>(initialEnvEntries)
   const [resourceName, setResourceName] = useState(resource.name)
+  const [tlsEnabled, setTlsEnabled] = useState(resource.tls_enabled ?? false)
   const [portEntries, setPortEntries] = useState<PortEntry[]>(
     resource.ports.length > 0
       ? resource.ports.map((p) => ({
@@ -158,11 +160,13 @@ export default function ResourceDetails({
               onSelectSection={setActiveSection}
               resourceName={resourceName}
               setResourceName={setResourceName}
+              tlsEnabled={tlsEnabled}
+              setTlsEnabled={setTlsEnabled}
               portEntries={portEntries}
               setPortEntries={setPortEntries}
               envEntries={envEntries}
               setEnvEntries={setEnvEntries}
-              onSave={() => onSave(envEntries, resourceName, portEntries)}
+              onSave={() => onSave(envEntries, resourceName, portEntries, tlsEnabled)}
               pending={pending}
               isLoadingEnvVars={isLoadingEnvVars}
               isEnvVarsError={isEnvVarsError}
@@ -178,6 +182,9 @@ export default function ResourceDetails({
             key={`${resource.id}:${resource.status}:${resource.container_id ?? ""}`}
             resource={resource}
           />
+        ) : null}
+        {activeTab === "Domains" ? (
+          <ResourceDomainsTab resource={resource} />
         ) : null}
         {activeTab === "Backups" ? (
           <ResourceBackupsTab resource={resource} />

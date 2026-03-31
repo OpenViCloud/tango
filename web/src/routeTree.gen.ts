@@ -19,6 +19,7 @@ import { Route as AuthUsersIndexRouteImport } from './routes/_auth/users/index'
 import { Route as AuthSourcesIndexRouteImport } from './routes/_auth/sources/index'
 import { Route as AuthRolesIndexRouteImport } from './routes/_auth/roles/index'
 import { Route as AuthProjectsIndexRouteImport } from './routes/_auth/projects/index'
+import { Route as AuthDomainsIndexRouteImport } from './routes/_auth/domains/index'
 import { Route as AuthDatabasesIndexRouteImport } from './routes/_auth/databases/index'
 import { Route as AuthContainersIndexRouteImport } from './routes/_auth/containers/index'
 import { Route as AuthChannelsIndexRouteImport } from './routes/_auth/channels/index'
@@ -77,6 +78,11 @@ const AuthRolesIndexRoute = AuthRolesIndexRouteImport.update({
 const AuthProjectsIndexRoute = AuthProjectsIndexRouteImport.update({
   id: '/projects/',
   path: '/projects/',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthDomainsIndexRoute = AuthDomainsIndexRouteImport.update({
+  id: '/domains/',
+  path: '/domains/',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthDatabasesIndexRoute = AuthDatabasesIndexRouteImport.update({
@@ -150,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/channels/': typeof AuthChannelsIndexRoute
   '/containers/': typeof AuthContainersIndexRoute
   '/databases/': typeof AuthDatabasesIndexRoute
+  '/domains/': typeof AuthDomainsIndexRoute
   '/projects/': typeof AuthProjectsIndexRoute
   '/roles/': typeof AuthRolesIndexRoute
   '/sources/': typeof AuthSourcesIndexRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/channels': typeof AuthChannelsIndexRoute
   '/containers': typeof AuthContainersIndexRoute
   '/databases': typeof AuthDatabasesIndexRoute
+  '/domains': typeof AuthDomainsIndexRoute
   '/projects': typeof AuthProjectsIndexRoute
   '/roles': typeof AuthRolesIndexRoute
   '/sources': typeof AuthSourcesIndexRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/_auth/channels/': typeof AuthChannelsIndexRoute
   '/_auth/containers/': typeof AuthContainersIndexRoute
   '/_auth/databases/': typeof AuthDatabasesIndexRoute
+  '/_auth/domains/': typeof AuthDomainsIndexRoute
   '/_auth/projects/': typeof AuthProjectsIndexRoute
   '/_auth/roles/': typeof AuthRolesIndexRoute
   '/_auth/sources/': typeof AuthSourcesIndexRoute
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
     | '/channels/'
     | '/containers/'
     | '/databases/'
+    | '/domains/'
     | '/projects/'
     | '/roles/'
     | '/sources/'
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/channels'
     | '/containers'
     | '/databases'
+    | '/domains'
     | '/projects'
     | '/roles'
     | '/sources'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/_auth/channels/'
     | '/_auth/containers/'
     | '/_auth/databases/'
+    | '/_auth/domains/'
     | '/_auth/projects/'
     | '/_auth/roles/'
     | '/_auth/sources/'
@@ -347,6 +359,13 @@ declare module '@tanstack/react-router' {
       path: '/projects'
       fullPath: '/projects/'
       preLoaderRoute: typeof AuthProjectsIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/domains/': {
+      id: '/_auth/domains/'
+      path: '/domains'
+      fullPath: '/domains/'
+      preLoaderRoute: typeof AuthDomainsIndexRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/databases/': {
@@ -440,6 +459,7 @@ interface AuthRouteChildren {
   AuthChannelsIndexRoute: typeof AuthChannelsIndexRoute
   AuthContainersIndexRoute: typeof AuthContainersIndexRoute
   AuthDatabasesIndexRoute: typeof AuthDatabasesIndexRoute
+  AuthDomainsIndexRoute: typeof AuthDomainsIndexRoute
   AuthProjectsIndexRoute: typeof AuthProjectsIndexRoute
   AuthRolesIndexRoute: typeof AuthRolesIndexRoute
   AuthSourcesIndexRoute: typeof AuthSourcesIndexRoute
@@ -460,6 +480,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthChannelsIndexRoute: AuthChannelsIndexRoute,
   AuthContainersIndexRoute: AuthContainersIndexRoute,
   AuthDatabasesIndexRoute: AuthDatabasesIndexRoute,
+  AuthDomainsIndexRoute: AuthDomainsIndexRoute,
   AuthProjectsIndexRoute: AuthProjectsIndexRoute,
   AuthRolesIndexRoute: AuthRolesIndexRoute,
   AuthSourcesIndexRoute: AuthSourcesIndexRoute,

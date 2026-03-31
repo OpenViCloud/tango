@@ -16,13 +16,14 @@ type telegramRuntimeService struct {
 	rootCtx   context.Context
 	publisher inbound.Publisher
 	logger    *slog.Logger
+	navigator appservices.TelegramProjectNavigator
 
 	mu      sync.Mutex
 	channel *telegramchannel.Channel
 	cfg     appservices.TelegramRuntimeConfig
 }
 
-func NewTelegramRuntimeService(rootCtx context.Context, publisher inbound.Publisher, logger *slog.Logger) appservices.TelegramRuntimeService {
+func NewTelegramRuntimeService(rootCtx context.Context, publisher inbound.Publisher, logger *slog.Logger, navigator appservices.TelegramProjectNavigator) appservices.TelegramRuntimeService {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -33,6 +34,7 @@ func NewTelegramRuntimeService(rootCtx context.Context, publisher inbound.Publis
 		rootCtx:   rootCtx,
 		publisher: publisher,
 		logger:    logger,
+		navigator: navigator,
 	}
 }
 
@@ -66,6 +68,7 @@ func (s *telegramRuntimeService) Start(ctx context.Context, cfg appservices.Tele
 		Token:          normalized.Token,
 		AllowedUserIDs: idsToSet(normalized.AllowedUserIDs),
 		EnableTyping:   normalized.EnableTyping,
+		Navigator:      s.navigator,
 	}, s.publisher, s.logger)
 	if err != nil {
 		return err

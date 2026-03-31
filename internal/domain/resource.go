@@ -71,9 +71,9 @@ type Resource struct {
 	ImageTag     string // target registry image tag for builds
 	ConnectionID string // source connection ID for private repos
 	Ports        []ResourcePort
-	EnvVars    []ResourceEnvVar
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	EnvVars      []ResourceEnvVar
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 type CreateResourceInput struct {
@@ -102,6 +102,7 @@ type UpdateResourceInput struct {
 	Name       string
 	Ports      []ResourcePort
 	TLSEnabled bool
+	Config     map[string]any
 }
 
 type ResourceRepository interface {

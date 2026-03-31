@@ -44,10 +44,13 @@ services:
       APP_DOMAIN: "${APP_DOMAIN:-}"
       APP_TLS_ENABLED: "${APP_TLS_ENABLED:-false}"
       APP_BACKEND_URL: "http://app:8080"
+      RESOURCE_MOUNT_ROOT: "${RESOURCE_MOUNT_ROOT:-/tmp/tango-resource-volumes}"
+      RESOURCE_MOUNT_ROOT_APP: "${RESOURCE_MOUNT_ROOT_APP:-/platform/resource-volumes}"
     volumes:
       - workspace:/workspace/jobs
       - /var/run/docker.sock:/var/run/docker.sock
       - ./traefik/config:/traefik/config
+      - ${RESOURCE_MOUNT_ROOT:-/tmp/tango-resource-volumes}:${RESOURCE_MOUNT_ROOT_APP:-/platform/resource-volumes}
     depends_on:
       db:
         condition: service_healthy

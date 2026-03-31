@@ -9,14 +9,15 @@ import (
 var ErrPlatformConfigNotFound = errors.New("platform config not found")
 
 const (
-	PlatformConfigPublicIP        = "public_ip"
-	PlatformConfigBaseDomain      = "base_domain"
-	PlatformConfigWildcardEnabled = "wildcard_enabled"
-	PlatformConfigTraefikNetwork  = "traefik_network"
-	PlatformConfigCertResolver    = "cert_resolver"
-	PlatformConfigAppDomain       = "app_domain"
-	PlatformConfigAppTLSEnabled   = "app_tls_enabled"
-	PlatformConfigAppBackendURL   = "app_backend_url"
+	PlatformConfigPublicIP          = "public_ip"
+	PlatformConfigBaseDomain        = "base_domain"
+	PlatformConfigWildcardEnabled   = "wildcard_enabled"
+	PlatformConfigTraefikNetwork    = "traefik_network"
+	PlatformConfigCertResolver      = "cert_resolver"
+	PlatformConfigAppDomain         = "app_domain"
+	PlatformConfigAppTLSEnabled     = "app_tls_enabled"
+	PlatformConfigAppBackendURL     = "app_backend_url"
+	PlatformConfigResourceMountRoot = "resource_mount_root"
 )
 
 type PlatformConfig struct {

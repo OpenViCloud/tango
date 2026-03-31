@@ -91,6 +91,7 @@ type DockerRepository interface {
 	PullImage(ctx context.Context, input PullImageInput) error
 	RemoveImage(ctx context.Context, imageID string, force bool) error
 	ListContainers(ctx context.Context, all bool) ([]Container, error)
+	EnsureNetwork(ctx context.Context, name string) error
 	CreateContainer(ctx context.Context, input CreateContainerInput) (Container, error)
 	InspectContainer(ctx context.Context, containerID string) (ContainerInfo, error)
 	GetContainerLogs(ctx context.Context, containerID string, input GetContainerLogsInput) ([]string, error)

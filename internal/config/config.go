@@ -38,6 +38,8 @@ const (
 	defaultDiscordMention        = true
 	defaultDiscordTyping         = true
 	defaultTelegramTyping        = true
+	DefaultResourceMountRootHost = "/tmp/tango-resource-volumes"
+	DefaultResourceMountRootApp  = "/platform/resource-volumes"
 )
 
 type Config struct {
@@ -87,6 +89,8 @@ type Config struct {
 	AppDomain            string
 	AppTLSEnabled        bool
 	AppBackendURL        string
+	ResourceMountRoot    string
+	ResourceMountRootApp string
 }
 
 type fileConfig struct {
@@ -172,6 +176,8 @@ func Load() *Config {
 	cfg.AppDomain = getEnv("APP_DOMAIN", "")
 	cfg.AppTLSEnabled = getEnv("APP_TLS_ENABLED", "false") == "true"
 	cfg.AppBackendURL = getEnv("APP_BACKEND_URL", "http://app:8080")
+	cfg.ResourceMountRoot = getEnv("RESOURCE_MOUNT_ROOT", DefaultResourceMountRootHost)
+	cfg.ResourceMountRootApp = getEnv("RESOURCE_MOUNT_ROOT_APP", DefaultResourceMountRootApp)
 
 	if cfg.DBDriver == "sqlite" && cfg.DBUrl == defaultPostgresDBURL {
 		cfg.DBUrl = defaultSQLiteDBURL

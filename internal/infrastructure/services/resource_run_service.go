@@ -6,10 +6,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"tango/internal/config"
 	"tango/internal/domain"
 )
 
@@ -92,6 +94,7 @@ func (s *ResourceRunService) Subscribe(runID string) (<-chan []byte, func()) {
 
 func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster) error {
 	ctx := context.Background()
+	const defaultTraefikNetwork = "tango_net"
 
 	defer func() {
 		b.closeAll()
@@ -207,12 +210,16 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 			certResolver = cfg.Value
 		}
 	}
+	traefikNetwork = strings.TrimSpace(traefikNetwork)
+	if traefikNetwork == "" {
+		traefikNetwork = defaultTraefikNetwork
+	}
 
 	// Determine the network(s) to join — always join tango_net so Traefik can reach
 	// the container via Docker DNS (container name resolution).
-	var networks []string
-	if traefikNetwork != "" {
-		networks = []string{traefikNetwork}
+	networks := []string{traefikNetwork}
+	if err := s.dockerRepo.EnsureNetwork(ctx, traefikNetwork); err != nil {
+		return fail("ensure shared docker network", err)
 	}
 
 	containerID := resource.ContainerID
@@ -227,12 +234,30 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 		}
 		logLine(fmt.Sprintf("[create] using container name %s", containerName))
 
+		mountRoot := config.DefaultResourceMountRootHost
+		if s.platformConfig != nil {
+			if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigResourceMountRoot); err == nil {
+				if value := strings.TrimSpace(cfg.Value); value != "" {
+					mountRoot = value
+				}
+			}
+		}
+		mounts, err := domain.ResolveResourceMounts(resource.Config, mountRoot)
+		if err != nil {
+			return fail("validate resource volumes", err)
+		}
+		for _, hostPath := range mounts.HostPaths {
+			if err := os.MkdirAll(hostPath, 0o755); err != nil {
+				return fail(fmt.Sprintf("prepare resource volume %s", hostPath), err)
+			}
+		}
+
 		ct, err := s.dockerRepo.CreateContainer(ctx, domain.CreateContainerInput{
 			Name:         containerName,
 			Image:        imageRef,
 			Env:          buildResourceEnv(resource.EnvVars),
 			PortBindings: buildResourcePortBindings(resource.Ports),
-			Volumes:      buildResourceVolumes(resource.Config),
+			Volumes:      mounts.Binds,
 			Cmd:          buildResourceCmd(resource.Config),
 			Networks:     networks,
 		})
@@ -262,14 +287,7 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 	// Write Traefik file config after container is running
 	if s.fileProvider != nil && containerName != "" && s.domainRepo != nil {
 		if domains, err := s.domainRepo.ListByResource(ctx, resource.ID); err == nil && len(domains) > 0 {
-			internalPort := 80
-			for _, p := range resource.Ports {
-				if p.Proto == "tcp" || p.Proto == "" {
-					internalPort = p.InternalPort
-					break
-				}
-			}
-			if err := s.fileProvider.Write(resource.ID, domains, containerName, internalPort, certResolver); err != nil {
+			if err := s.fileProvider.Write(resource.ID, domains, containerName, certResolver); err != nil {
 				s.logger.Warn("write traefik file config", "resource_id", resource.ID, "err", err)
 			} else {
 				logLine("[traefik] routing config written")
@@ -318,27 +336,6 @@ func buildResourcePortBindings(items []domain.ResourcePort) map[string]string {
 		result[fmt.Sprintf("%d/%s", item.InternalPort, proto)] = fmt.Sprintf("%d", item.HostPort)
 	}
 	return result
-}
-
-func buildResourceVolumes(cfg map[string]any) []string {
-	if cfg == nil {
-		return nil
-	}
-	raw, ok := cfg["volumes"]
-	if !ok {
-		return nil
-	}
-	items, ok := raw.([]interface{})
-	if !ok {
-		return nil
-	}
-	out := make([]string, 0, len(items))
-	for _, item := range items {
-		if s, ok := item.(string); ok {
-			out = append(out, s)
-		}
-	}
-	return out
 }
 
 func buildResourceCmd(cfg map[string]any) []string {

@@ -7,6 +7,8 @@ BASE_DIR="$(pwd)"
 LETSENCRYPT_DIR="$BASE_DIR/letsencrypt"
 ACME_FILE="$LETSENCRYPT_DIR/acme.json"
 TRAEFIK_CONFIG_DIR="$BASE_DIR/traefik/config"
+RESOURCE_MOUNT_ROOT="$BASE_DIR/data/resource-volumes"
+RESOURCE_MOUNT_ROOT_APP="/platform/resource-volumes"
 ENV_FILE="$BASE_DIR/.env"
 
 EMAIL=""
@@ -114,22 +116,31 @@ chmod 600 "$ACME_FILE"
 echo "=== TRAEFIK CONFIG DIR ==="
 mkdir -p "$TRAEFIK_CONFIG_DIR"
 
+echo "=== RESOURCE MOUNT ROOT ==="
+mkdir -p "$RESOURCE_MOUNT_ROOT"
+
 echo "=== WRITE .env ==="
 
 # Load existing .env values if file exists
 existing_email=""
 existing_domain=""
 existing_tls="false"
+existing_resource_mount_root=""
+existing_resource_mount_root_app=""
 if [ -f "$ENV_FILE" ]; then
   existing_email=$(grep "^TRAEFIK_ACME_EMAIL=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
   existing_domain=$(grep "^APP_DOMAIN=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
   existing_tls=$(grep "^APP_TLS_ENABLED=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2 || echo "false")
+  existing_resource_mount_root=$(grep "^RESOURCE_MOUNT_ROOT=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
+  existing_resource_mount_root_app=$(grep "^RESOURCE_MOUNT_ROOT_APP=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
 fi
 
 # Resolve final values (args override existing)
 final_email="${EMAIL:-$existing_email}"
 final_domain="${DOMAIN:-$existing_domain}"
 final_tls="${TLS_ENABLED:-$existing_tls}"
+final_resource_mount_root="${existing_resource_mount_root:-$RESOURCE_MOUNT_ROOT}"
+final_resource_mount_root_app="${existing_resource_mount_root_app:-$RESOURCE_MOUNT_ROOT_APP}"
 
 # --https requires --email (for Let's Encrypt)
 if [ "$final_tls" = "true" ] && [ -z "$final_email" ]; then
@@ -141,11 +152,14 @@ cat > "$ENV_FILE" <<EOF
 TRAEFIK_ACME_EMAIL=$final_email
 APP_DOMAIN=$final_domain
 APP_TLS_ENABLED=$final_tls
+RESOURCE_MOUNT_ROOT=$final_resource_mount_root
+RESOURCE_MOUNT_ROOT_APP=$final_resource_mount_root_app
 EOF
 
 echo "Let's Encrypt : ${final_email:-DISABLED}"
 echo "App domain    : ${final_domain:-not set (configure in Settings)}"
 echo "App HTTPS     : $final_tls"
+echo "Mount root    : $final_resource_mount_root"
 
 echo "=== PULL LATEST IMAGES ==="
 docker compose pull
@@ -159,6 +173,7 @@ echo " $APP_NAME is up!"
 echo " ACME file      : $ACME_FILE"
 echo " Traefik config : $TRAEFIK_CONFIG_DIR"
 echo " ENV file       : $ENV_FILE"
+echo " Resource root  : $final_resource_mount_root"
 if [ -n "$final_domain" ]; then
   proto="http"
   [ "$final_tls" = "true" ] && proto="https"

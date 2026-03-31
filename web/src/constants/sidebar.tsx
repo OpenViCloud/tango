@@ -61,6 +61,12 @@ export const appSidebarSections: SidebarSection[] = [
         children: [{ titleKey: "sidebar.sourceList", url: "/sources" }],
       },
       {
+        titleKey: "sidebar.domains",
+        url: "/domains",
+        icon: appIcons.domains,
+        children: [{ titleKey: "sidebar.domainList", url: "/domains" }],
+      },
+      {
         titleKey: "sidebar.databases",
         url: "/databases",
         icon: appIcons.databases,

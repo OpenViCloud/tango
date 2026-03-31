@@ -6,7 +6,9 @@ import { useTranslation } from "react-i18next"
 import type { ResourceModel } from "@/@types/models"
 import { Button } from "@/components/ui/button"
 import { type EnvEntry, type PortEntry } from "./ConfigGeneralForm"
+import { type VolumeEntry } from "./PersistentStorageForm"
 import { ResourceBackupsTab } from "./tabs/ResourceBackupsTab"
+import { ResourceConnectionTab } from "./tabs/ResourceConnectionTab"
 import { ResourceConfigurationTab } from "./tabs/ResourceConfigurationTab"
 import { ResourceDomainsTab } from "./tabs/ResourceDomainsTab"
 import { ResourceLogsTab } from "./tabs/ResourceLogsTab"
@@ -15,7 +17,12 @@ import { ResourceTerminalTab } from "./tabs/ResourceTerminalTab"
 type ResourceDetailsProps = {
   resource: ResourceModel
   initialEnvEntries: EnvEntry[]
-  onSave: (entries: EnvEntry[], name: string, ports: PortEntry[]) => void
+  onSave: (
+    entries: EnvEntry[],
+    name: string,
+    ports: PortEntry[],
+    volumes: VolumeEntry[]
+  ) => void
   onStart: () => void
   onStop: () => void
   onBuild?: () => void
@@ -24,8 +31,6 @@ type ResourceDetailsProps = {
   isLoadingEnvVars: boolean
   isEnvVarsError: boolean
 }
-
-const tabs = ["Configuration", "Logs", "Terminal", "Domains", "Backups"]
 
 export default function ResourceDetails({
   resource,
@@ -56,12 +61,41 @@ export default function ResourceDetails({
         }))
       : [{ host_port: "", internal_port: "", proto: "tcp", label: "" }]
   )
+  const [volumeEntries, setVolumeEntries] = useState<VolumeEntry[]>(() => {
+    const rawVolumes = Array.isArray(resource.config?.volumes)
+      ? resource.config.volumes
+      : []
+    const parsed = rawVolumes
+      .map((item) => {
+        if (typeof item !== "string") return null
+        const parts = item.split(":")
+        if (parts.length < 2 || parts.length > 3) return null
+        return {
+          source: parts[0] ?? "",
+          target: parts[1] ?? "",
+          mode: parts[2] === "ro" ? "ro" : "rw",
+        } satisfies VolumeEntry
+      })
+      .filter((item): item is VolumeEntry => item !== null)
+
+    return parsed.length > 0
+      ? parsed
+      : [{ source: "", target: "", mode: "rw" }]
+  })
 
   const statusDotClass =
     resource.status === "running" ? "bg-green-500" : "bg-destructive"
   const statusTextClass =
     resource.status === "running" ? "text-green-600" : "text-destructive"
   const isRunning = resource.status === "running"
+  const tabs = [
+    "Configuration",
+    ...(resource.type === "db" ? ["Connection"] : []),
+    "Logs",
+    "Terminal",
+    "Domains",
+    "Backups",
+  ]
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -163,7 +197,11 @@ export default function ResourceDetails({
               setPortEntries={setPortEntries}
               envEntries={envEntries}
               setEnvEntries={setEnvEntries}
-              onSave={() => onSave(envEntries, resourceName, portEntries)}
+              volumeEntries={volumeEntries}
+              setVolumeEntries={setVolumeEntries}
+              onSave={() =>
+                onSave(envEntries, resourceName, portEntries, volumeEntries)
+              }
               pending={pending}
               isLoadingEnvVars={isLoadingEnvVars}
               isEnvVarsError={isEnvVarsError}
@@ -174,6 +212,9 @@ export default function ResourceDetails({
         ) : null}
 
         {activeTab === "Logs" ? <ResourceLogsTab resource={resource} /> : null}
+        {activeTab === "Connection" ? (
+          <ResourceConnectionTab resource={resource} />
+        ) : null}
         {activeTab === "Terminal" ? (
           <ResourceTerminalTab
             key={`${resource.id}:${resource.status}:${resource.container_id ?? ""}`}

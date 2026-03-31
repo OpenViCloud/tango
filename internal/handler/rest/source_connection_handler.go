@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -25,6 +26,7 @@ type SourceConnectionHandler struct {
 	listRepos        *query.ListGitHubRepositoriesHandler
 	listUserRepos    *query.ListGitHubUserRepositoriesHandler
 	listBranches     *query.ListGitHubBranchesHandler
+	platformConfig   domain.PlatformConfigRepository
 	defaultRedirect  string
 	apiBaseURL       string
 }
@@ -39,6 +41,7 @@ func NewSourceConnectionHandler(
 	listRepos *query.ListGitHubRepositoriesHandler,
 	listUserRepos *query.ListGitHubUserRepositoriesHandler,
 	listBranches *query.ListGitHubBranchesHandler,
+	platformConfig domain.PlatformConfigRepository,
 	defaultRedirect string,
 	apiBaseURL string,
 ) *SourceConnectionHandler {
@@ -52,6 +55,7 @@ func NewSourceConnectionHandler(
 		listRepos:        listRepos,
 		listUserRepos:    listUserRepos,
 		listBranches:     listBranches,
+		platformConfig:   platformConfig,
 		defaultRedirect:  defaultRedirect,
 		apiBaseURL:       apiBaseURL,
 	}
@@ -100,11 +104,16 @@ func (h *SourceConnectionHandler) BeginGitHubAppManifest(c *gin.Context) {
 	if redirectTo == "" {
 		redirectTo = h.defaultRedirect
 	}
+	publicBaseURL, err := h.resolveGitHubPublicBaseURL(c.Request.Context())
+	if err != nil {
+		_ = c.Error(response.BadRequest(err.Error()))
+		return
+	}
 	result, err := h.beginManifest.Handle(c.Request.Context(), command.BeginGitHubAppManifestCommand{
 		UserID:     c.GetString("user_id"),
 		AppName:    req.AppName,
 		RedirectTo: redirectTo,
-		BaseURL:    h.apiBaseURL,
+		BaseURL:    publicBaseURL,
 	})
 	if err != nil {
 		writeSourceConnectionError(c, err)
@@ -193,6 +202,40 @@ func (h *SourceConnectionHandler) ListGitHubRepos(c *gin.Context) {
 		return
 	}
 	response.OK(c, items)
+}
+
+func (h *SourceConnectionHandler) resolveGitHubPublicBaseURL(ctx context.Context) (string, error) {
+	if h.platformConfig != nil {
+		appDomain := ""
+		appTLSEnabled := false
+
+		if cfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigAppDomain); err == nil {
+			appDomain = normalizeHostLikeValue(cfg.Value)
+		}
+		if cfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigAppTLSEnabled); err == nil {
+			appTLSEnabled = strings.EqualFold(strings.TrimSpace(cfg.Value), "true")
+		}
+		if appDomain != "" {
+			if !appTLSEnabled {
+				return "", errors.New("GitHub App requires HTTPS. Enable App HTTPS in Settings before connecting GitHub.")
+			}
+			return "https://" + appDomain, nil
+		}
+	}
+
+	baseURL := strings.TrimSpace(h.apiBaseURL)
+	if strings.HasPrefix(strings.ToLower(baseURL), "https://") {
+		return strings.TrimRight(baseURL, "/"), nil
+	}
+
+	return "", errors.New("GitHub App requires a public HTTPS URL. Configure App Domain and enable HTTPS first.")
+}
+
+func normalizeHostLikeValue(value string) string {
+	trimmed := strings.TrimSpace(value)
+	trimmed = strings.TrimPrefix(trimmed, "https://")
+	trimmed = strings.TrimPrefix(trimmed, "http://")
+	return strings.TrimRight(trimmed, "/")
 }
 
 func (h *SourceConnectionHandler) ListGitHubBranches(c *gin.Context) {

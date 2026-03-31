@@ -2,6 +2,7 @@ import type { ResourceModel } from "@/@types/models"
 
 import { ConfigSidebar } from "@/pages/auth/projects/components/ConfigSidebar"
 import { ConfigGeneralForm, type EnvEntry, type PortEntry } from "@/pages/auth/resources/components/ConfigGeneralForm"
+import { PersistentStorageForm, type VolumeEntry } from "@/pages/auth/resources/components/PersistentStorageForm"
 
 type ResourceConfigurationTabProps = {
   resource: ResourceModel
@@ -13,6 +14,8 @@ type ResourceConfigurationTabProps = {
   setPortEntries: (ports: PortEntry[]) => void
   envEntries: EnvEntry[]
   setEnvEntries: (entries: EnvEntry[]) => void
+  volumeEntries: VolumeEntry[]
+  setVolumeEntries: (entries: VolumeEntry[]) => void
   onSave: () => void
   pending: boolean
   isLoadingEnvVars: boolean
@@ -31,6 +34,8 @@ export function ResourceConfigurationTab({
   setPortEntries,
   envEntries,
   setEnvEntries,
+  volumeEntries,
+  setVolumeEntries,
   onSave,
   pending,
   isLoadingEnvVars,
@@ -60,19 +65,28 @@ export function ResourceConfigurationTab({
       ) : null}
 
       <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
-        <ConfigGeneralForm
-          resource={resource}
-          resourceName={resourceName}
-          setResourceName={setResourceName}
-          portEntries={portEntries}
-          setPortEntries={setPortEntries}
-          envEntries={envEntries}
-          setEnvEntries={setEnvEntries}
-          onSave={onSave}
-          pending={pending}
-          isLoadingEnvVars={isLoadingEnvVars}
-          isEnvVarsError={isEnvVarsError}
-        />
+        {activeSection === "Persistent Storage" ? (
+          <PersistentStorageForm
+            entries={volumeEntries}
+            setEntries={setVolumeEntries}
+            onSave={onSave}
+            pending={pending}
+          />
+        ) : (
+          <ConfigGeneralForm
+            resource={resource}
+            resourceName={resourceName}
+            setResourceName={setResourceName}
+            portEntries={portEntries}
+            setPortEntries={setPortEntries}
+            envEntries={envEntries}
+            setEnvEntries={setEnvEntries}
+            onSave={onSave}
+            pending={pending}
+            isLoadingEnvVars={isLoadingEnvVars}
+            isEnvVarsError={isEnvVarsError}
+          />
+        )}
       </main>
     </>
   )

@@ -3,7 +3,10 @@ package command
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
+	"tango/internal/config"
 	"tango/internal/domain"
 )
 
@@ -88,6 +91,17 @@ func NewCreateResourceHandler(
 }
 
 func (h *CreateResourceHandler) Handle(ctx context.Context, cmd CreateResourceCommand) (*domain.Resource, error) {
+	mountRoot := resolveResourceMountRoot(ctx, h.platformConfig)
+	mounts, err := domain.ResolveResourceMounts(cmd.Config, mountRoot)
+	if err != nil {
+		return nil, err
+	}
+	for _, hostPath := range mounts.HostPaths {
+		if err := os.MkdirAll(hostPath, 0o755); err != nil {
+			return nil, fmt.Errorf("prepare resource volume %s: %w", hostPath, err)
+		}
+	}
+
 	ports := make([]domain.ResourcePort, 0, len(cmd.Ports))
 	for _, p := range cmd.Ports {
 		proto := p.Proto
@@ -142,17 +156,39 @@ type UpdateResourceCommand struct {
 	Name       string
 	TLSEnabled bool
 	Ports      []ResourcePortInput
+	Config     map[string]any
 }
 
 type UpdateResourceHandler struct {
-	resourceRepo domain.ResourceRepository
+	resourceRepo   domain.ResourceRepository
+	platformConfig domain.PlatformConfigRepository
 }
 
-func NewUpdateResourceHandler(resourceRepo domain.ResourceRepository) *UpdateResourceHandler {
-	return &UpdateResourceHandler{resourceRepo: resourceRepo}
+func NewUpdateResourceHandler(resourceRepo domain.ResourceRepository, platformConfig domain.PlatformConfigRepository) *UpdateResourceHandler {
+	return &UpdateResourceHandler{resourceRepo: resourceRepo, platformConfig: platformConfig}
 }
 
 func (h *UpdateResourceHandler) Handle(ctx context.Context, cmd UpdateResourceCommand) (*domain.Resource, error) {
+	configToSave := cmd.Config
+	if configToSave == nil {
+		resource, err := h.resourceRepo.GetByID(ctx, cmd.ID)
+		if err != nil {
+			return nil, err
+		}
+		configToSave = resource.Config
+	}
+	if configToSave != nil {
+		mountRoot := resolveResourceMountRoot(ctx, h.platformConfig)
+		mounts, err := domain.ResolveResourceMounts(configToSave, mountRoot)
+		if err != nil {
+			return nil, err
+		}
+		for _, hostPath := range mounts.HostPaths {
+			if err := os.MkdirAll(hostPath, 0o755); err != nil {
+				return nil, fmt.Errorf("prepare resource volume %s: %w", hostPath, err)
+			}
+		}
+	}
 	ports := make([]domain.ResourcePort, 0, len(cmd.Ports))
 	for _, p := range cmd.Ports {
 		proto := p.Proto
@@ -170,6 +206,7 @@ func (h *UpdateResourceHandler) Handle(ctx context.Context, cmd UpdateResourceCo
 		Name:       cmd.Name,
 		TLSEnabled: cmd.TLSEnabled,
 		Ports:      ports,
+		Config:     configToSave,
 	})
 }
 
@@ -198,6 +235,8 @@ func NewStartResourceHandler(
 }
 
 func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceCommand) error {
+	const defaultTraefikNetwork = "tango_net"
+
 	resource, err := h.resourceRepo.GetByID(ctx, cmd.ID)
 	if err != nil {
 		return err
@@ -238,14 +277,14 @@ func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceComm
 			EnvVars: envInputs,
 		})
 
-		var volumes []string
-		if v, ok := resource.Config["volumes"]; ok {
-			if raw, ok := v.([]interface{}); ok {
-				for _, item := range raw {
-					if s, ok := item.(string); ok {
-						volumes = append(volumes, s)
-					}
-				}
+		mountRoot := resolveResourceMountRoot(ctx, h.platformConfig)
+		mounts, err := domain.ResolveResourceMounts(resource.Config, mountRoot)
+		if err != nil {
+			return err
+		}
+		for _, hostPath := range mounts.HostPaths {
+			if err := os.MkdirAll(hostPath, 0o755); err != nil {
+				return fmt.Errorf("prepare resource volume %s: %w", hostPath, err)
 			}
 		}
 		var cmd []string
@@ -266,9 +305,13 @@ func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceComm
 				traefikNetwork = cfg.Value
 			}
 		}
-		var networks []string
-		if traefikNetwork != "" {
-			networks = []string{traefikNetwork}
+		traefikNetwork = strings.TrimSpace(traefikNetwork)
+		if traefikNetwork == "" {
+			traefikNetwork = defaultTraefikNetwork
+		}
+		networks := []string{traefikNetwork}
+		if err := h.dockerRepo.EnsureNetwork(ctx, traefikNetwork); err != nil {
+			return fmt.Errorf("ensure shared docker network: %w", err)
 		}
 
 		ct, err := h.dockerRepo.CreateContainer(ctx, domain.CreateContainerInput{
@@ -276,7 +319,7 @@ func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceComm
 			Image:        imageRef,
 			Env:          env,
 			PortBindings: portBindings,
-			Volumes:      volumes,
+			Volumes:      mounts.Binds,
 			Cmd:          cmd,
 			Networks:     networks,
 		})
@@ -300,24 +343,28 @@ func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceComm
 	if h.fileProvider != nil && h.domainRepo != nil && h.dockerRepo != nil {
 		if info, err := h.dockerRepo.InspectContainer(ctx, containerID); err == nil {
 			if domains, err := h.domainRepo.ListByResource(ctx, resource.ID); err == nil && len(domains) > 0 {
-				internalPort := 80
-				for _, p := range resource.Ports {
-					if p.Proto == "tcp" || p.Proto == "" {
-						internalPort = p.InternalPort
-						break
-					}
-				}
 				certResolver := ""
 				if h.platformConfig != nil {
 					if cfg, err := h.platformConfig.Get(ctx, domain.PlatformConfigCertResolver); err == nil {
 						certResolver = cfg.Value
 					}
 				}
-				_ = h.fileProvider.Write(resource.ID, domains, info.Name, internalPort, certResolver)
+				_ = h.fileProvider.Write(resource.ID, domains, info.Name, certResolver)
 			}
 		}
 	}
 	return nil
+}
+
+func resolveResourceMountRoot(ctx context.Context, repo domain.PlatformConfigRepository) string {
+	if repo != nil {
+		if cfg, err := repo.Get(ctx, domain.PlatformConfigResourceMountRoot); err == nil {
+			if value := strings.TrimSpace(cfg.Value); value != "" {
+				return value
+			}
+		}
+	}
+	return config.DefaultResourceMountRootHost
 }
 
 // ── Stop Resource ─────────────────────────────────────────────────────────────

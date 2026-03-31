@@ -684,6 +684,8 @@
     "databaseList": "Databases",
     "sources": "Sources",
     "sourceList": "Sources",
+    "domains": "Domains",
+    "domainList": "Domains",
     "projects": "Dự án",
     "projectList": "Dự án",
     "settingsGeneral": "Cài đặt chung"
@@ -740,9 +742,47 @@
       "deleted": "Đã xóa base domain",
       "deleteFailed": "Xóa base domain thất bại",
       "conflict": "Domain đã tồn tại"
+    },
+    "domainsCard": {
+      "platformBadge": "Domain nền tảng",
+      "title": "Quản lý Domain",
+      "description": "Quản lý base domain wildcard, DNS onboarding, và ingress dùng chung từ một trang riêng.",
+      "currentAppURL": "App URL hiện tại",
+      "notConfigured": "Chưa cấu hình",
+      "manage": "Quản lý domains"
     }
   },
   "domains": {
+    "page": {
+      "title": "Domains",
+      "description": "Quản lý ingress của app, các base domain wildcard, và nền DNS mà resources sử dụng."
+    },
+    "overview": {
+      "appIngress": "Ingress của app",
+      "title": "Tổng quan",
+      "description": "Khu vực này quản lý các domain dùng chung cho Tango và các resources được deploy.",
+      "appURL": "App public URL",
+      "manageSettings": "Mở settings"
+    },
+    "baseDomains": {
+      "manualLabel": "Thủ công",
+      "wildcardHint": "Resources có thể được gắn dưới dạng subdomain của {{domain}}.",
+      "manualHint": "Wildcard đang tắt. Hãy thêm record thủ công khi cần route subdomain mới."
+    },
+    "port": {
+      "targetLabel": "Port đích",
+      "empty": "Hãy cấu hình container port cho resource trước khi thêm domain.",
+      "option": "Port {{port}}",
+      "badge": "Port {{port}}"
+    },
+    "add": {
+      "domainLabel": "Base domain",
+      "domainHint": "Nhập hostname như example.com. Không nhập http:// hoặc https://.",
+      "domainInvalid": "Nhập domain hợp lệ như example.com, không kèm http:// hoặc https://.",
+      "wildcardLabel": "Wildcard routing",
+      "wildcardHint": "Cho phép subdomain cho resources mới.",
+      "action": "Thêm domain"
+    },
     "subdomainPlaceholder": "myapp",
     "customDomain": "Custom domain...",
     "checking": "Đang kiểm tra...",
@@ -870,7 +910,18 @@
       "portConflict": "Trùng host port — tài nguyên khác đang dùng port này. Hãy cập nhật trước khi chạy.",
       "tlsLabel": "Bật HTTPS (TLS)",
       "tlsHint": "Tạo router HTTPS và tự động redirect HTTP→HTTPS. Yêu cầu domain và cert resolver Let's Encrypt trong Traefik.",
-      "portUnset": "Chưa đặt host port — hãy cập nhật trước khi chạy."
+      "portUnset": "Chưa đặt host port — hãy cập nhật trước khi chạy.",
+      "connection": {
+        "title": "Thông tin kết nối",
+        "description": "Dùng các endpoint này để kết nối database từ bên trong Tango hoặc từ bên ngoài VPS.",
+        "internalHost": "Internal host",
+        "portBadge": "Port {{port}}",
+        "internal": "Internal",
+        "internalHint": "Dùng endpoint này từ các resource khác đang chạy trong cùng Docker network.",
+        "external": "External",
+        "externalHint": "Dùng endpoint này từ máy cá nhân hoặc client ở ngoài Docker network của Tango.",
+        "notExposed": "Chưa mở ra bên ngoài. Hãy thêm host port nếu cần truy cập trực tiếp từ ngoài platform."
+      }
     }
   },
   "databases": {

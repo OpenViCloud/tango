@@ -133,6 +133,30 @@ func (r *Repository) ListContainers(ctx context.Context, all bool) ([]domain.Con
 	return result, nil
 }
 
+// EnsureNetwork makes sure a user-defined Docker network exists before
+// containers are attached to it for Traefik/internal DNS resolution.
+func (r *Repository) EnsureNetwork(ctx context.Context, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+
+	if _, err := r.client.NetworkInspect(ctx, name, network.InspectOptions{}); err == nil {
+		return nil
+	}
+
+	if _, err := r.client.NetworkCreate(ctx, name, network.CreateOptions{
+		Driver: "bridge",
+	}); err != nil {
+		if _, inspectErr := r.client.NetworkInspect(ctx, name, network.InspectOptions{}); inspectErr == nil {
+			return nil
+		}
+		return fmt.Errorf("ensure network %s: %w", name, err)
+	}
+
+	return nil
+}
+
 // CreateContainer creates (but does not start) a new container.
 func (r *Repository) CreateContainer(ctx context.Context, input domain.CreateContainerInput) (domain.Container, error) {
 	portSet := nat.PortSet{}
@@ -179,9 +203,11 @@ func (r *Repository) CreateContainer(ctx context.Context, input domain.CreateCon
 
 	// Join additional networks after creation (Docker only supports one network at create time)
 	for _, netName := range input.Networks {
+		if err := r.EnsureNetwork(ctx, netName); err != nil {
+			return domain.Container{}, err
+		}
 		if err := r.client.NetworkConnect(ctx, netName, resp.ID, &network.EndpointSettings{}); err != nil {
-			// Non-fatal: log but continue — network may not exist yet
-			_ = err
+			return domain.Container{}, fmt.Errorf("connect container %s to network %s: %w", resp.ID, netName, err)
 		}
 	}
 

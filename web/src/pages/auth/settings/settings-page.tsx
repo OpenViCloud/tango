@@ -1,21 +1,17 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { Settings2Icon, Trash2 } from "lucide-react"
+import { GlobeIcon, Settings2Icon } from "lucide-react"
+import { Link } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 
 import { useGetSettings, useUpdateSettings } from "@/hooks/api/use-settings"
-import {
-  useGetBaseDomains,
-  useCreateBaseDomain,
-  useDeleteBaseDomain,
-} from "@/hooks/api/use-base-domains"
 import { PageHeaderCard } from "@/components/share/cards/page-header-card"
 import { SectionCard } from "@/components/share/cards/section-card"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
 
 export function SettingsPage() {
   const { t } = useTranslation()
@@ -28,13 +24,6 @@ export function SettingsPage() {
   const [appDomain, setAppDomain] = useState("")
   const [appTLSEnabled, setAppTLSEnabled] = useState(false)
   const [appBackendURL, setAppBackendURL] = useState("http://app:8080")
-
-  // Base domains state
-  const { data: baseDomains = [] } = useGetBaseDomains()
-  const createBaseDomainMutation = useCreateBaseDomain()
-  const deleteBaseDomainMutation = useDeleteBaseDomain()
-  const [newBaseDomain, setNewBaseDomain] = useState("")
-  const [newBaseDomainWildcard, setNewBaseDomainWildcard] = useState(true)
 
   useEffect(() => {
     if (settings) {
@@ -60,31 +49,8 @@ export function SettingsPage() {
       {
         onSuccess: () => toast.success(t("settings.saved")),
         onError: () => toast.error(t("settings.saveFailed")),
-      },
+      }
     )
-  }
-
-  const handleAddBaseDomain = () => {
-    const domain = newBaseDomain.trim()
-    if (!domain) return
-    createBaseDomainMutation.mutate(
-      { domain, wildcard_enabled: newBaseDomainWildcard },
-      {
-        onSuccess: () => {
-          setNewBaseDomain("")
-          setNewBaseDomainWildcard(true)
-          toast.success(t("settings.baseDomains.added"))
-        },
-        onError: () => toast.error(t("settings.baseDomains.addFailed")),
-      },
-    )
-  }
-
-  const handleDeleteBaseDomain = (id: string) => {
-    deleteBaseDomainMutation.mutate(id, {
-      onSuccess: () => toast.success(t("settings.baseDomains.deleted")),
-      onError: () => toast.error(t("settings.baseDomains.deleteFailed")),
-    })
   }
 
   return (
@@ -96,8 +62,7 @@ export function SettingsPage() {
       />
 
       <SectionCard>
-        <div className="flex flex-col gap-6 max-w-lg">
-          {/* Public IP */}
+        <div className="max-w-lg space-y-6">
           <div className="flex flex-col gap-1.5">
             <Label>{t("settings.publicIp.label")}</Label>
             <Input
@@ -111,7 +76,6 @@ export function SettingsPage() {
             </p>
           </div>
 
-          {/* Traefik network */}
           <div className="flex flex-col gap-1.5">
             <Label>{t("settings.traefikNetwork.label")}</Label>
             <Input
@@ -125,7 +89,6 @@ export function SettingsPage() {
             </p>
           </div>
 
-          {/* Cert resolver */}
           <div className="flex flex-col gap-1.5">
             <Label>{t("settings.certResolver.label")}</Label>
             <Input
@@ -141,7 +104,6 @@ export function SettingsPage() {
 
           <hr className="border-border" />
 
-          {/* App Domain */}
           <div className="flex flex-col gap-1.5">
             <Label>{t("settings.appDomain.label")}</Label>
             <Input
@@ -155,7 +117,6 @@ export function SettingsPage() {
             </p>
           </div>
 
-          {/* App HTTPS */}
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div className="flex flex-col gap-0.5">
               <Label>{t("settings.appTLS.label")}</Label>
@@ -170,7 +131,6 @@ export function SettingsPage() {
             />
           </div>
 
-          {/* App Backend URL */}
           <div className="flex flex-col gap-1.5">
             <Label>{t("settings.appBackendURL.label")}</Label>
             <Input
@@ -189,78 +149,44 @@ export function SettingsPage() {
             onClick={handleSave}
             disabled={isLoading || updateMutation.isPending}
           >
-            {updateMutation.isPending
-              ? t("settings.saving")
-              : t("settings.save")}
+            {updateMutation.isPending ? t("settings.saving") : t("settings.save")}
           </Button>
         </div>
       </SectionCard>
 
-      {/* Base Domains */}
       <SectionCard>
-        <div className="flex flex-col gap-4 max-w-lg">
-          <div className="flex flex-col gap-0.5">
-            <h3 className="text-sm font-semibold">{t("settings.baseDomains.title")}</h3>
-            <p className="text-xs text-muted-foreground">{t("settings.baseDomains.description")}</p>
-          </div>
-
-          {baseDomains.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("settings.baseDomains.empty")}</p>
-          ) : (
-            <ul className="flex flex-col divide-y rounded-lg border">
-              {baseDomains.map((bd) => (
-                <li key={bd.id} className="flex items-center justify-between px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm">{bd.domain}</span>
-                    {bd.wildcard_enabled && (
-                      <Badge variant="secondary" className="text-xs">
-                        {t("settings.baseDomains.wildcardLabel")}
-                      </Badge>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive hover:text-destructive"
-                    disabled={deleteBaseDomainMutation.isPending}
-                    onClick={() => handleDeleteBaseDomain(bd.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Add form */}
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder={t("settings.baseDomains.addPlaceholder")}
-              value={newBaseDomain}
-              onChange={(e) => setNewBaseDomain(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddBaseDomain()}
-              disabled={createBaseDomainMutation.isPending}
-              className="max-w-xs"
-            />
-            <div className="flex items-center gap-1.5">
-              <Switch
-                id="new-bd-wildcard"
-                checked={newBaseDomainWildcard}
-                onCheckedChange={setNewBaseDomainWildcard}
-                disabled={createBaseDomainMutation.isPending}
-              />
-              <Label htmlFor="new-bd-wildcard" className="text-sm cursor-pointer">
-                {t("settings.baseDomains.wildcardLabel")}
-              </Label>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-2xl space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">{t("settings.domainsCard.platformBadge")}</Badge>
+              <Badge variant={appTLSEnabled ? "default" : "secondary"}>
+                {appTLSEnabled ? "HTTPS" : "HTTP"}
+              </Badge>
             </div>
-            <Button
-              size="sm"
-              onClick={handleAddBaseDomain}
-              disabled={!newBaseDomain.trim() || createBaseDomainMutation.isPending}
-            >
-              Add
-            </Button>
+            <div>
+              <h3 className="text-base font-semibold">{t("settings.domainsCard.title")}</h3>
+              <p className="text-sm text-muted-foreground">
+                {t("settings.domainsCard.description")}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-muted/30 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                {t("settings.domainsCard.currentAppURL")}
+              </p>
+              <p className="mt-2 break-all font-mono text-sm text-foreground">
+                {appDomain
+                  ? `${appTLSEnabled ? "https" : "http"}://${appDomain}`
+                  : t("settings.domainsCard.notConfigured")}
+              </p>
+            </div>
           </div>
+
+          <Button asChild variant="outline" className="shrink-0">
+            <Link to="/domains">
+              <GlobeIcon className="mr-2 h-4 w-4" />
+              {t("settings.domainsCard.manage")}
+            </Link>
+          </Button>
         </div>
       </SectionCard>
     </div>

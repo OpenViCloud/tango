@@ -71,32 +71,34 @@ type traefikRedirectScheme struct {
 
 // Write generates a Traefik config file for the given resource.
 // Each domain gets its own router. Auto domains are always HTTP only.
-// Verified domains use per-domain TLSEnabled to determine whether to add TLS +
-// certResolver (HTTPS with HTTP→HTTPS redirect) or plain HTTP.
+// Verified domains use per-domain TLSEnabled and TargetPort to determine
+// whether to add TLS + certResolver (HTTPS with HTTP→HTTPS redirect) or plain HTTP.
 // containerName is the Docker container name resolved via Docker DNS on tango_net.
-func (p *FileProvider) Write(resourceID string, domains []*domain.ResourceDomain, containerName string, port int, certResolver string) error {
+func (p *FileProvider) Write(resourceID string, domains []*domain.ResourceDomain, containerName string, certResolver string) error {
 	// Use first 12 chars of stripped resource ID as stable name base
 	routerBase := "r-" + strings.ReplaceAll(resourceID, "-", "")[:12]
-	svcName := routerBase + "-svc"
-	serverURL := fmt.Sprintf("http://%s:%d", containerName, port)
 
 	cfg := traefikDynamic{
 		HTTP: traefikHTTP{
 			Routers: map[string]traefikRouter{},
-			Services: map[string]traefikService{
-				svcName: {
-					LoadBalancer: traefikLB{
-						Servers: []traefikServer{{URL: serverURL}},
-					},
-				},
-			},
+			Services: map[string]traefikService{},
 		},
 	}
 
 	hasRoutes := false
 	for i, d := range domains {
 		routerName := fmt.Sprintf("%s-%d", routerBase, i)
+		svcName := fmt.Sprintf("%s-%d-svc", routerBase, i)
 		hostRule := fmt.Sprintf("Host(`%s`)", d.Host)
+		targetPort := d.TargetPort
+		if targetPort <= 0 {
+			targetPort = 80
+		}
+		cfg.HTTP.Services[svcName] = traefikService{
+			LoadBalancer: traefikLB{
+				Servers: []traefikServer{{URL: fmt.Sprintf("http://%s:%d", containerName, targetPort)}},
+			},
+		}
 
 		if d.Type == domain.ResourceDomainTypeAuto {
 			// Auto domains: HTTP only (localhost / internal names cannot get TLS certs)

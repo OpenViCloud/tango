@@ -24,25 +24,27 @@ func (h *SettingsHandler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 type settingsResponse struct {
-	PublicIP        string `json:"public_ip"`
-	BaseDomain      string `json:"base_domain"`
-	WildcardEnabled bool   `json:"wildcard_enabled"`
-	TraefikNetwork  string `json:"traefik_network"`
-	CertResolver    string `json:"cert_resolver"`
-	AppDomain       string `json:"app_domain"`
-	AppTLSEnabled   bool   `json:"app_tls_enabled"`
-	AppBackendURL   string `json:"app_backend_url"`
+	PublicIP          string `json:"public_ip"`
+	BaseDomain        string `json:"base_domain"`
+	WildcardEnabled   bool   `json:"wildcard_enabled"`
+	TraefikNetwork    string `json:"traefik_network"`
+	CertResolver      string `json:"cert_resolver"`
+	AppDomain         string `json:"app_domain"`
+	AppTLSEnabled     bool   `json:"app_tls_enabled"`
+	AppBackendURL     string `json:"app_backend_url"`
+	ResourceMountRoot string `json:"resource_mount_root"`
 }
 
 type updateSettingsRequest struct {
-	PublicIP        *string `json:"public_ip"`
-	BaseDomain      *string `json:"base_domain"`
-	WildcardEnabled *bool   `json:"wildcard_enabled"`
-	TraefikNetwork  *string `json:"traefik_network"`
-	CertResolver    *string `json:"cert_resolver"`
-	AppDomain       *string `json:"app_domain"`
-	AppTLSEnabled   *bool   `json:"app_tls_enabled"`
-	AppBackendURL   *string `json:"app_backend_url"`
+	PublicIP          *string `json:"public_ip"`
+	BaseDomain        *string `json:"base_domain"`
+	WildcardEnabled   *bool   `json:"wildcard_enabled"`
+	TraefikNetwork    *string `json:"traefik_network"`
+	CertResolver      *string `json:"cert_resolver"`
+	AppDomain         *string `json:"app_domain"`
+	AppTLSEnabled     *bool   `json:"app_tls_enabled"`
+	AppBackendURL     *string `json:"app_backend_url"`
+	ResourceMountRoot *string `json:"resource_mount_root"`
 }
 
 func (h *SettingsHandler) GetSettings(c *gin.Context) {
@@ -77,6 +79,8 @@ func (h *SettingsHandler) GetSettings(c *gin.Context) {
 			if cfg.Value != "" {
 				resp.AppBackendURL = cfg.Value
 			}
+		case domain.PlatformConfigResourceMountRoot:
+			resp.ResourceMountRoot = cfg.Value
 		}
 	}
 
@@ -144,6 +148,12 @@ func (h *SettingsHandler) UpdateSettings(c *gin.Context) {
 	}
 	if req.AppBackendURL != nil {
 		if err := h.configRepo.Set(ctx, domain.PlatformConfigAppBackendURL, *req.AppBackendURL); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	if req.ResourceMountRoot != nil {
+		if err := h.configRepo.Set(ctx, domain.PlatformConfigResourceMountRoot, *req.ResourceMountRoot); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

@@ -36,6 +36,7 @@ func (r *resourceDomainRepository) Create(ctx context.Context, d domain.Resource
 		ID:         id,
 		ResourceID: d.ResourceID,
 		Host:       d.Host,
+		TargetPort: d.TargetPort,
 		TLSEnabled: d.TLSEnabled,
 		Type:       d.Type,
 		Verified:   d.Verified,
@@ -90,6 +91,7 @@ func (r *resourceDomainRepository) GetByHost(ctx context.Context, host string) (
 func (r *resourceDomainRepository) Update(ctx context.Context, d domain.ResourceDomain) (*domain.ResourceDomain, error) {
 	updates := map[string]any{
 		"host":        d.Host,
+		"target_port": d.TargetPort,
 		"tls_enabled": d.TLSEnabled,
 		"verified":    d.Verified,
 		"verified_at": d.VerifiedAt,
@@ -131,6 +133,7 @@ func (r *resourceDomainRepository) toEntity(rec *models.ResourceDomainRecord) *d
 		ID:         rec.ID,
 		ResourceID: rec.ResourceID,
 		Host:       rec.Host,
+		TargetPort: rec.TargetPort,
 		TLSEnabled: rec.TLSEnabled,
 		Type:       rec.Type,
 		Verified:   rec.Verified,

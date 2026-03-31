@@ -125,6 +125,7 @@ export const updateProjectSchema = z.object({
 
 export const updateResourceSchema = z.object({
   name: z.string().min(1, "validation.required"),
+  config: z.record(z.string(), z.unknown()).optional(),
   ports: z
     .array(
       z.object({
@@ -169,9 +170,29 @@ export type ResourceDomainModel = {
   id: string
   resource_id: string
   host: string
+  target_port: number
   type: "auto" | "custom"
   verified: boolean
   verified_at?: string
   created_at: string
   tls_enabled: boolean
 }
+
+export const resourceConnectionPortSchema = z.object({
+  id: z.string(),
+  host_port: z.number(),
+  internal_port: z.number(),
+  label: z.string(),
+  internal_endpoint: z.string(),
+  external_endpoint: z.string().optional(),
+})
+
+export const resourceConnectionInfoSchema = z.object({
+  resource_id: z.string(),
+  internal_host: z.string(),
+  external_host: z.string().optional(),
+  ports: z.array(resourceConnectionPortSchema),
+})
+
+export type ResourceConnectionPortModel = z.infer<typeof resourceConnectionPortSchema>
+export type ResourceConnectionInfoModel = z.infer<typeof resourceConnectionInfoSchema>

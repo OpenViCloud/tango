@@ -205,6 +205,7 @@ export TRAEFIK_NETWORK=bridge
 export APP_DOMAIN=app.example.com
 export APP_TLS_ENABLED=true
 export APP_BACKEND_URL=http://app:8080
+export RESOURCE_MOUNT_ROOT=/absolute/host/path/to/tango-cloud/data/resource-volumes
 ```
 
 Optional channel integrations:
@@ -222,6 +223,31 @@ Notes:
 - `LLM_CONFIG_ENCRYPTION_KEY` must be exactly 32 characters long.
 - `BUILDKIT_HOST` is required only if using git-based resource builds.
 - `PUBLIC_IP`, base domains, and wildcard DNS are required only if using custom/base-domain routing.
+- `RESOURCE_MOUNT_ROOT` must be an absolute host path visible to the Docker daemon. Tango resolves resource mounts under this root and rejects absolute source paths from resource config.
+
+### Resource volume mounts
+
+Resource volume mounts are scoped to one shared host root instead of arbitrary host paths.
+
+- Default host root: `/tmp/tango-resource-volumes`
+- Default app-visible path inside the `app` container: `/platform/resource-volumes`
+- `install.sh` overrides the host root to `<repo>/data/resource-volumes` and creates that directory automatically
+- Resource volume entries must use `source:target[:mode]`, where `source` is a relative subpath under `RESOURCE_MOUNT_ROOT`
+
+Examples:
+
+```text
+databasus-data:/databasus-data
+project-a/uploads:/app/uploads
+shared/cache:/data:ro
+```
+
+Rules:
+
+- Source must be relative and cannot escape the configured root with `..`
+- Target must be an absolute container path
+- Only `ro` and `rw` modes are accepted
+- Tango creates the source directory automatically before starting the resource
 
 ### 4. Run BE + FE in parallel
 
@@ -245,6 +271,8 @@ docker compose up --build
 # email: demo.admin@example.com
 # password: password123
 ```
+
+`docker-compose.yml` mounts `${RESOURCE_MOUNT_ROOT}` into the `app` container and passes the same host path to the API so new resources can bind subdirectories under that root.
 
 ## API Endpoints
 

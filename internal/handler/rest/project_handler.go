@@ -3,8 +3,10 @@ package rest
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +14,7 @@ import (
 
 	"tango/internal/application/command"
 	"tango/internal/application/query"
+	appservices "tango/internal/application/services"
 	"tango/internal/domain"
 	response "tango/internal/handler/rest/response"
 )
@@ -25,9 +28,9 @@ type ProjectHandler struct {
 	deleteEnvironment     *command.DeleteEnvironmentHandler
 	forkEnvironment       *command.ForkEnvironmentHandler
 	createResource        *command.CreateResourceHandler
-	createResourceFromGit   *command.CreateResourceFromGitHandler
-	startBuildForResource   *command.StartBuildForResourceHandler
-	updateResource          *command.UpdateResourceHandler
+	createResourceFromGit *command.CreateResourceFromGitHandler
+	startBuildForResource *command.StartBuildForResourceHandler
+	updateResource        *command.UpdateResourceHandler
 	startResourceRun      *command.CreateStartResourceRunHandler
 	stopResource          *command.StopResourceHandler
 	deleteResource        *command.DeleteResourceHandler
@@ -36,10 +39,11 @@ type ProjectHandler struct {
 	getProject            *query.GetProjectHandler
 	listEnvResources      *query.ListEnvironmentResourcesHandler
 	getResource           *query.GetResourceHandler
-	dockerRepo         domain.DockerRepository
-	domainRepo         domain.ResourceDomainRepository
-	platformConfigRepo domain.PlatformConfigRepository
-	fileProvider       domain.TraefikFileProvider
+	dockerRepo            domain.DockerRepository
+	domainRepo            domain.ResourceDomainRepository
+	platformConfigRepo    domain.PlatformConfigRepository
+	fileProvider          domain.TraefikFileProvider
+	cache                 appservices.Cache
 }
 
 func NewProjectHandler(
@@ -60,11 +64,12 @@ func NewProjectHandler(
 	listProjects *query.ListProjectsHandler,
 	getProject *query.GetProjectHandler,
 	listEnvResources *query.ListEnvironmentResourcesHandler,
-	getResource        *query.GetResourceHandler,
-	dockerRepo         domain.DockerRepository,
-	domainRepo         domain.ResourceDomainRepository,
+	getResource *query.GetResourceHandler,
+	dockerRepo domain.DockerRepository,
+	domainRepo domain.ResourceDomainRepository,
 	platformConfigRepo domain.PlatformConfigRepository,
-	fileProvider       domain.TraefikFileProvider,
+	fileProvider domain.TraefikFileProvider,
+	cache appservices.Cache,
 ) *ProjectHandler {
 	return &ProjectHandler{
 		createProject:         createProject,
@@ -74,9 +79,9 @@ func NewProjectHandler(
 		deleteEnvironment:     deleteEnvironment,
 		forkEnvironment:       forkEnvironment,
 		createResource:        createResource,
-		createResourceFromGit:   createResourceFromGit,
-		startBuildForResource:   startBuildForResource,
-		updateResource:          updateResource,
+		createResourceFromGit: createResourceFromGit,
+		startBuildForResource: startBuildForResource,
+		updateResource:        updateResource,
 		startResourceRun:      startResourceRun,
 		stopResource:          stopResource,
 		deleteResource:        deleteResource,
@@ -89,6 +94,7 @@ func NewProjectHandler(
 		domainRepo:            domainRepo,
 		platformConfigRepo:    platformConfigRepo,
 		fileProvider:          fileProvider,
+		cache:                 cache,
 	}
 }
 
@@ -106,6 +112,7 @@ func (h *ProjectHandler) Register(rg *gin.RouterGroup) {
 	rg.POST("/environments/:envId/resources/from-git", h.CreateResourceFromGit)
 	rg.POST("/resources/:resourceId/build", h.StartBuildForResource)
 	rg.GET("/resources/:resourceId", h.GetResource)
+	rg.GET("/resources/:resourceId/connection-info", h.GetResourceConnectionInfo)
 	rg.PUT("/resources/:resourceId", h.UpdateResource)
 	rg.DELETE("/resources/:resourceId", h.DeleteResource)
 	rg.POST("/resources/:resourceId/start", h.StartResource)
@@ -154,13 +161,13 @@ type createResourceEnvVarRequest struct {
 }
 
 type createResourceRequest struct {
-	Name       string                        `json:"name"`
-	Type       string                        `json:"type"`
-	Image      string                        `json:"image"`
-	Tag        string                        `json:"tag"`
-	Config     map[string]any                `json:"config"`
-	Ports      []createResourcePortRequest   `json:"ports"`
-	EnvVars    []createResourceEnvVarRequest `json:"env_vars"`
+	Name    string                        `json:"name"`
+	Type    string                        `json:"type"`
+	Image   string                        `json:"image"`
+	Tag     string                        `json:"tag"`
+	Config  map[string]any                `json:"config"`
+	Ports   []createResourcePortRequest   `json:"ports"`
+	EnvVars []createResourceEnvVarRequest `json:"env_vars"`
 }
 
 type createResourceFromGitRequest struct {
@@ -176,8 +183,9 @@ type createResourceFromGitRequest struct {
 }
 
 type updateResourceRequest struct {
-	Name  string                      `json:"name"`
-	Ports []createResourcePortRequest `json:"ports"`
+	Name   string                      `json:"name"`
+	Ports  []createResourcePortRequest `json:"ports"`
+	Config map[string]any              `json:"config"`
 }
 
 type setEnvVarsRequest struct {
@@ -236,6 +244,22 @@ type resourceLogsResponse struct {
 	ContainerID string   `json:"container_id"`
 	Status      string   `json:"status"`
 	Lines       []string `json:"lines"`
+}
+
+type resourceConnectionPortResponse struct {
+	ID               string `json:"id"`
+	HostPort         int    `json:"host_port"`
+	InternalPort     int    `json:"internal_port"`
+	Label            string `json:"label"`
+	InternalEndpoint string `json:"internal_endpoint"`
+	ExternalEndpoint string `json:"external_endpoint,omitempty"`
+}
+
+type resourceConnectionInfoResponse struct {
+	ResourceID   string                           `json:"resource_id"`
+	InternalHost string                           `json:"internal_host"`
+	ExternalHost string                           `json:"external_host,omitempty"`
+	Ports        []resourceConnectionPortResponse `json:"ports"`
 }
 
 type envResponse struct {
@@ -488,6 +512,15 @@ func (h *ProjectHandler) GetResource(c *gin.Context) {
 	response.OK(c, toResourceResponse(resource))
 }
 
+func (h *ProjectHandler) GetResourceConnectionInfo(c *gin.Context) {
+	info, err := h.getResourceConnectionInfo(c.Request.Context(), c.Param("resourceId"))
+	if err != nil {
+		writeProjectError(c, err)
+		return
+	}
+	response.OK(c, info)
+}
+
 func (h *ProjectHandler) UpdateResource(c *gin.Context) {
 	var req updateResourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -504,22 +537,26 @@ func (h *ProjectHandler) UpdateResource(c *gin.Context) {
 		})
 	}
 	resource, err := h.updateResource.Handle(c.Request.Context(), command.UpdateResourceCommand{
-		ID:    c.Param("resourceId"),
-		Name:  req.Name,
-		Ports: ports,
+		ID:     c.Param("resourceId"),
+		Name:   req.Name,
+		Ports:  ports,
+		Config: req.Config,
 	})
 	if err != nil {
 		writeProjectError(c, err)
 		return
 	}
+	h.invalidateResourceConnectionCache(c.Request.Context(), resource.ID)
 	response.OK(c, toResourceResponse(resource))
 }
 
 func (h *ProjectHandler) DeleteResource(c *gin.Context) {
-	if err := h.deleteResource.Handle(c.Request.Context(), command.DeleteResourceCommand{ID: c.Param("resourceId")}); err != nil {
+	resourceID := c.Param("resourceId")
+	if err := h.deleteResource.Handle(c.Request.Context(), command.DeleteResourceCommand{ID: resourceID}); err != nil {
 		writeProjectError(c, err)
 		return
 	}
+	h.invalidateResourceConnectionCache(c.Request.Context(), resourceID)
 	response.NoContent(c)
 }
 
@@ -544,6 +581,7 @@ func (h *ProjectHandler) StartResource(c *gin.Context) {
 		writeProjectError(c, err)
 		return
 	}
+	h.invalidateResourceConnectionCache(c.Request.Context(), c.Param("resourceId"))
 	c.JSON(202, response.SuccessEnvelope[resourceRunResponse]{
 		Success: true,
 		TraceID: response.TraceID(c),
@@ -552,10 +590,12 @@ func (h *ProjectHandler) StartResource(c *gin.Context) {
 }
 
 func (h *ProjectHandler) StopResource(c *gin.Context) {
-	if err := h.stopResource.Handle(c.Request.Context(), command.StopResourceCommand{ID: c.Param("resourceId")}); err != nil {
+	resourceID := c.Param("resourceId")
+	if err := h.stopResource.Handle(c.Request.Context(), command.StopResourceCommand{ID: resourceID}); err != nil {
 		writeProjectError(c, err)
 		return
 	}
+	h.invalidateResourceConnectionCache(c.Request.Context(), resourceID)
 	response.NoContent(c)
 }
 
@@ -750,12 +790,69 @@ func writeProjectError(c *gin.Context, err error) {
 	}
 }
 
+func (h *ProjectHandler) getResourceConnectionInfo(ctx context.Context, resourceID string) (resourceConnectionInfoResponse, error) {
+	return appservices.GetOrCreate(ctx, h.cache, resourceConnectionCacheKey(resourceID), 2*time.Minute, func(ctx context.Context) (resourceConnectionInfoResponse, error) {
+		resource, err := h.getResource.Handle(ctx, query.GetResourceQuery{ID: resourceID})
+		if err != nil {
+			return resourceConnectionInfoResponse{}, err
+		}
+
+		internalHost := strings.TrimSpace(resource.Name)
+		if h.dockerRepo != nil && strings.TrimSpace(resource.ContainerID) != "" {
+			if info, err := h.dockerRepo.InspectContainer(ctx, resource.ContainerID); err == nil && strings.TrimSpace(info.Name) != "" {
+				internalHost = info.Name
+			}
+		}
+
+		externalHost := ""
+		if h.platformConfigRepo != nil {
+			if cfg, err := h.platformConfigRepo.Get(ctx, domain.PlatformConfigPublicIP); err == nil {
+				externalHost = strings.TrimSpace(cfg.Value)
+			}
+		}
+
+		ports := make([]resourceConnectionPortResponse, 0, len(resource.Ports))
+		for _, p := range resource.Ports {
+			portInfo := resourceConnectionPortResponse{
+				ID:               p.ID,
+				HostPort:         p.HostPort,
+				InternalPort:     p.InternalPort,
+				Label:            p.Label,
+				InternalEndpoint: fmt.Sprintf("%s:%d", internalHost, p.InternalPort),
+			}
+			if externalHost != "" && p.HostPort > 0 {
+				portInfo.ExternalEndpoint = fmt.Sprintf("%s:%d", externalHost, p.HostPort)
+			}
+			ports = append(ports, portInfo)
+		}
+
+		return resourceConnectionInfoResponse{
+			ResourceID:   resource.ID,
+			InternalHost: internalHost,
+			ExternalHost: externalHost,
+			Ports:        ports,
+		}, nil
+	})
+}
+
+func (h *ProjectHandler) invalidateResourceConnectionCache(ctx context.Context, resourceID string) {
+	if h.cache == nil || strings.TrimSpace(resourceID) == "" {
+		return
+	}
+	_ = h.cache.Delete(ctx, resourceConnectionCacheKey(resourceID))
+}
+
+func resourceConnectionCacheKey(resourceID string) string {
+	return "resource_connection_info:" + resourceID
+}
+
 // ── Resource Domain handlers ──────────────────────────────────────────────────
 
 type resourceDomainResponse struct {
 	ID         string     `json:"id"`
 	ResourceID string     `json:"resource_id"`
 	Host       string     `json:"host"`
+	TargetPort int        `json:"target_port"`
 	Type       string     `json:"type"`
 	TLSEnabled bool       `json:"tls_enabled"`
 	Verified   bool       `json:"verified"`
@@ -768,6 +865,7 @@ func toResourceDomainResponse(d *domain.ResourceDomain) resourceDomainResponse {
 		ID:         d.ID,
 		ResourceID: d.ResourceID,
 		Host:       d.Host,
+		TargetPort: d.TargetPort,
 		Type:       d.Type,
 		TLSEnabled: d.TLSEnabled,
 		Verified:   d.Verified,
@@ -794,6 +892,7 @@ func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
 	resourceID := c.Param("resourceId")
 	var req struct {
 		Host       string `json:"host" binding:"required"`
+		TargetPort int    `json:"target_port" binding:"required"`
 		TLSEnabled bool   `json:"tls_enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -805,6 +904,7 @@ func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
 		ID:         uuid.NewString(),
 		ResourceID: resourceID,
 		Host:       req.Host,
+		TargetPort: req.TargetPort,
 		TLSEnabled: req.TLSEnabled,
 		Type:       domain.ResourceDomainTypeCustom,
 		Verified:   false,
@@ -826,6 +926,7 @@ func (h *ProjectHandler) UpdateResourceDomain(c *gin.Context) {
 
 	var req struct {
 		Host       string `json:"host" binding:"required"`
+		TargetPort int    `json:"target_port" binding:"required"`
 		TLSEnabled bool   `json:"tls_enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -842,6 +943,7 @@ func (h *ProjectHandler) UpdateResourceDomain(c *gin.Context) {
 	hostChanged := current.Host != req.Host
 	updated := *current
 	updated.Host = req.Host
+	updated.TargetPort = req.TargetPort
 	updated.TLSEnabled = req.TLSEnabled
 	if hostChanged {
 		updated.Verified = false
@@ -954,13 +1056,5 @@ func (h *ProjectHandler) refreshTraefikConfig(ctx context.Context, resourceID st
 		}
 	}
 
-	internalPort := 80
-	for _, p := range resource.Ports {
-		if p.Proto == "tcp" || p.Proto == "" {
-			internalPort = p.InternalPort
-			break
-		}
-	}
-
-	_ = h.fileProvider.Write(resourceID, domains, info.Name, internalPort, certResolver)
+	_ = h.fileProvider.Write(resourceID, domains, info.Name, certResolver)
 }

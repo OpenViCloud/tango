@@ -147,32 +147,7 @@ func main() {
 	publisher := inbound.NewService(logger)
 	discordRuntime := infraservices.NewDiscordRuntimeService(ctx, publisher, logger)
 	slackRuntime := infraservices.NewSlackRuntimeService(ctx, publisher, logger)
-	telegramRuntime := infraservices.NewTelegramRuntimeService(ctx, publisher, logger)
 	whatsAppRuntime := infraservices.NewWhatsAppRuntimeService(ctx, publisher, logger)
-	channelRuntimeService := infraservices.NewChannelRuntimeService(channelRepo, cipherService, discordRuntime, slackRuntime, telegramRuntime, whatsAppRuntime)
-	defer func() {
-		if err := discordRuntime.Stop(context.Background()); err != nil {
-			logger.Warn("stop discord channel failed", "err", err)
-		}
-	}()
-	defer func() {
-		if err := slackRuntime.Stop(context.Background()); err != nil {
-			logger.Warn("stop slack channel failed", "err", err)
-		}
-	}()
-	defer func() {
-		if err := telegramRuntime.Stop(context.Background()); err != nil {
-			logger.Warn("stop telegram channel failed", "err", err)
-		}
-	}()
-	defer func() {
-		if err := whatsAppRuntime.Stop(context.Background()); err != nil {
-			logger.Warn("stop whatsapp channel failed", "err", err)
-		}
-	}()
-	if err := channelRuntimeService.StartActiveChannels(ctx); err != nil {
-		fatal(logger, "bootstrap channels from db failed", err)
-	}
 
 	// Docker repository (optional — app starts fine if Docker is unavailable)
 	var dockerHandler *rest.DockerHandler
@@ -236,7 +211,6 @@ func main() {
 		listUsersHandler,
 		listUserRolesHandler,
 	)
-	channelHandler := rest.NewChannelHandler(channelService, channelRuntimeService)
 	discordRuntimeHandler := rest.NewDiscordRuntimeHandler(discordRuntime)
 	roleHandler := rest.NewRoleHandler(roleService)
 	buildHandler := rest.NewBuildHandler(createBuildJobHandler, createBuildJobFromUploadHandler, cancelBuildJobHandler, getBuildJobHandler, listBuildJobsHandler)
@@ -252,6 +226,7 @@ func main() {
 		listGitHubRepositoriesHandler,
 		listGitHubUserRepositoriesHandler,
 		listGitHubBranchesHandler,
+		platformConfigRepo,
 		strings.TrimRight(cfg.FrontendBaseURL, "/")+"/projects",
 		strings.TrimRight(cfg.BaseURL, "/"),
 	)
@@ -265,7 +240,7 @@ func main() {
 	createResourceHandler := command.NewCreateResourceHandler(resourceRepo, dockerRepo, resourceDomainRepo, platformConfigRepo)
 	createResourceFromGitHandler := command.NewCreateResourceFromGitHandler(resourceRepo, buildJobRepo, buildSvc, resolveSourceConnectionTokenHandler)
 	startBuildForResourceHandler := command.NewStartBuildForResourceHandler(resourceRepo, buildJobRepo, buildSvc, resolveSourceConnectionTokenHandler)
-	updateResourceHandler := command.NewUpdateResourceHandler(resourceRepo)
+	updateResourceHandler := command.NewUpdateResourceHandler(resourceRepo, platformConfigRepo)
 
 	// Traefik file provider — optional, only active when TRAEFIK_CONFIG_DIR is set
 	var traefikFileProvider domain.TraefikFileProvider
@@ -283,6 +258,39 @@ func main() {
 	getProjectHandler := query.NewGetProjectHandler(projectRepo, environmentRepo, resourceRepo)
 	listEnvResourcesHandler := query.NewListEnvironmentResourcesHandler(resourceRepo)
 	getResourceHandler := query.NewGetResourceHandler(resourceRepo)
+	telegramProjectNavigator := infraservices.NewTelegramProjectNavigator(
+		listProjectsHandler,
+		listEnvResourcesHandler,
+		getResourceHandler,
+		createStartResourceRunHandler,
+		stopResourceHandler,
+	)
+	telegramRuntime := infraservices.NewTelegramRuntimeService(ctx, publisher, logger, telegramProjectNavigator)
+	channelRuntimeService := infraservices.NewChannelRuntimeService(channelRepo, cipherService, discordRuntime, slackRuntime, telegramRuntime, whatsAppRuntime)
+	defer func() {
+		if err := discordRuntime.Stop(context.Background()); err != nil {
+			logger.Warn("stop discord channel failed", "err", err)
+		}
+	}()
+	defer func() {
+		if err := slackRuntime.Stop(context.Background()); err != nil {
+			logger.Warn("stop slack channel failed", "err", err)
+		}
+	}()
+	defer func() {
+		if err := telegramRuntime.Stop(context.Background()); err != nil {
+			logger.Warn("stop telegram channel failed", "err", err)
+		}
+	}()
+	defer func() {
+		if err := whatsAppRuntime.Stop(context.Background()); err != nil {
+			logger.Warn("stop whatsapp channel failed", "err", err)
+		}
+	}()
+	if err := channelRuntimeService.StartActiveChannels(ctx); err != nil {
+		fatal(logger, "bootstrap channels from db failed", err)
+	}
+	channelHandler := rest.NewChannelHandler(channelService, channelRuntimeService)
 	getResourceRunHandler := query.NewGetResourceRunHandler(resourceRunRepo)
 	resourceRunWSHandler := rest.NewResourceRunWSHandler(resourceRunSvc, getResourceRunHandler)
 	if dockerRepo != nil {
@@ -319,6 +327,7 @@ func main() {
 		resourceDomainRepo,
 		platformConfigRepo,
 		traefikFileProvider,
+		appCache,
 	)
 
 	docs.SwaggerInfo.BasePath = "/api"
@@ -402,10 +411,6 @@ func main() {
 }
 
 func bootstrapPlatformConfig(ctx context.Context, cfg *config.Config, repo domain.PlatformConfigRepository, logger *slog.Logger) {
-	if _, err := repo.Get(ctx, domain.PlatformConfigPublicIP); err == nil {
-		return // already seeded, DB is source of truth
-	}
-
 	ip := cfg.PublicIP
 	if ip == "" {
 		var detectErr error
@@ -416,35 +421,29 @@ func bootstrapPlatformConfig(ctx context.Context, cfg *config.Config, repo domai
 		}
 	}
 
-	if err := repo.Set(ctx, domain.PlatformConfigPublicIP, ip); err != nil {
-		logger.Warn("seed public_ip failed", "err", err)
-	}
-	if err := repo.Set(ctx, domain.PlatformConfigBaseDomain, "localhost"); err != nil {
-		logger.Warn("seed base_domain failed", "err", err)
-	}
-	if err := repo.Set(ctx, domain.PlatformConfigWildcardEnabled, "true"); err != nil {
-		logger.Warn("seed wildcard_enabled failed", "err", err)
-	}
-	if err := repo.Set(ctx, domain.PlatformConfigTraefikNetwork, cfg.TraefikDockerNetwork); err != nil {
-		logger.Warn("seed traefik_network failed", "err", err)
-	}
-	if err := repo.Set(ctx, domain.PlatformConfigCertResolver, "letsencrypt"); err != nil {
-		logger.Warn("seed cert_resolver failed", "err", err)
-	}
-	if err := repo.Set(ctx, domain.PlatformConfigAppDomain, cfg.AppDomain); err != nil {
-		logger.Warn("seed app_domain failed", "err", err)
-	}
+	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigPublicIP, ip)
+	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigBaseDomain, "localhost")
+	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigWildcardEnabled, "true")
+	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigTraefikNetwork, cfg.TraefikDockerNetwork)
+	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigCertResolver, "letsencrypt")
+	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigAppDomain, cfg.AppDomain)
 	appTLS := "false"
 	if cfg.AppTLSEnabled {
 		appTLS = "true"
 	}
-	if err := repo.Set(ctx, domain.PlatformConfigAppTLSEnabled, appTLS); err != nil {
-		logger.Warn("seed app_tls_enabled failed", "err", err)
-	}
-	if err := repo.Set(ctx, domain.PlatformConfigAppBackendURL, cfg.AppBackendURL); err != nil {
-		logger.Warn("seed app_backend_url failed", "err", err)
-	}
+	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigAppTLSEnabled, appTLS)
+	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigAppBackendURL, cfg.AppBackendURL)
+	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigResourceMountRoot, cfg.ResourceMountRoot)
 	logger.Info("platform config seeded", "public_ip", ip, "app_domain", cfg.AppDomain)
+}
+
+func seedPlatformConfigIfMissing(ctx context.Context, repo domain.PlatformConfigRepository, logger *slog.Logger, key, value string) {
+	if _, err := repo.Get(ctx, key); err == nil {
+		return
+	}
+	if err := repo.Set(ctx, key, value); err != nil {
+		logger.Warn("seed platform config failed", "key", key, "err", err)
+	}
 }
 
 func refreshAppTraefikConfig(ctx context.Context, repo domain.PlatformConfigRepository, fp domain.TraefikFileProvider, logger *slog.Logger) {

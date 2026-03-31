@@ -20,6 +20,7 @@ type ResourceDomain struct {
 	ID         string
 	ResourceID string
 	Host       string
+	TargetPort int
 	TLSEnabled bool
 	Type       ResourceDomainType
 	Verified   bool
@@ -44,8 +45,8 @@ type ResourceDomainRepository interface {
 type TraefikFileProvider interface {
 	// Write generates a config file for the resource. containerName is the Docker
 	// container name used as the backend URL (resolved via Docker DNS on tango_net).
-	// TLS is configured per-domain via each ResourceDomain's TLSEnabled field.
-	Write(resourceID string, domains []*ResourceDomain, containerName string, port int, certResolver string) error
+	// TLS and target port are configured per-domain via each ResourceDomain.
+	Write(resourceID string, domains []*ResourceDomain, containerName string, certResolver string) error
 	// Delete removes the config file for the resource.
 	Delete(resourceID string) error
 	// WriteAppConfig generates the Traefik config for the Tango app itself.

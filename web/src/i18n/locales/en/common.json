@@ -684,6 +684,8 @@
     "databaseList": "Databases",
     "sources": "Sources",
     "sourceList": "Sources",
+    "domains": "Domains",
+    "domainList": "Domains",
     "projects": "Projects",
     "projectList": "Projects",
     "settingsGeneral": "General"
@@ -740,9 +742,47 @@
       "deleted": "Base domain removed",
       "deleteFailed": "Failed to remove base domain",
       "conflict": "Domain already exists"
+    },
+    "domainsCard": {
+      "platformBadge": "Platform domains",
+      "title": "Domain Management",
+      "description": "Manage wildcard base domains, DNS onboarding, and shared ingress from a dedicated page.",
+      "currentAppURL": "Current app URL",
+      "notConfigured": "Not configured",
+      "manage": "Manage domains"
     }
   },
   "domains": {
+    "page": {
+      "title": "Domains",
+      "description": "Manage app ingress, wildcard base domains, and the DNS foundation used by resources."
+    },
+    "overview": {
+      "appIngress": "App ingress",
+      "title": "Overview",
+      "description": "This area controls the shared domains that Tango and your deployed resources rely on.",
+      "appURL": "App public URL",
+      "manageSettings": "Open settings"
+    },
+    "baseDomains": {
+      "manualLabel": "Manual",
+      "wildcardHint": "Resources can be attached as subdomains under {{domain}}.",
+      "manualHint": "Wildcard is disabled. Add records manually when routing new subdomains."
+    },
+    "port": {
+      "targetLabel": "Target port",
+      "empty": "Configure a container port on the resource before adding a domain.",
+      "option": "Port {{port}}",
+      "badge": "Port {{port}}"
+    },
+    "add": {
+      "domainLabel": "Base domain",
+      "domainHint": "Use a hostname like example.com. Do not include http:// or https://.",
+      "domainInvalid": "Enter a valid domain like example.com without http:// or https://.",
+      "wildcardLabel": "Wildcard routing",
+      "wildcardHint": "Allow subdomains for new resources.",
+      "action": "Add domain"
+    },
     "subdomainPlaceholder": "myapp",
     "customDomain": "Custom domain...",
     "checking": "Checking...",
@@ -870,7 +910,18 @@
       "portConflict": "Host port conflict — another resource is using this port. Update before running.",
       "portUnset": "Host port not set — update before running.",
       "tlsLabel": "Enable HTTPS (TLS)",
-      "tlsHint": "Generates HTTPS router with HTTP→HTTPS redirect. Requires a domain and Let's Encrypt resolver configured in Traefik."
+      "tlsHint": "Generates HTTPS router with HTTP→HTTPS redirect. Requires a domain and Let's Encrypt resolver configured in Traefik.",
+      "connection": {
+        "title": "Connection Info",
+        "description": "Use these endpoints to connect to the database from inside Tango or from outside the VPS.",
+        "internalHost": "Internal host",
+        "portBadge": "Port {{port}}",
+        "internal": "Internal",
+        "internalHint": "Use this endpoint from other resources running in the same Docker network.",
+        "external": "External",
+        "externalHint": "Use this endpoint from your laptop or any client outside the Tango Docker network.",
+        "notExposed": "Not exposed externally. Add a host port if you need direct access from outside the platform."
+      }
     }
   },
   "databases": {

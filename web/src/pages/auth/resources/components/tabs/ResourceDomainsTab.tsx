@@ -32,6 +32,14 @@ type Props = {
 
 export function ResourceDomainsTab({ resource }: Props) {
   const { t } = useTranslation()
+  const availablePorts = resource.ports
+    .filter((port) => port.internal_port > 0)
+    .map((port) => ({
+      value: String(port.internal_port),
+      label: port.label?.trim()
+        ? `${port.label} (${port.internal_port})`
+        : t("domains.port.option", { port: port.internal_port }),
+    }))
 
   // Base domains for the select combo
   const { data: baseDomains = [] } = useGetBaseDomains()
@@ -49,6 +57,7 @@ export function ResourceDomainsTab({ resource }: Props) {
   const [subdomainPrefix, setSubdomainPrefix] = useState("")
   const [customHost, setCustomHost] = useState("")
   const [tlsEnabled, setTlsEnabled] = useState(true)
+  const [selectedTargetPort, setSelectedTargetPort] = useState("")
 
   // Debounced domain for availability check
   const [debouncedDomain, setDebouncedDomain] = useState("")
@@ -83,11 +92,21 @@ export function ResourceDomainsTab({ resource }: Props) {
     }
   }, [baseDomains, hasBaseDomains, selectedBaseDomain])
 
+  useEffect(() => {
+    if (availablePorts.length === 0) {
+      setSelectedTargetPort("")
+      return
+    }
+    if (!availablePorts.some((port) => port.value === selectedTargetPort)) {
+      setSelectedTargetPort(availablePorts[0]?.value ?? "")
+    }
+  }, [availablePorts, selectedTargetPort])
+
   const handleAdd = () => {
     const host = activeDomain
-    if (!host) return
+    if (!host || !selectedTargetPort) return
     if (!isCustomMode && checkResult && !checkResult.available) return
-    addMutation.mutate({ host, tls_enabled: tlsEnabled }, {
+    addMutation.mutate({ host, target_port: Number(selectedTargetPort), tls_enabled: tlsEnabled }, {
       onSuccess: () => {
         setSubdomainPrefix("")
         setCustomHost("")
@@ -117,7 +136,7 @@ export function ResourceDomainsTab({ resource }: Props) {
   }
 
   const canAdd = (() => {
-    if (!activeDomain || addMutation.isPending) return false
+    if (!activeDomain || !selectedTargetPort || addMutation.isPending) return false
     if (!isCustomMode) {
       // For base-domain mode, require availability check to pass
       if (isChecking || debouncedDomain !== activeDomain) return false
@@ -165,7 +184,7 @@ export function ResourceDomainsTab({ resource }: Props) {
             Point your domain's DNS A record to the server IP, then add it here.
           </p>
 
-          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="resource-domain-tls" className="text-sm">
@@ -257,6 +276,37 @@ export function ResourceDomainsTab({ resource }: Props) {
 
             {/* Availability indicator (only for base domain combo mode) */}
             {!isCustomMode && renderAvailabilityIndicator()}
+
+            {availablePorts.length === 0 ? (
+              <p className="text-xs text-destructive">
+                {t("domains.port.empty")}
+              </p>
+            ) : availablePorts.length === 1 ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>{t("domains.port.targetLabel")}</span>
+                <Badge variant="outline" className="font-mono">
+                  {availablePorts[0]?.label}
+                </Badge>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">
+                  {t("domains.port.targetLabel")}
+                </Label>
+                <Select value={selectedTargetPort} onValueChange={setSelectedTargetPort}>
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availablePorts.map((port) => (
+                      <SelectItem key={port.value} value={port.value}>
+                        {port.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -279,6 +329,9 @@ export function ResourceDomainsTab({ resource }: Props) {
                   <span className="min-w-0 flex-1 truncate font-mono text-sm">{d.host}</span>
 
                   <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant="outline" className="text-xs font-mono">
+                      {t("domains.port.badge", { port: d.target_port })}
+                    </Badge>
                     <Badge variant="outline" className="text-xs font-mono uppercase">
                       {d.tls_enabled ? "https" : "http"}
                     </Badge>

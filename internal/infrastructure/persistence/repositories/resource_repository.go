@@ -151,9 +151,15 @@ func (r *ResourceRepository) GetByID(ctx context.Context, id string) (*domain.Re
 }
 
 func (r *ResourceRepository) Update(ctx context.Context, id string, input domain.UpdateResourceInput) (*domain.Resource, error) {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	configJSON, err := marshalConfig(input.Config)
+	if err != nil {
+		return nil, fmt.Errorf("marshal resource config: %w", err)
+	}
+
+	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&models.ResourceRecord{}).Where("id = ?", id).Updates(map[string]any{
 			"name":       input.Name,
+			"config":     configJSON,
 			"updated_at": time.Now().UTC(),
 		})
 		if result.Error != nil {

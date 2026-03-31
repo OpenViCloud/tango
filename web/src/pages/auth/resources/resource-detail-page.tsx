@@ -24,6 +24,7 @@ import { useBuildLogs } from "@/hooks/api/use-build-logs"
 import { useResourceRunLogs } from "@/hooks/api/use-resource-run-logs"
 import ResourceDetails from "@/pages/auth/resources/components/resource-details"
 import type { EnvEntry, PortEntry } from "@/pages/auth/resources/components/ConfigGeneralForm"
+import type { VolumeEntry } from "@/pages/auth/resources/components/PersistentStorageForm"
 import { useQueryClient } from "@tanstack/react-query"
 
 type ResourceDetailPageProps = {
@@ -74,11 +75,26 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
     [envVars]
   )
 
-  const handleSave = async (entries: EnvEntry[], name: string, ports: PortEntry[]) => {
+  const handleSave = async (
+    entries: EnvEntry[],
+    name: string,
+    ports: PortEntry[],
+    volumes: VolumeEntry[]
+  ) => {
     try {
       await Promise.all([
         updateResourceMutation.mutateAsync({
           name: name.trim() || resource!.name,
+          config: {
+            ...(resource?.config ?? {}),
+            volumes: volumes
+              .filter((item) => item.source.trim() && item.target.trim())
+              .map((item) =>
+                item.mode === "ro"
+                  ? `${item.source.trim()}:${item.target.trim()}:ro`
+                  : `${item.source.trim()}:${item.target.trim()}`
+              ),
+          },
           ports: ports
             .filter((p) => p.host_port !== "" && p.internal_port !== "")
             .map((p) => ({

@@ -55,6 +55,7 @@ type ResourcePreset = {
   type: string
   volumes?: string[]
   cmd?: string[]
+  img?: string
 }
 
 // ── Presets ───────────────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "postgres",
     name: "PostgreSQL",
     image: "postgres",
+    img: "/images/db/postgresql.svg",
     description:
       "Advanced open source relational database with full SQL compliance.",
     color: "#336791",
@@ -80,6 +82,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
   {
     id: "mysql",
     name: "MySQL",
+    img: "/images/db/mysql.png",
     image: "mysql",
     description: "The world's most popular open source relational database.",
     color: "#4479A1",
@@ -96,6 +99,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "sqlserver",
     name: "SQL Server",
     image: "mcr.microsoft.com/mssql/server",
+    img: "/images/db/sql-server.jpg",
     description:
       "Microsoft SQL Server — enterprise relational database engine.",
     color: "#CC2927",
@@ -113,6 +117,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "redis",
     name: "Redis",
     image: "redis",
+    img: "/images/db/redis.svg",
     description: "In-memory data structure store, cache and message broker.",
     color: "#DC382D",
     abbr: "RD",
@@ -125,6 +130,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "mongo",
     name: "MongoDB",
     image: "mongo",
+    img: "/images/db/mongo-db.png",
     description: "Document-oriented NoSQL database for modern applications.",
     color: "#00874A",
     abbr: "MG",
@@ -140,6 +146,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "rabbitmq",
     name: "RabbitMQ",
     image: "rabbitmq",
+    img: "/images/db/rabbitmq.svg",
     description: "Reliable and mature messaging and streaming broker.",
     color: "#FF6600",
     abbr: "RQ",
@@ -158,6 +165,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "nginx",
     name: "Nginx",
     image: "nginx",
+    img: "/images/app/nginx.svg",
     description: "High-performance HTTP server and reverse proxy.",
     color: "#009639",
     abbr: "NG",
@@ -170,6 +178,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "kafka",
     name: "Apache Kafka",
     image: "confluentinc/cp-kafka",
+    img: "/images/app/kafka.svg",
     description:
       "Distributed event streaming platform for high-performance data pipelines.",
     color: "#231F20",
@@ -190,6 +199,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "minio",
     name: "MinIO",
     image: "minio/minio",
+    img: "/images/app/minio.png",
     description: "High-performance S3-compatible object storage server.",
     color: "#C72E49",
     abbr: "MN",
@@ -205,9 +215,55 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     type: "service",
   },
   {
+    id: "adminer",
+    name: "Adminer",
+    image: "adminer",
+    img: "/images/app/sql.png",
+    description:
+      "Lightweight web database manager for MySQL, PostgreSQL, SQLite and more.",
+    color: "#4F46E5",
+    abbr: "AD",
+    tags: ["latest", "5"],
+    ports: [{ host: "8080", container: "8080" }],
+    env: [],
+    type: "service",
+  },
+  {
+    id: "phpmyadmin",
+    name: "phpMyAdmin",
+    image: "phpmyadmin",
+    img: "/images/app/sql.png",
+    description:
+      "Web interface for managing MySQL and MariaDB, with support for arbitrary server connections.",
+    color: "#F59E0B",
+    abbr: "PM",
+    tags: ["latest", "5-apache"],
+    ports: [{ host: "8081", container: "80" }],
+    env: [{ key: "PMA_ARBITRARY", value: "1" }],
+    type: "service",
+  },
+  {
+    id: "pgadmin4",
+    name: "pgAdmin 4",
+    image: "dpage/pgadmin4",
+    img: "/images/db/postgresql.svg",
+    description:
+      "Web administration UI for PostgreSQL with saved servers, queries and dashboards.",
+    color: "#1F5FA7",
+    abbr: "PA",
+    tags: ["latest", "9"],
+    ports: [{ host: "5050", container: "80" }],
+    env: [
+      { key: "PGADMIN_DEFAULT_EMAIL", value: "admin@example.com" },
+      { key: "PGADMIN_DEFAULT_PASSWORD", value: "admin" },
+    ],
+    type: "service",
+  },
+  {
     id: "grafana",
     name: "Grafana",
     image: "grafana/grafana",
+    img: "/images/app/grafana.svg",
     description:
       "Open source analytics & interactive visualization web application.",
     color: "#F46800",
@@ -224,6 +280,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "n8n",
     name: "n8n",
     image: "n8nio/n8n",
+    img: "/images/app/n8n.jpeg",
     description: "Workflow automation tool — connect anything to everything.",
     color: "#EA4B71",
     abbr: "N8",
@@ -233,9 +290,25 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     type: "service",
   },
   {
+    id: "databasus",
+    name: "Databasus",
+    image: "databasus/databasus",
+    img: "/images/app/databasus.svg",
+    description:
+      "Self-hosted database backup service for PostgreSQL, MySQL, MariaDB and MongoDB.",
+    color: "#0F766E",
+    abbr: "DB",
+    tags: ["latest"],
+    ports: [{ host: "4005", container: "4005" }],
+    env: [],
+    type: "service",
+    volumes: ["databasus-data:/databasus-data"],
+  },
+  {
     id: "gitea",
     name: "Gitea",
     image: "gitea/gitea",
+    img: "/images/app/git.png",
     description: "Lightweight self-hosted Git service.",
     color: "#609926",
     abbr: "GT",
@@ -251,6 +324,7 @@ const RESOURCE_PRESETS: ResourcePreset[] = [
     id: "traefik",
     name: "Traefik",
     image: "traefik",
+    img: "/images/app/traefik.png",
     description:
       "Cloud-native reverse proxy and load balancer with automatic SSL and Docker-based routing.",
     color: "#24A1C1",
@@ -291,12 +365,21 @@ function PresetCard({
       className="flex flex-col gap-2 rounded-xl border bg-card p-3 text-left transition-shadow hover:border-primary/40 hover:shadow-sm"
     >
       <div className="flex items-center gap-2">
-        <div
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-          style={{ backgroundColor: preset.color }}
-        >
-          {preset.abbr}
-        </div>
+        {preset.img ? (
+          <img
+            src={preset.img}
+            className="h-10 w-10 shrink-0 rounded-lg object-contain"
+            alt={`${preset.name} logo`}
+          />
+        ) : (
+          <div
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
+            style={{ backgroundColor: preset.color }}
+          >
+            {preset.abbr}
+          </div>
+        )}
+
         <div>
           <p className="text-sm font-semibold">{preset.name}</p>
           <p className="text-xs text-muted-foreground">

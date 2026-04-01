@@ -11,8 +11,8 @@ This skill covers the Go backend in this repository. Use it for service structur
 
 ## Project Scope
 
-- Current repo entrypoints: `cmd/api/main.go`, `cmd/cli/main.go`
-- Current shared packages: `internal/auth`, `internal/contract`, `internal/config`, `internal/channels`, `internal/messaging`
+- Current repo entrypoints: `cmd/api/main.go`, `cmd/backup-runner/main.go`, `cmd/cli/main.go`
+- Current shared packages: `internal/auth`, `internal/contract`, `internal/config`, `internal/channels`, `internal/messaging`, `internal/runner`
 - Target service pattern for backend feature work: DDD + CQRS + Onion Architecture
 - Reference architecture: `references/ddd-user-service.md`
 - Current HTTP/framework/runtime details must be verified from code before editing
@@ -47,7 +47,8 @@ This skill covers the Go backend in this repository. Use it for service structur
   - `internal/infrastructure/persistence/models/` for GORM persistence records
   - `internal/infrastructure/persistence/repositories/` for repository implementations
   - `internal/handler/rest/` for HTTP handlers and DTOs
-  - `cmd/api/` for composition root and wiring
+  - `cmd/api/` for API composition root and public route wiring
+  - `cmd/backup-runner/` for internal dump/restore execution wiring
 
 ## Implementation Checklist
 
@@ -91,9 +92,11 @@ When adding a new DB-backed backend module, prefer this sequence:
 
 ## Repo-Specific Notes
 
-- The current repo still has a simpler backend layout, so treat the DDD structure as the target pattern when implementing or refactoring backend features.
+- The repo already follows the DDD/CQRS split for most newer modules. Extend the existing layout instead of treating it as a future target.
 - Verify the actual HTTP framework in code before making framework-specific edits.
 - There is version drift across some docs and build files; prefer code over prose when they conflict.
+- Database backup and restore are split across `cmd/api` and `cmd/backup-runner`. Public state and orchestration stay in the API; CLI execution stays in the runner.
+- Database backup support currently exists for MySQL, PostgreSQL, and MongoDB with local storage first.
 
 ## Typical Tasks
 
@@ -103,7 +106,7 @@ When adding a new DB-backed backend module, prefer this sequence:
 - Add or modify REST handlers and transport DTOs without leaking domain objects
 - Add Swagger annotations and regenerate docs when REST contracts change
 - Fix auth, config, persistence, or service composition issues
-- Adjust Docker build or service startup wiring
+- Adjust Docker build, backup-runner, or service startup wiring
 - Diagnose Go build, test, or runtime issues
 
 ## Validation
@@ -111,5 +114,6 @@ When adding a new DB-backed backend module, prefer this sequence:
 - Preferred checks:
   - `go test ./...`
   - `go build ./cmd/...`
+  - if runner code changed, verify `go build ./cmd/backup-runner`
   - if DB/persistence changed, verify both `DB_DRIVER=sqlite` and `DB_DRIVER=postgres` startup paths when practical
 - If the task affects API responses, verify handler DTOs and any frontend assumptions before concluding.

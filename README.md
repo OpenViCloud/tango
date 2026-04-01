@@ -14,7 +14,7 @@ Self-hosted cloud development platform for managing containerized projects, envi
 - Platform Settings for Traefik, TLS, and app domain exposure
 - Real-time Build & Run Logs via WebSocket
 - Container Terminal (interactive shell over WebSocket)
-- Database Backup & Restore for MySQL resources via local storage
+- Database Backup & Restore for MySQL, PostgreSQL, and MongoDB resources via local storage
 - Multi-Channel Messaging Integrations (Discord, Telegram, Slack, WhatsApp)
 - Encrypted Secrets & Environment Variables
 - Simple Self-Hosting
@@ -128,15 +128,17 @@ Database backup/restore is split into two responsibilities:
 
 2. `cmd/backup-runner`
 - stateless internal service
-- runs `mysqldump` and `mysql`
-- detects MySQL version when needed
+- runs `mysqldump` / `mysql`, `pg_dump` / `pg_restore`, and `mongodump` / `mongorestore`
+- detects MySQL and PostgreSQL versions when needed
 - streams dump/restore data back to the API
 
 Current scope:
-- MySQL logical dump / restore
+- MySQL logical dump / restore via `mysqldump` / `mysql`
+- PostgreSQL logical dump / restore via `pg_dump -Fc` / `pg_restore`
+- MongoDB logical dump / restore via `mongodump --archive` / `mongorestore --archive`
 - local storage backend
-- gzip compression
-- FE tab under the resource detail page
+- `none` or `gzip` compression
+- FE tab under the resource detail page with `Config`, `Storage`, and `Backups`
 
 The API persists metadata and artifacts references. The runner does not keep its own database.
 
@@ -226,7 +228,7 @@ export BUILDKIT_HOST=tcp://localhost:1234
 export BUILD_WORKSPACE_DIR=/tmp/tango-builds
 ```
 
-Backup runner (required for MySQL backup/restore):
+Backup runner (required for MySQL, PostgreSQL, and MongoDB backup/restore):
 
 ```bash
 export BACKUP_RUNNER_BASE_URL=http://127.0.0.1:8081
@@ -324,11 +326,11 @@ export BACKUP_RUNNER_BASE_URL=http://127.0.0.1:8081
 go run ./cmd/api
 ```
 
-For a MySQL container published on the host, prefer one of:
-- `mysql-<id>` when the runner shares the same Docker network
-- `host.docker.internal` when the runner must reach a host-published MySQL port from inside the container
+For a database container published on the host, prefer one of:
+- `<container-name>` when the runner shares the same Docker network
+- `host.docker.internal` when the runner must reach a host-published port from inside the container
 
-Do not use `127.0.0.1` as the MySQL host for runner-based execution unless MySQL is running inside the same container as the runner.
+Do not use `127.0.0.1` as the database host for runner-based execution unless the database is running inside the same container as the runner.
 
 ### Build multi-arch images
 
@@ -351,17 +353,28 @@ docker buildx build \
   --push .
 ```
 
-`Dockerfile.backup-runner` copies bundled MySQL client binaries from [assets/tools](/Users/felix/project-repos/tango-cloud/assets/tools) into `/usr/local/mysql-<version>/bin`, so the runner resolves:
+`Dockerfile.backup-runner` prepares the database CLI tools the runner needs:
+- bundled MySQL client binaries from [assets/tools](/Users/felix/project-repos/tango-cloud/assets/tools) into `/usr/local/mysql-<version>/bin`
+- bundled PostgreSQL client binaries from [assets/tools](/Users/felix/project-repos/tango-cloud/assets/tools) into `/usr/lib/postgresql/<version>/bin`
+- MongoDB Database Tools into `/usr/local/mongodb-database-tools/bin`
+
+That gives the runner access to:
 - `/usr/local/mysql-8.0/bin/mysqldump`
 - `/usr/local/mysql-8.4/bin/mysqldump`
 - `/usr/local/mysql-9/bin/mysqldump`
 - and the matching `mysql` restore binaries
+- `/usr/lib/postgresql/12/bin/pg_dump` through `/usr/lib/postgresql/18/bin/pg_dump`
+- and the matching `pg_restore` binaries
+- `/usr/local/mongodb-database-tools/bin/mongodump`
+- `/usr/local/mongodb-database-tools/bin/mongorestore`
 
 For deploy/VPS, `docker-compose.yml` already points `backup-runner` to:
 
 ```text
 BACKUP_RUNNER_BASE_URL=http://backup-runner:8081
 MYSQL_INSTALL_DIR=/usr/local
+POSTGRES_INSTALL_DIR=/usr/lib/postgresql
+MONGODB_TOOLS_DIR=/usr/local/mongodb-database-tools
 ```
 
 ## API Endpoints
@@ -412,10 +425,12 @@ MYSQL_INSTALL_DIR=/usr/local
 | GET    | /api/backup-sources                            | ✅   | List backup sources                   |
 | GET    | /api/backup-sources/:id                        | ✅   | Get backup source                     |
 | PUT    | /api/backup-sources/:id                        | ✅   | Update backup source                  |
+| DELETE | /api/backup-sources/:id                        | ✅   | Delete backup source                  |
 | POST   | /api/storages                                  | ✅   | Create backup storage                 |
 | GET    | /api/storages                                  | ✅   | List backup storages                  |
 | GET    | /api/storages/:id                              | ✅   | Get backup storage                    |
 | PUT    | /api/storages/:id                              | ✅   | Update backup storage                 |
+| DELETE | /api/storages/:id                              | ✅   | Delete backup storage                 |
 | POST   | /api/backup-configs                            | ✅   | Create backup config                  |
 | GET    | /api/backup-configs/:id                        | ✅   | Get backup config                     |
 | GET    | /api/backup-sources/:id/backup-config          | ✅   | Get backup config by source           |

@@ -177,16 +177,17 @@ Channel credentials are encrypted at rest. Each channel runs an independent runt
 - manage `database_sources`, `storages`, `backup_configs`, `backups`, `restores`
 - keep credentials encrypted at rest
 - orchestrate backup/restore status in the main API database
-- call a dedicated runner service for MySQL logical dump and restore execution
+- call a dedicated runner service for MySQL, PostgreSQL, and MongoDB logical dump and restore execution
 - support local storage first, while keeping the storage abstraction open for S3/MinIO later
 
 ### Current Scope
 
-- MySQL only
-- logical dump / restore only
+- MySQL logical dump / restore
+- PostgreSQL logical dump / restore
+- MongoDB logical dump / restore
 - local storage only
-- gzip compression
-- UI integrated in the resource Backups tab
+- `none` or `gzip` compression
+- UI integrated in the resource Backups tab with `Config`, `Storage`, and `Backups`
 
 ### Execution Flow
 
@@ -195,8 +196,8 @@ sequenceDiagram
     User->>API: POST /api/backup-sources/:id/backups
     API->>DB: Create backup record (pending)
     API->>BackupExecutor: ExecuteBackup(backupID)
-    BackupExecutor->>BackupRunner: POST /internal/mysql/logical-dump
-    BackupRunner->>MySQL: mysqldump
+    BackupExecutor->>BackupRunner: POST /internal/<db>/logical-dump
+    BackupRunner->>Database: mysqldump / pg_dump / mongodump
     BackupRunner-->>BackupExecutor: stream artifact bytes
     BackupExecutor->>StorageDriver: store local artifact
     BackupExecutor->>DB: Update backup record (completed/failed)
@@ -208,8 +209,8 @@ sequenceDiagram
     API->>DB: Create restore record (pending)
     API->>RestoreExecutor: ExecuteRestore(restoreID)
     RestoreExecutor->>StorageDriver: load artifact to temp path
-    RestoreExecutor->>BackupRunner: POST /internal/mysql/logical-restore
-    BackupRunner->>MySQL: mysql < dump
+    RestoreExecutor->>BackupRunner: POST /internal/<db>/logical-restore
+    BackupRunner->>Database: mysql / pg_restore / mongorestore
     BackupRunner-->>RestoreExecutor: status
     RestoreExecutor->>DB: Update restore record (completed/failed)
 ```
@@ -221,21 +222,32 @@ sequenceDiagram
 - entrypoint: [main.go](/Users/felix/project-repos/tango-cloud/cmd/backup-runner/main.go)
 - HTTP layer: [router.go](/Users/felix/project-repos/tango-cloud/internal/runner/http/router.go)
 - MySQL execution: [mysql_runner.go](/Users/felix/project-repos/tango-cloud/internal/runner/service/mysql_runner.go)
+- PostgreSQL execution: [postgres_runner.go](/Users/felix/project-repos/tango-cloud/internal/runner/service/postgres_runner.go)
+- MongoDB execution: [mongo_runner.go](/Users/felix/project-repos/tango-cloud/internal/runner/service/mongo_runner.go)
 
 It is intentionally:
 - stateless
 - internal-only
 - Linux-focused
-- responsible for carrying versioned MySQL CLI binaries in its own image
+- responsible for carrying the database CLI tools it needs in its own image
 
 ### Tooling Layout
 
-Bundled MySQL client binaries live in [assets/tools](/Users/felix/project-repos/tango-cloud/assets/tools). The runner image copies the correct arch bundle into `/usr/local/mysql-<version>/bin` and resolves:
+Bundled database client binaries live in [assets/tools](/Users/felix/project-repos/tango-cloud/assets/tools). The runner image prepares:
 
+- MySQL tools in `/usr/local/mysql-<version>/bin`
+- PostgreSQL tools in `/usr/lib/postgresql/<version>/bin`
+- MongoDB Database Tools in `/usr/local/mongodb-database-tools/bin`
+
+The runner resolves:
 - `/usr/local/mysql-8.0/bin/mysqldump`
 - `/usr/local/mysql-8.4/bin/mysqldump`
 - `/usr/local/mysql-9/bin/mysqldump`
 - and the matching `mysql` restore binaries
+- `/usr/lib/postgresql/12/bin/pg_dump` through `/usr/lib/postgresql/18/bin/pg_dump`
+- and the matching `pg_restore` binaries
+- `/usr/local/mongodb-database-tools/bin/mongodump`
+- `/usr/local/mongodb-database-tools/bin/mongorestore`
 
 ### Deployment Shape
 
@@ -679,6 +691,8 @@ internal/
 - [ ] Resource health checks and auto-restart
 - [ ] Deployment history and rollback
 - [x] MySQL logical backup / restore with runner-based execution
+- [x] PostgreSQL logical backup / restore with runner-based execution
+- [x] MongoDB logical backup / restore with runner-based execution
 
 ### Phase 4 — Collaboration & Ops
 
@@ -698,9 +712,9 @@ internal/
 
 **BuildKit requirement:** the build pipeline requires a running BuildKit daemon. Without `BUILDKIT_HOST`, git-based builds will fail. The Docker-in-Docker setup in `docker-compose.yml` provisions this automatically.
 
-**Backup runner requirement:** MySQL backup and restore require a reachable `backup-runner` service. In local development, the API can call `http://127.0.0.1:8081`; in compose/VPS deployments, it should use `http://backup-runner:8081`.
+**Backup runner requirement:** MySQL, PostgreSQL, and MongoDB backup and restore require a reachable `backup-runner` service. In local development, the API can call `http://127.0.0.1:8081`; in compose/VPS deployments, it should use `http://backup-runner:8081`.
 
-**Bundled DB tools:** the backup runner image carries versioned MySQL client tools. The main API process no longer assumes local access to `mysqldump` or `mysql`.
+**Bundled DB tools:** the backup runner image carries the CLI tools needed for MySQL, PostgreSQL, and MongoDB execution. The main API process no longer assumes local access to `mysqldump`, `pg_dump`, `mongodump`, or their restore counterparts.
 
 **WebSocket streams:** build logs and resource run logs are streamed over persistent WebSocket connections. The browser reconnects automatically on disconnect.
 

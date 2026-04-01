@@ -1,0 +1,61 @@
+FROM golang:1.26-bookworm AS builder
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o backup-runner ./cmd/backup-runner
+
+FROM debian:bookworm-slim
+
+ARG TARGETARCH
+
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends wget ca-certificates tzdata libncurses6 libtinfo6 libpq5 \
+	&& rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /app/backup-runner /usr/local/bin/backup-runner
+COPY assets/tools /tmp/tango-tools
+
+RUN set -eux; \
+	case "${TARGETARCH}" in \
+		arm64) tools_arch="arm" ;; \
+		amd64) tools_arch="x64" ;; \
+		*) echo "unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
+	esac; \
+	mkdir -p /usr/lib/postgresql/12/bin /usr/lib/postgresql/13/bin /usr/lib/postgresql/14/bin /usr/lib/postgresql/15/bin /usr/lib/postgresql/16/bin /usr/lib/postgresql/17/bin /usr/lib/postgresql/18/bin; \
+	for version in 12 13 14 15 16 17 18; do \
+		cp -R "/tmp/tango-tools/${tools_arch}/postgresql/postgresql-${version}/bin/." "/usr/lib/postgresql/${version}/bin/"; \
+	done; \
+	cp -R "/tmp/tango-tools/${tools_arch}/mysql/." /usr/local/; \
+	find /usr/lib/postgresql -type f \( -name pg_dump -o -name pg_restore \) -exec chmod +x {} \;; \
+	find /usr/local -type f \( -name mysql -o -name mysqldump \) -exec chmod +x {} \;; \
+	rm -rf /tmp/tango-tools
+
+RUN set -eux; \
+	apt-get update; \
+	if [ "${TARGETARCH}" = "amd64" ]; then \
+		wget -q https://fastdl.mongodb.org/tools/db/mongodb-database-tools-debian12-x86_64-100.10.0.deb -O /tmp/mongodb-database-tools.deb; \
+	elif [ "${TARGETARCH}" = "arm64" ]; then \
+		wget -q https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-arm64-100.10.0.deb -O /tmp/mongodb-database-tools.deb; \
+	else \
+		echo "unsupported TARGETARCH for mongodb tools: ${TARGETARCH}"; exit 1; \
+	fi; \
+	dpkg -i /tmp/mongodb-database-tools.deb || apt-get install -f -y --no-install-recommends; \
+	rm -f /tmp/mongodb-database-tools.deb; \
+	rm -rf /var/lib/apt/lists/*; \
+	mkdir -p /usr/local/mongodb-database-tools/bin; \
+	if [ -f /usr/bin/mongodump ]; then ln -sf /usr/bin/mongodump /usr/local/mongodb-database-tools/bin/mongodump; fi; \
+	if [ -f /usr/bin/mongorestore ]; then ln -sf /usr/bin/mongorestore /usr/local/mongodb-database-tools/bin/mongorestore; fi
+
+ENV POSTGRES_INSTALL_DIR=/usr/lib/postgresql
+ENV MYSQL_INSTALL_DIR=/usr/local
+ENV MONGODB_TOOLS_DIR=/usr/local/mongodb-database-tools
+ENV BACKUP_RUNNER_PORT=8081
+
+EXPOSE 8081
+
+CMD ["backup-runner"]

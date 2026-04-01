@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -76,11 +77,17 @@ type Config struct {
 	TelegramAllowedUserIDs map[string]bool
 
 	// Build service
-	BuildKitHost      string
-	BuildWorkspaceDir string
-	BuildRegistryHost string
-	BuildRegistryUser string
-	BuildRegistryPass string
+	BuildKitHost        string
+	BuildWorkspaceDir   string
+	BuildRegistryHost   string
+	BuildRegistryUser   string
+	BuildRegistryPass   string
+	PostgresInstallDir  string
+	MySQLInstallDir     string
+	MongoToolsDir       string
+	BackupRunnerBaseURL string
+	BackupRunnerToken   string
+	BackupRunnerPort    string
 
 	FrontendBaseURL      string
 	PublicIP             string
@@ -169,6 +176,12 @@ func Load() *Config {
 	cfg.BuildRegistryHost = getEnv("BUILD_REGISTRY_HOST", "")
 	cfg.BuildRegistryUser = getEnv("BUILD_REGISTRY_USER", "")
 	cfg.BuildRegistryPass = getEnv("BUILD_REGISTRY_PASS", "")
+	cfg.PostgresInstallDir = getEnv("POSTGRES_INSTALL_DIR", defaultPostgresInstallDir())
+	cfg.MySQLInstallDir = getEnv("MYSQL_INSTALL_DIR", defaultMySQLInstallDir())
+	cfg.MongoToolsDir = getEnv("MONGODB_TOOLS_DIR", "/usr/local/mongodb-database-tools")
+	cfg.BackupRunnerBaseURL = getEnv("BACKUP_RUNNER_BASE_URL", "http://127.0.0.1:8081")
+	cfg.BackupRunnerToken = getEnv("BACKUP_RUNNER_TOKEN", "")
+	cfg.BackupRunnerPort = getEnv("BACKUP_RUNNER_PORT", "8081")
 	cfg.FrontendBaseURL = getEnv("FRONTEND_BASE_URL", cfg.BaseURL)
 	cfg.PublicIP = getEnv("PUBLIC_IP", "")
 	cfg.TraefikDockerNetwork = getEnv("TRAEFIK_DOCKER_NETWORK", "tango_net")
@@ -188,6 +201,41 @@ func Load() *Config {
 
 func defaultBuildWorkspaceDir() string {
 	return filepath.Join(os.TempDir(), defaultBuildWorkspaceDirName)
+}
+
+func defaultMySQLInstallDir() string {
+	if cwd, err := os.Getwd(); err == nil {
+		if archDir := mysqlToolsArchDir(runtime.GOARCH); archDir != "" {
+			localToolsDir := filepath.Join(cwd, "assets", "tools", archDir, "mysql")
+			if info, statErr := os.Stat(localToolsDir); statErr == nil && info.IsDir() {
+				return localToolsDir
+			}
+		}
+	}
+	return "/usr/local"
+}
+
+func defaultPostgresInstallDir() string {
+	if cwd, err := os.Getwd(); err == nil {
+		if archDir := mysqlToolsArchDir(runtime.GOARCH); archDir != "" {
+			localToolsDir := filepath.Join(cwd, "assets", "tools", archDir, "postgresql")
+			if info, statErr := os.Stat(localToolsDir); statErr == nil && info.IsDir() {
+				return localToolsDir
+			}
+		}
+	}
+	return "/usr/lib/postgresql"
+}
+
+func mysqlToolsArchDir(goarch string) string {
+	switch strings.TrimSpace(strings.ToLower(goarch)) {
+	case "arm64":
+		return "arm"
+	case "amd64":
+		return "x64"
+	default:
+		return ""
+	}
 }
 
 func SaveFile(cfg *Config) (string, error) {

@@ -1,4 +1,17 @@
 services:
+  backup-runner:
+    image: ${BACKUP_RUNNER_IMAGE:-ttl.sh/tango-backup-runner:24h}
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      BACKUP_RUNNER_PORT: "8081"
+      BACKUP_RUNNER_TOKEN: "${BACKUP_RUNNER_TOKEN:-}"
+      MYSQL_INSTALL_DIR: "/usr/local"
+    networks:
+      - tango_net
+      - internal
+
   traefik:
     image: traefik:v3.6
     container_name: traefik
@@ -40,6 +53,8 @@ services:
       BUILD_WORKSPACE_DIR: "/workspace/jobs"
       LLM_CONFIG_ENCRYPTION_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       DOCKER_HOST: "unix:///var/run/docker.sock"
+      BACKUP_RUNNER_BASE_URL: "http://backup-runner:8081"
+      BACKUP_RUNNER_TOKEN: "${BACKUP_RUNNER_TOKEN:-}"
       TRAEFIK_CONFIG_DIR: "/traefik/config"
       APP_DOMAIN: "${APP_DOMAIN:-}"
       APP_TLS_ENABLED: "${APP_TLS_ENABLED:-false}"
@@ -52,6 +67,8 @@ services:
       - ./traefik/config:/traefik/config
       - ${RESOURCE_MOUNT_ROOT:-/tmp/tango-resource-volumes}:${RESOURCE_MOUNT_ROOT_APP:-/platform/resource-volumes}
     depends_on:
+      backup-runner:
+        condition: service_started
       db:
         condition: service_healthy
       buildkitd:
@@ -98,4 +115,5 @@ volumes:
 networks:
   tango_net:
     name: tango_net
+    external: true
   internal:

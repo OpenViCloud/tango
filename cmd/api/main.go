@@ -76,6 +76,10 @@ func main() {
 		"baseUrl", cfg.BaseURL,
 		"frontendBaseUrl", cfg.FrontendBaseURL,
 		"dbDriver", cfg.DBDriver,
+		"backupRunnerBaseUrl", cfg.BackupRunnerBaseURL,
+		"postgresInstallDir", cfg.PostgresInstallDir,
+		"mysqlInstallDir", cfg.MySQLInstallDir,
+		"mongoToolsDir", cfg.MongoToolsDir,
 		"frontendEmbedded", hasEmbeddedFrontend(),
 	)
 
@@ -111,6 +115,11 @@ func main() {
 	environmentRepo := persistrepo.NewEnvironmentRepository(db)
 	resourceRepo := persistrepo.NewResourceRepository(db)
 	resourceRunRepo := persistrepo.NewResourceRunRepository(db)
+	databaseSourceRepo := persistrepo.NewDatabaseSourceRepository(db)
+	storageRepo := persistrepo.NewStorageRepository(db)
+	backupConfigRepo := persistrepo.NewBackupConfigRepository(db)
+	backupRepo := persistrepo.NewBackupRepository(db)
+	restoreRepo := persistrepo.NewRestoreRepository(db)
 	sourceProviderRepo := persistrepo.NewSourceProviderRepository(db)
 	sourceConnectionRepo := persistrepo.NewSourceConnectionRepository(db)
 	platformConfigRepo := persistrepo.NewPlatformConfigRepository(db)
@@ -197,6 +206,38 @@ func main() {
 	listGitHubRepositoriesHandler := query.NewListGitHubRepositoriesHandler(githubAppService)
 	listGitHubUserRepositoriesHandler := query.NewListGitHubUserRepositoriesHandler(githubAppService)
 	listGitHubBranchesHandler := query.NewListGitHubBranchesHandler(githubAppService)
+	createDatabaseSourceHandler := command.NewCreateDatabaseSourceHandler(databaseSourceRepo, cipherService)
+	updateDatabaseSourceHandler := command.NewUpdateDatabaseSourceHandler(databaseSourceRepo, cipherService)
+	deleteDatabaseSourceHandler := command.NewDeleteDatabaseSourceHandler(databaseSourceRepo)
+	listDatabaseSourcesHandler := query.NewListDatabaseSourcesHandler(databaseSourceRepo)
+	getDatabaseSourceHandler := query.NewGetDatabaseSourceHandler(databaseSourceRepo)
+	createStorageHandler := command.NewCreateStorageHandler(storageRepo, cipherService)
+	updateStorageHandler := command.NewUpdateStorageHandler(storageRepo, cipherService)
+	deleteStorageHandler := command.NewDeleteStorageHandler(storageRepo)
+	listStoragesHandler := query.NewListStoragesHandler(storageRepo)
+	getStorageHandler := query.NewGetStorageHandler(storageRepo)
+	createBackupConfigHandler := command.NewCreateBackupConfigHandler(backupConfigRepo, databaseSourceRepo, storageRepo)
+	updateBackupConfigHandler := command.NewUpdateBackupConfigHandler(backupConfigRepo, storageRepo)
+	getBackupConfigHandler := query.NewGetBackupConfigHandler(backupConfigRepo)
+	getBackupConfigBySourceHandler := query.NewGetBackupConfigByDatabaseSourceHandler(backupConfigRepo)
+	backupRunnerClient := infraservices.NewBackupRunnerClient(cfg.BackupRunnerBaseURL, cfg.BackupRunnerToken)
+	postgresBackupStrategy := infraservices.NewPostgresRunnerBackupStrategy(backupRunnerClient)
+	postgresRestoreStrategy := infraservices.NewPostgresRunnerRestoreStrategy(backupRunnerClient)
+	mysqlBackupStrategy := infraservices.NewMySQLRunnerBackupStrategy(backupRunnerClient)
+	mysqlRestoreStrategy := infraservices.NewMySQLRunnerRestoreStrategy(backupRunnerClient)
+	mongoBackupStrategy := infraservices.NewMongoRunnerBackupStrategy(backupRunnerClient)
+	mongoRestoreStrategy := infraservices.NewMongoRunnerRestoreStrategy(backupRunnerClient)
+	localBackupStorage := infraservices.NewLocalBackupStorage()
+	backupStrategyResolver := infraservices.NewBackupStrategyResolver(mysqlBackupStrategy, postgresBackupStrategy, mongoBackupStrategy)
+	restoreStrategyResolver := infraservices.NewRestoreStrategyResolver(mysqlRestoreStrategy, postgresRestoreStrategy, mongoRestoreStrategy)
+	storageDriverResolver := infraservices.NewStorageDriverResolver(localBackupStorage)
+	backupExecutor := infraservices.NewBackupExecutor(backupRepo, databaseSourceRepo, backupConfigRepo, storageRepo, cipherService, backupStrategyResolver, storageDriverResolver)
+	restoreExecutor := infraservices.NewRestoreExecutor(restoreRepo, backupRepo, databaseSourceRepo, storageRepo, cipherService, restoreStrategyResolver, storageDriverResolver)
+	triggerBackupHandler := command.NewTriggerBackupHandler(databaseSourceRepo, backupConfigRepo, storageRepo, backupRepo, backupExecutor)
+	listBackupsByDatabaseSourceHandler := query.NewListBackupsByDatabaseSourceHandler(backupRepo)
+	getBackupHandler := query.NewGetBackupHandler(backupRepo)
+	triggerRestoreHandler := command.NewTriggerRestoreHandler(backupRepo, restoreRepo, cipherService, restoreExecutor)
+	getRestoreHandler := query.NewGetRestoreHandler(restoreRepo)
 
 	// HTTP handlers
 	authHandler := auth.NewHandler(userRepo)
@@ -298,6 +339,27 @@ func main() {
 	}
 	settingsHandler := rest.NewSettingsHandler(platformConfigRepo, traefikFileProvider)
 	baseDomainHandler := rest.NewBaseDomainHandler(baseDomainRepo, resourceDomainRepo, resourceRepo)
+	backupHandler := rest.NewBackupHandler(
+		createDatabaseSourceHandler,
+		updateDatabaseSourceHandler,
+		deleteDatabaseSourceHandler,
+		listDatabaseSourcesHandler,
+		getDatabaseSourceHandler,
+		createStorageHandler,
+		updateStorageHandler,
+		deleteStorageHandler,
+		listStoragesHandler,
+		getStorageHandler,
+		createBackupConfigHandler,
+		updateBackupConfigHandler,
+		getBackupConfigHandler,
+		getBackupConfigBySourceHandler,
+		triggerBackupHandler,
+		listBackupsByDatabaseSourceHandler,
+		getBackupHandler,
+		triggerRestoreHandler,
+		getRestoreHandler,
+	)
 
 	// Write app Traefik config on every startup (picks up any env-seeded domain)
 	if traefikFileProvider != nil {
@@ -367,6 +429,7 @@ func main() {
 			}
 			logHandler.Register(protected)
 			projectHandler.Register(protected)
+			backupHandler.Register(protected)
 			sourceConnectionHandler.RegisterProtected(protected)
 			settingsHandler.RegisterRoutes(protected)
 			baseDomainHandler.RegisterRoutes(protected)

@@ -1,6 +1,6 @@
 # tango-cloud
 
-Monorepo: Go API + Vite React FE in a single Docker image.
+Monorepo: Go API + Vite React FE, plus a dedicated backup runner for database dump/restore execution.
 
 Self-hosted cloud development platform for managing containerized projects, environments, and resources with git-based build pipelines, DNS/domain management, and Traefik-based routing.
 
@@ -14,6 +14,7 @@ Self-hosted cloud development platform for managing containerized projects, envi
 - Platform Settings for Traefik, TLS, and app domain exposure
 - Real-time Build & Run Logs via WebSocket
 - Container Terminal (interactive shell over WebSocket)
+- Database Backup & Restore for MySQL resources via local storage
 - Multi-Channel Messaging Integrations (Discord, Telegram, Slack, WhatsApp)
 - Encrypted Secrets & Environment Variables
 - Simple Self-Hosting
@@ -23,7 +24,8 @@ Self-hosted cloud development platform for managing containerized projects, envi
 ```
 tango-cloud/
 ├── cmd/
-│   └── api/main.go            ← API server + FE serving + SPA fallback
+│   ├── api/main.go            ← API server + FE serving + SPA fallback
+│   └── backup-runner/main.go  ← stateless dump/restore runner
 ├── internal/
 │   ├── auth/                  ← JWT, bcrypt, middleware
 │   ├── application/           ← command/query handlers
@@ -31,11 +33,14 @@ tango-cloud/
 │   ├── domain/                ← entities + repository interfaces
 │   ├── config/                ← shared config
 │   ├── infrastructure/        ← DB bootstrap, persistence, server runtime
+│   ├── runner/                ← internal HTTP runner + CLI execution
 │   ├── channels/              ← messaging transport adapters (Discord, Slack, ...)
 │   └── handler/               ← HTTP handlers + WebSocket
 ├── web/                       ← Vite + React + TanStack Router
 ├── Dockerfile                 ← multi-stage build
-├── docker-compose.yml         ← app + postgres + traefik
+├── Dockerfile.backup-runner   ← backup runner image
+├── docker-compose.yml         ← deploy compose (pull images)
+├── docker-compose.dev.yml     ← local dev override (build backup runner)
 ├── Makefile
 └── install.sh
 ```
@@ -111,6 +116,29 @@ Resources of type `app` can be built from source:
 3. A `build_job` is created — clones the repo, builds the Docker image with BuildKit, pushes to registry
 4. On build completion, the resource starts automatically
 5. Build logs stream in real-time via WebSocket
+
+### Database Backup & Restore
+
+Database backup/restore is split into two responsibilities:
+
+1. `cmd/api`
+- stores backup sources, storages, backup configs, backups, restores
+- exposes public REST endpoints and UI
+- orchestrates backup and restore jobs
+
+2. `cmd/backup-runner`
+- stateless internal service
+- runs `mysqldump` and `mysql`
+- detects MySQL version when needed
+- streams dump/restore data back to the API
+
+Current scope:
+- MySQL logical dump / restore
+- local storage backend
+- gzip compression
+- FE tab under the resource detail page
+
+The API persists metadata and artifacts references. The runner does not keep its own database.
 
 ### Resource Lifecycle
 
@@ -198,6 +226,13 @@ export BUILDKIT_HOST=tcp://localhost:1234
 export BUILD_WORKSPACE_DIR=/tmp/tango-builds
 ```
 
+Backup runner (required for MySQL backup/restore):
+
+```bash
+export BACKUP_RUNNER_BASE_URL=http://127.0.0.1:8081
+export BACKUP_RUNNER_TOKEN=
+```
+
 Traefik / domain routing (required only for domain exposure):
 
 ```bash
@@ -274,6 +309,61 @@ docker compose up --build
 
 `docker-compose.yml` mounts `${RESOURCE_MOUNT_ROOT}` into the `app` container and passes the same host path to the API so new resources can bind subdirectories under that root.
 
+### Local dev with backup runner
+
+Base compose is deploy-oriented and pulls images. For local development, use the dev override so the backup runner is built from your current source tree:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build backup-runner
+```
+
+Then run the API locally with:
+
+```bash
+export BACKUP_RUNNER_BASE_URL=http://127.0.0.1:8081
+go run ./cmd/api
+```
+
+For a MySQL container published on the host, prefer one of:
+- `mysql-<id>` when the runner shares the same Docker network
+- `host.docker.internal` when the runner must reach a host-published MySQL port from inside the container
+
+Do not use `127.0.0.1` as the MySQL host for runner-based execution unless MySQL is running inside the same container as the runner.
+
+### Build multi-arch images
+
+API image:
+
+```bash
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t ttl.sh/tango-cloud:24h \
+  --push .
+```
+
+Backup runner image:
+
+```bash
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -f Dockerfile.backup-runner \
+  -t ttl.sh/tango-backup-runner:24h \
+  --push .
+```
+
+`Dockerfile.backup-runner` copies bundled MySQL client binaries from [assets/tools](/Users/felix/project-repos/tango-cloud/assets/tools) into `/usr/local/mysql-<version>/bin`, so the runner resolves:
+- `/usr/local/mysql-8.0/bin/mysqldump`
+- `/usr/local/mysql-8.4/bin/mysqldump`
+- `/usr/local/mysql-9/bin/mysqldump`
+- and the matching `mysql` restore binaries
+
+For deploy/VPS, `docker-compose.yml` already points `backup-runner` to:
+
+```text
+BACKUP_RUNNER_BASE_URL=http://backup-runner:8081
+MYSQL_INSTALL_DIR=/usr/local
+```
+
 ## API Endpoints
 
 ### Auth
@@ -313,6 +403,28 @@ docker compose up --build
 | GET    | /api/resources/:id/logs                       | ✅   | Get run logs                 |
 | GET    | /api/resources/:id/env-vars                   | ✅   | List env vars                |
 | PUT    | /api/resources/:id/env-vars                   | ✅   | Update env vars              |
+
+### Database Backups
+
+| Method | Path                                           | Auth | Description                           |
+| ------ | ---------------------------------------------- | ---- | ------------------------------------- |
+| POST   | /api/backup-sources                            | ✅   | Create backup source                  |
+| GET    | /api/backup-sources                            | ✅   | List backup sources                   |
+| GET    | /api/backup-sources/:id                        | ✅   | Get backup source                     |
+| PUT    | /api/backup-sources/:id                        | ✅   | Update backup source                  |
+| POST   | /api/storages                                  | ✅   | Create backup storage                 |
+| GET    | /api/storages                                  | ✅   | List backup storages                  |
+| GET    | /api/storages/:id                              | ✅   | Get backup storage                    |
+| PUT    | /api/storages/:id                              | ✅   | Update backup storage                 |
+| POST   | /api/backup-configs                            | ✅   | Create backup config                  |
+| GET    | /api/backup-configs/:id                        | ✅   | Get backup config                     |
+| GET    | /api/backup-sources/:id/backup-config          | ✅   | Get backup config by source           |
+| PUT    | /api/backup-configs/:id                        | ✅   | Update backup config                  |
+| POST   | /api/backup-sources/:id/backups                | ✅   | Trigger backup                        |
+| GET    | /api/backup-sources/:id/backups                | ✅   | List backups for one source           |
+| GET    | /api/backups/:id                               | ✅   | Get backup                            |
+| POST   | /api/backups/:id/restore                       | ✅   | Trigger restore                       |
+| GET    | /api/restores/:id                              | ✅   | Get restore                           |
 
 ### Routing & Settings
 
@@ -381,6 +493,11 @@ Tables managed by GORM:
 - `resource_env_vars`
 - `resource_runs`
 - `build_jobs`
+- `database_sources`
+- `storages`
+- `backup_configs`
+- `backups`
+- `restores`
 - `channels`
 - `source_providers`
 - `source_connections`

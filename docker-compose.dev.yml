@@ -1,0 +1,6 @@
+services:
+  backup-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup-runner
+    image: tango-backup-runner:dev

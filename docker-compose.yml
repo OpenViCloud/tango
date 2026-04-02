@@ -1,6 +1,6 @@
 services:
   backup-runner:
-    image: ${BACKUP_RUNNER_IMAGE:-ttl.sh/tango-backup-runner:24h}
+    image: ${BACKUP_RUNNER_IMAGE:-timegroups/tango-backup-runner:latest}
     restart: unless-stopped
     ports:
       - "8081:8081"
@@ -42,7 +42,7 @@ services:
       - tango_net
 
   app:
-    image: ttl.sh/tango-cloud:24h
+    image: timegroups/tango-cloud:latest
     restart: unless-stopped
     ports:
       - "8080:8080"

@@ -354,8 +354,8 @@ docker buildx build \
 ```
 
 `Dockerfile.backup-runner` prepares the database CLI tools the runner needs:
-- bundled MySQL client binaries from [assets/tools](/Users/felix/project-repos/tango-cloud/assets/tools) into `/usr/local/mysql-<version>/bin`
-- bundled PostgreSQL client binaries from [assets/tools](/Users/felix/project-repos/tango-cloud/assets/tools) into `/usr/lib/postgresql/<version>/bin`
+- bundled MySQL client binaries from `assets/tools` into `/usr/local/mysql-<version>/bin`
+- bundled PostgreSQL client binaries from `assets/tools` into `/usr/lib/postgresql/<version>/bin`
 - MongoDB Database Tools into `/usr/local/mongodb-database-tools/bin`
 
 That gives the runner access to:

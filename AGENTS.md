@@ -1,4 +1,4 @@
-# AGENTS.md instructions for /Users/felix/project-repos/tango-cloud
+# AGENTS.md instructions for `tango-cloud`
 
 ## Skills
 

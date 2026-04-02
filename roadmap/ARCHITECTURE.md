@@ -219,11 +219,11 @@ sequenceDiagram
 
 `backup-runner` is a second binary inside the same monorepo:
 
-- entrypoint: [main.go](/Users/felix/project-repos/tango-cloud/cmd/backup-runner/main.go)
-- HTTP layer: [router.go](/Users/felix/project-repos/tango-cloud/internal/runner/http/router.go)
-- MySQL execution: [mysql_runner.go](/Users/felix/project-repos/tango-cloud/internal/runner/service/mysql_runner.go)
-- PostgreSQL execution: [postgres_runner.go](/Users/felix/project-repos/tango-cloud/internal/runner/service/postgres_runner.go)
-- MongoDB execution: [mongo_runner.go](/Users/felix/project-repos/tango-cloud/internal/runner/service/mongo_runner.go)
+- entrypoint: `cmd/backup-runner/main.go`
+- HTTP layer: `internal/runner/http/router.go`
+- MySQL execution: `internal/runner/service/mysql_runner.go`
+- PostgreSQL execution: `internal/runner/service/postgres_runner.go`
+- MongoDB execution: `internal/runner/service/mongo_runner.go`
 
 It is intentionally:
 - stateless
@@ -233,7 +233,7 @@ It is intentionally:
 
 ### Tooling Layout
 
-Bundled database client binaries live in [assets/tools](/Users/felix/project-repos/tango-cloud/assets/tools). The runner image prepares:
+Bundled database client binaries live in `assets/tools`. The runner image prepares:
 
 - MySQL tools in `/usr/local/mysql-<version>/bin`
 - PostgreSQL tools in `/usr/lib/postgresql/<version>/bin`

@@ -1,0 +1,97 @@
+name: Build
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+    inputs:
+      build_runner:
+        description: 'Build backup-runner'
+        type: boolean
+        default: false
+      build_app:
+        description: 'Build app'
+        type: boolean
+        default: false
+
+jobs:
+  build-runner:
+    if: github.event.inputs.build_runner == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print build info
+        run: |
+          echo "=== Backup Runner Build ==="
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Image: timegroups/tango-backup-runner:latest"
+          echo "Platforms: linux/amd64, linux/arm64"
+          echo ""
+          echo "=== Dockerfile.backup-runner.dockerignore ==="
+          cat Dockerfile.backup-runner.dockerignore
+          echo ""
+          echo "=== Dockerfile.backup-runner ==="
+          cat Dockerfile.backup-runner
+
+      # TODO: uncomment to enable actual build & push
+      # - uses: docker/setup-buildx-action@v3
+      # - uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # - uses: docker/build-push-action@v6
+      #   with:
+      #     file: Dockerfile.backup-runner
+      #     platforms: linux/amd64,linux/arm64
+      #     push: true
+      #     tags: |
+      #       timegroups/tango-backup-runner:latest
+
+  build-app:
+    if: >
+      github.event_name == 'push' ||
+      github.event.inputs.build_app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve version tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="${{ github.sha }}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+      - name: Print build info
+        run: |
+          echo "=== App Build ==="
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Version: ${{ steps.version.outputs.tag }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Image: timegroups/tango-cloud:${{ steps.version.outputs.tag }}"
+          echo "Image: timegroups/tango-cloud:latest"
+          echo "Platforms: linux/amd64, linux/arm64"
+          echo ""
+          echo "=== Dockerfile.dockerignore ==="
+          cat Dockerfile.dockerignore
+          echo ""
+          echo "=== Dockerfile ==="
+          cat Dockerfile
+
+      # TODO: uncomment to enable actual build & push
+      # - uses: docker/setup-buildx-action@v3
+      # - uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # - uses: docker/build-push-action@v6
+      #   with:
+      #     file: Dockerfile
+      #     platforms: linux/amd64,linux/arm64
+      #     push: true
+      #     tags: |
+      #       timegroups/tango-cloud:${{ steps.version.outputs.tag }}
+      #       timegroups/tango-cloud:latest

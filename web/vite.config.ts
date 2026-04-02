@@ -29,6 +29,10 @@ export default defineConfig(({ mode }) => {
           timeout: 0,
           proxyTimeout: 0,
         },
+        "/images": {
+          target: apiProxyTarget,
+          changeOrigin: true,
+        },
       },
     },
     build: {

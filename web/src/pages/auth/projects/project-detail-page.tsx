@@ -5,7 +5,6 @@ import {
   ArrowLeftIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  FolderIcon,
   GitForkIcon,
 } from "lucide-react"
 import React, { useEffect, useRef, useState } from "react"
@@ -18,6 +17,7 @@ import type {
   EnvironmentModel,
   ResourceModel,
   ResourceRunModel,
+  ResourceTemplateModel,
 } from "@/@types/models"
 import { createEnvironmentSchema } from "@/@types/models/project"
 import { PageHeaderCard } from "@/components/share/cards/page-header-card"
@@ -47,14 +47,17 @@ import {
   useDeleteResource,
   useForkEnvironment,
   useGetProject,
+  useGetResourceTemplates,
   useStartResource,
   useStopResource,
 } from "@/hooks/api/use-project"
 import { useResourceRunLogs } from "@/hooks/api/use-resource-run-logs"
-import { actionIcons } from "@/lib/icons"
+import { actionIcons, appIcons } from "@/lib/icons"
+import { resolveResourceVisual } from "@/lib/resource-visual"
 import { Route } from "@/routes/_auth/projects/$projectId"
 import { useQueryClient } from "@tanstack/react-query"
 
+const ProjectsIcon = appIcons.projects
 const StartIcon = actionIcons.start
 const StopIcon = actionIcons.stop
 const DeleteIcon = actionIcons.delete
@@ -88,13 +91,15 @@ function ResourceCard({
   onDelete,
   busy,
   conflictingHostPorts,
+  templates,
 }: {
   resource: ResourceModel
   onStart: (resource: ResourceModel) => void
   onStop: (id: string) => void
-  onDelete: (id: string) => void
+  onDelete: () => void
   busy: boolean
   conflictingHostPorts: Set<number>
+  templates: ResourceTemplateModel[]
 }) {
   const { t } = useTranslation()
   const isRunning = resource.status === "running"
@@ -110,25 +115,27 @@ function ResourceCard({
     (p) => p.host_port > 0 && conflictingHostPorts.has(p.host_port)
   )
   const hasUnsetPort = resource.ports.some((p) => p.host_port === 0)
-
-  // Derive abbr from name or image
-  const abbr = resource.name.slice(0, 2).toUpperCase()
-  const typeColor: Record<string, string> = {
-    db: "#336791",
-    app: "#009639",
-    service: "#FF6600",
-  }
-  const color = typeColor[resource.type] ?? "#6b7280"
+  const visual = resolveResourceVisual(resource, templates)
 
   return (
-    <div className={`flex flex-col gap-3 rounded-xl border bg-card p-4 ${hasPortConflict ? "border-yellow-500/50" : ""}`}>
+    <div
+      className={`flex flex-col gap-3 rounded-xl border bg-card p-4 ${hasPortConflict ? "border-yellow-500/50" : ""}`}
+    >
       <div className="flex items-start gap-3">
-        <div
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-          style={{ backgroundColor: color }}
-        >
-          {abbr}
-        </div>
+        {visual.iconUrl ? (
+          <img
+            src={visual.iconUrl}
+            alt={`${resource.name} logo`}
+            className="size-10 shrink-0 rounded-lg object-contain"
+          />
+        ) : (
+          <div
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
+            style={{ backgroundColor: visual.color }}
+          >
+            {visual.abbr}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <StatusDot status={resource.status} />
@@ -147,7 +154,9 @@ function ResourceCard({
 
       {portSummary && (
         <div className="flex items-center gap-1.5">
-          <p className="font-mono text-xs text-muted-foreground">{portSummary}</p>
+          <p className="font-mono text-xs text-muted-foreground">
+            {portSummary}
+          </p>
           {(hasPortConflict || hasUnsetPort) && (
             <TooltipProvider>
               <Tooltip>
@@ -204,7 +213,7 @@ function ResourceCard({
           variant="ghost"
           size="sm"
           disabled={busy}
-          onClick={() => onDelete(resource.id)}
+          onClick={onDelete}
           className="text-destructive hover:text-destructive"
         >
           <DeleteIcon className="size-3.5" />
@@ -253,8 +262,8 @@ function AddEnvironmentDialog({
         <SheetHeader>
           <SheetTitle>{t("projects.addEnv")}</SheetTitle>
         </SheetHeader>
-        <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
+        <form onSubmit={onSubmit} className="mt-4 flex flex-1 flex-col gap-4">
+          <div className="flex flex-col gap-1.5 px-4">
             <Label htmlFor="env-name">{t("projects.envNameLabel")}</Label>
             <Input
               id="env-name"
@@ -267,7 +276,7 @@ function AddEnvironmentDialog({
               </p>
             )}
           </div>
-          <SheetFooter className="gap-2">
+          <SheetFooter className="mt-auto gap-2 border-t">
             <Button
               type="button"
               variant="outline"
@@ -354,7 +363,7 @@ function ResourceRunLogSheet({
           ) : null}
         </SheetHeader>
 
-        <div className="mt-4 flex-1 overflow-auto">
+        <div className="mt-4 flex-1 overflow-auto px-4">
           {isEmpty ? (
             <div className="flex flex-col gap-2">
               <Skeleton className="h-4 w-full" />
@@ -362,7 +371,7 @@ function ResourceRunLogSheet({
               <Skeleton className="h-4 w-5/6" />
             </div>
           ) : (
-            <pre className="min-h-[220px] rounded-md bg-muted p-4 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">
+            <pre className="min-h-55 rounded-md bg-muted p-4 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">
               {logs || t("projects.resource.logEmpty")}
               {connected ? <span className="animate-pulse">▌</span> : null}
               <div ref={bottomRef} />
@@ -416,9 +425,14 @@ function ForkEnvironmentDialog({
         <SheetHeader>
           <SheetTitle>{t("projects.forkEnvTitle")}</SheetTitle>
         </SheetHeader>
-        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fork-env-name">{t("projects.forkEnvNameLabel")}</Label>
+        <form
+          onSubmit={handleSubmit}
+          className="mt-4 flex flex-1 flex-col gap-4"
+        >
+          <div className="flex flex-col gap-1.5 px-4">
+            <Label htmlFor="fork-env-name">
+              {t("projects.forkEnvNameLabel")}
+            </Label>
             <Input
               id="fork-env-name"
               value={name}
@@ -439,7 +453,9 @@ function ForkEnvironmentDialog({
               type="submit"
               disabled={forkMutation.isPending || !name.trim()}
             >
-              {forkMutation.isPending ? t("projects.forking") : t("projects.fork")}
+              {forkMutation.isPending
+                ? t("projects.forking")
+                : t("projects.fork")}
             </Button>
           </SheetFooter>
         </form>
@@ -483,14 +499,19 @@ function DeleteEnvironmentDialog({
         <SheetHeader>
           <SheetTitle>{t("projects.deleteEnvTitle")}</SheetTitle>
         </SheetHeader>
-        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
-          <p className="text-sm text-muted-foreground">
+        <form
+          onSubmit={handleSubmit}
+          className="mt-4 flex flex-1 flex-col gap-4"
+        >
+          <p className="mx-4 text-sm text-muted-foreground">
             {t("projects.deleteEnvConfirmHint")}{" "}
             <span className="font-medium text-foreground">{env.name}</span>{" "}
             {t("projects.deleteEnvConfirmHint2")}
           </p>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="delete-env-input">{t("projects.deleteEnvInputLabel")}</Label>
+          <div className="flex flex-col gap-1.5 px-4">
+            <Label htmlFor="delete-env-input">
+              {t("projects.deleteEnvInputLabel")}
+            </Label>
             <Input
               id="delete-env-input"
               value={input}
@@ -499,7 +520,7 @@ function DeleteEnvironmentDialog({
               autoComplete="off"
             />
           </div>
-          <SheetFooter className="gap-2">
+          <SheetFooter className="gap-2 border-t">
             <Button
               type="button"
               variant="outline"
@@ -513,7 +534,84 @@ function DeleteEnvironmentDialog({
               variant="destructive"
               disabled={isDeleting || input !== env.name}
             >
-              {isDeleting ? t("projects.deleting") : t("projects.deleteEnvButton")}
+              {isDeleting
+                ? t("projects.deleting")
+                : t("projects.deleteEnvButton")}
+            </Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function DeleteResourceDialog({
+  resource,
+  open,
+  onOpenChange,
+  onConfirm,
+  isDeleting,
+}: {
+  resource: ResourceModel | null
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  onConfirm: () => void
+  isDeleting: boolean
+}) {
+  const [input, setInput] = useState("")
+
+  const handleClose = (v: boolean) => {
+    if (!v) setInput("")
+    onOpenChange(v)
+  }
+
+  const expectedName = resource?.name ?? ""
+  const canConfirm = Boolean(expectedName) && input === expectedName
+
+  return (
+    <Sheet open={open} onOpenChange={handleClose}>
+      <SheetContent className="sm:max-w-sm">
+        <SheetHeader>
+          <SheetTitle>Delete resource</SheetTitle>
+        </SheetHeader>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!canConfirm) return
+            onConfirm()
+          }}
+          className="mt-4 flex flex-1 flex-col gap-4"
+        >
+          <p className="mx-4 text-sm text-muted-foreground">
+            Type{" "}
+            <span className="font-medium text-foreground">{expectedName}</span>{" "}
+            to confirm resource deletion.
+          </p>
+          <div className="flex flex-col gap-1.5 px-4">
+            <Label htmlFor="delete-resource-input">Resource name</Label>
+            <Input
+              id="delete-resource-input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={expectedName}
+              autoComplete="off"
+            />
+          </div>
+          <SheetFooter className="gap-2 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isDeleting}
+              onClick={() => handleClose(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={isDeleting || !canConfirm}
+            >
+              {isDeleting ? "Deleting..." : "Delete resource"}
             </Button>
           </SheetFooter>
         </form>
@@ -528,16 +626,19 @@ function EnvironmentSection({
   env,
   projectId,
   conflictingHostPorts,
+  templates,
 }: {
   env: EnvironmentModel
   projectId: string
   conflictingHostPorts: Set<number>
+  templates: ResourceTemplateModel[]
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(true)
   const [forkOpen, setForkOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [resourceToDelete, setResourceToDelete] = useState<ResourceModel | null>(null)
   const [activeRun, setActiveRun] = useState<ResourceRunModel | null>(null)
   const [activeRunResourceName, setActiveRunResourceName] = useState<
     string | null
@@ -574,8 +675,9 @@ function EnvironmentSection({
     })
   }
 
-  const handleDelete = (id: string) => {
-    deleteMutation.mutate(id, {
+  const handleDelete = () => {
+    if (!resourceToDelete) return
+    deleteMutation.mutate(resourceToDelete.id, {
       onSuccess: () => toast.success(t("projects.resource.deleted")),
     })
   }
@@ -620,11 +722,7 @@ function EnvironmentSection({
               {t("projects.addResource")}
             </Link>
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setForkOpen(true)}
-          >
+          <Button size="sm" variant="outline" onClick={() => setForkOpen(true)}>
             <GitForkIcon className="mr-1 size-3.5" />
             {t("projects.fork")}
           </Button>
@@ -655,9 +753,10 @@ function EnvironmentSection({
                   resource={resource}
                   onStart={handleStart}
                   onStop={handleStop}
-                  onDelete={handleDelete}
+                  onDelete={() => setResourceToDelete(resource)}
                   busy={actionBusy}
                   conflictingHostPorts={conflictingHostPorts}
+                  templates={templates}
                 />
               ))}
             </div>
@@ -689,6 +788,16 @@ function EnvironmentSection({
         onConfirm={handleConfirmDeleteEnv}
         isDeleting={deleteEnvMutation.isPending}
       />
+
+      <DeleteResourceDialog
+        resource={resourceToDelete}
+        open={Boolean(resourceToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setResourceToDelete(null)
+        }}
+        onConfirm={handleDelete}
+        isDeleting={deleteMutation.isPending}
+      />
     </div>
   )
 }
@@ -702,6 +811,7 @@ export function ProjectDetailPage() {
   const [addEnvOpen, setAddEnvOpen] = useState(false)
 
   const { data: project, isLoading } = useGetProject(projectId)
+  const { data: resourceTemplates = [] } = useGetResourceTemplates()
 
   // Compute which host_ports appear in more than one resource across the project.
   const conflictingHostPorts = React.useMemo(() => {
@@ -741,7 +851,7 @@ export function ProjectDetailPage() {
           <Skeleton className="h-14 w-64 rounded-xl" />
         ) : project ? (
           <PageHeaderCard
-            icon={<FolderIcon className="size-5" />}
+            icon={<ProjectsIcon />}
             title={project.name}
             description={project.description}
             headerRight={
@@ -778,6 +888,7 @@ export function ProjectDetailPage() {
                 env={env}
                 projectId={projectId}
                 conflictingHostPorts={conflictingHostPorts}
+                templates={resourceTemplates}
               />
             ))}
           </div>

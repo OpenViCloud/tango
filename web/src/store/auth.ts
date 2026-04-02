@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import axios from "axios"
+import { getErrorMessage } from "@/lib/get-error-message"
 
 interface AuthState {
   isAuthenticated: boolean
@@ -35,8 +36,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       await axios.post("/api/auth/login", { email, password }, { withCredentials: true })
       set({ isAuthenticated: true, isLoading: false })
     } catch (err: any) {
-      const msg = err.response?.data?.error || "Đăng nhập thất bại"
-      set({ error: msg, isLoading: false })
+      set({
+        error: getErrorMessage(err),
+        isAuthenticated: false,
+        isLoading: false,
+      })
       throw err
     }
   },

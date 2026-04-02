@@ -107,6 +107,7 @@ type UpdateResourceInput struct {
 
 type ResourceRepository interface {
 	Create(ctx context.Context, input CreateResourceInput) (*Resource, error)
+	ListAll(ctx context.Context) ([]*Resource, error)
 	ListByEnvironment(ctx context.Context, environmentID string) ([]*Resource, error)
 	GetByID(ctx context.Context, id string) (*Resource, error)
 	Update(ctx context.Context, id string, input UpdateResourceInput) (*Resource, error)

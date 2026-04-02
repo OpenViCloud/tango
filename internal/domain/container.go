@@ -42,6 +42,49 @@ type Container struct {
 	Labels  map[string]string
 }
 
+type ContainerMount struct {
+	Type        string
+	Name        string
+	Source      string
+	Destination string
+	Driver      string
+	Mode        string
+	RW          bool
+}
+
+type ContainerDetails struct {
+	ID           string
+	Name         string
+	Image        string
+	ImageID      string
+	Command      []string
+	CreatedAt    string
+	State        string
+	Status       string
+	StartedAt    string
+	FinishedAt   string
+	ExitCode     int
+	Error        string
+	RestartCount int
+	Ports        []ContainerPort
+	Labels       map[string]string
+	Networks     map[string]string
+	Mounts       []ContainerMount
+}
+
+type ContainerStats struct {
+	ReadAt           string
+	CPUPercent       float64
+	MemoryUsageBytes uint64
+	MemoryLimitBytes uint64
+	MemoryPercent    float64
+	NetworkRxBytes   uint64
+	NetworkTxBytes   uint64
+	BlockReadBytes   uint64
+	BlockWriteBytes  uint64
+	PidsCurrent      uint64
+}
+
 // PullImageInput is the input for pulling an image from a registry.
 type PullImageInput struct {
 	Reference string
@@ -91,6 +134,8 @@ type DockerRepository interface {
 	PullImage(ctx context.Context, input PullImageInput) error
 	RemoveImage(ctx context.Context, imageID string, force bool) error
 	ListContainers(ctx context.Context, all bool) ([]Container, error)
+	GetContainerDetails(ctx context.Context, containerID string) (ContainerDetails, error)
+	GetContainerStats(ctx context.Context, containerID string) (ContainerStats, error)
 	EnsureNetwork(ctx context.Context, name string) error
 	CreateContainer(ctx context.Context, input CreateContainerInput) (Container, error)
 	InspectContainer(ctx context.Context, containerID string) (ContainerInfo, error)

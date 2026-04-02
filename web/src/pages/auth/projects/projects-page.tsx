@@ -15,10 +15,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
-import { actionIcons } from "@/lib/icons"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet"
+import { actionIcons, appIcons } from "@/lib/icons"
 
 const CreateIcon = actionIcons.create
+const ProjectsIcon = appIcons.projects
 
 // ── Project card ───────────────────────────────────────────────────────────────
 
@@ -33,16 +40,16 @@ function ProjectCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col gap-3 rounded-xl border bg-card p-4 text-left hover:shadow-sm transition-shadow hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex flex-col gap-3 rounded-xl border bg-card p-4 text-left transition-shadow hover:border-primary/40 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       <div className="flex items-start gap-3">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <FolderIcon className="size-5" />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate">{project.name}</p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{project.name}</p>
           {project.description ? (
-            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
               {project.description}
             </p>
           ) : null}
@@ -98,8 +105,8 @@ function CreateProjectSheet({
           <SheetTitle>{t("projects.createTitle")}</SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-5 py-4 flex-1">
-          <div className="flex flex-col gap-1.5">
+        <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-5 py-4">
+          <div className="flex flex-col gap-1.5 px-4">
             <Label htmlFor="proj-name">{t("projects.nameLabel")}</Label>
             <Input
               id="proj-name"
@@ -108,11 +115,13 @@ function CreateProjectSheet({
               {...form.register("name")}
             />
             {form.formState.errors.name && (
-              <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+              <p className="text-xs text-destructive">
+                {form.formState.errors.name.message}
+              </p>
             )}
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 px-4">
             <Label htmlFor="proj-desc">{t("projects.descriptionLabel")}</Label>
             <Input
               id="proj-desc"
@@ -122,8 +131,13 @@ function CreateProjectSheet({
             />
           </div>
 
-          <SheetFooter className="mt-auto border-t pt-4 gap-2">
-            <Button type="button" variant="outline" disabled={busy} onClick={() => handleClose(false)}>
+          <SheetFooter className="mt-auto gap-2 border-t pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => handleClose(false)}
+            >
               {t("projects.cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
@@ -148,7 +162,7 @@ export function ProjectsPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeaderCard
-        icon={<FolderIcon className="size-5" />}
+        icon={<ProjectsIcon />}
         title={t("projects.page.title")}
         description={t("projects.page.description")}
         headerRight={
@@ -174,7 +188,12 @@ export function ProjectsPage() {
               <ProjectCard
                 key={project.id}
                 project={project}
-                onClick={() => navigate({ to: "/projects/$projectId", params: { projectId: project.id } })}
+                onClick={() =>
+                  navigate({
+                    to: "/projects/$projectId",
+                    params: { projectId: project.id },
+                  })
+                }
               />
             ))}
           </div>

@@ -37,8 +37,10 @@ type ProjectHandler struct {
 	setEnvVars            *command.SetResourceEnvVarsHandler
 	listProjects          *query.ListProjectsHandler
 	getProject            *query.GetProjectHandler
+	listResourceTemplates *query.ListResourceTemplatesHandler
 	listEnvResources      *query.ListEnvironmentResourcesHandler
 	getResource           *query.GetResourceHandler
+	runtimeReconciler     appservices.ResourceRuntimeReconciler
 	dockerRepo            domain.DockerRepository
 	domainRepo            domain.ResourceDomainRepository
 	platformConfigRepo    domain.PlatformConfigRepository
@@ -63,8 +65,10 @@ func NewProjectHandler(
 	setEnvVars *command.SetResourceEnvVarsHandler,
 	listProjects *query.ListProjectsHandler,
 	getProject *query.GetProjectHandler,
+	listResourceTemplates *query.ListResourceTemplatesHandler,
 	listEnvResources *query.ListEnvironmentResourcesHandler,
 	getResource *query.GetResourceHandler,
+	runtimeReconciler appservices.ResourceRuntimeReconciler,
 	dockerRepo domain.DockerRepository,
 	domainRepo domain.ResourceDomainRepository,
 	platformConfigRepo domain.PlatformConfigRepository,
@@ -88,8 +92,10 @@ func NewProjectHandler(
 		setEnvVars:            setEnvVars,
 		listProjects:          listProjects,
 		getProject:            getProject,
+		listResourceTemplates: listResourceTemplates,
 		listEnvResources:      listEnvResources,
 		getResource:           getResource,
+		runtimeReconciler:     runtimeReconciler,
 		dockerRepo:            dockerRepo,
 		domainRepo:            domainRepo,
 		platformConfigRepo:    platformConfigRepo,
@@ -104,6 +110,7 @@ func (h *ProjectHandler) Register(rg *gin.RouterGroup) {
 	rg.GET("/projects/:id", h.GetProject)
 	rg.PUT("/projects/:id", h.UpdateProject)
 	rg.DELETE("/projects/:id", h.DeleteProject)
+	rg.GET("/resource-templates", h.ListResourceTemplates)
 	rg.POST("/projects/:id/environments", h.CreateEnvironment)
 	rg.POST("/environments/:envId/fork", h.ForkEnvironment)
 	rg.DELETE("/environments/:envId", h.DeleteEnvironment)
@@ -112,6 +119,8 @@ func (h *ProjectHandler) Register(rg *gin.RouterGroup) {
 	rg.POST("/environments/:envId/resources/from-git", h.CreateResourceFromGit)
 	rg.POST("/resources/:resourceId/build", h.StartBuildForResource)
 	rg.GET("/resources/:resourceId", h.GetResource)
+	rg.POST("/resources/reconcile", h.ReconcileResources)
+	rg.POST("/resources/:resourceId/reconcile", h.ReconcileResource)
 	rg.GET("/resources/:resourceId/connection-info", h.GetResourceConnectionInfo)
 	rg.PUT("/resources/:resourceId", h.UpdateResource)
 	rg.DELETE("/resources/:resourceId", h.DeleteResource)
@@ -227,6 +236,32 @@ type resourceResponse struct {
 	Ports         []portResponse `json:"ports"`
 }
 
+type resourceTemplatePortResponse struct {
+	Host      string `json:"host"`
+	Container string `json:"container"`
+}
+
+type resourceTemplateEnvVarResponse struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type resourceTemplateResponse struct {
+	ID          string                           `json:"id"`
+	Name        string                           `json:"name"`
+	IconURL     string                           `json:"icon_url"`
+	Image       string                           `json:"image"`
+	Description string                           `json:"description"`
+	Color       string                           `json:"color"`
+	Abbr        string                           `json:"abbr"`
+	Tags        []string                         `json:"tags"`
+	Ports       []resourceTemplatePortResponse   `json:"ports"`
+	Env         []resourceTemplateEnvVarResponse `json:"env"`
+	Type        string                           `json:"type"`
+	Volumes     []string                         `json:"volumes,omitempty"`
+	Cmd         []string                         `json:"cmd,omitempty"`
+}
+
 type resourceRunResponse struct {
 	ID         string `json:"id"`
 	ResourceID string `json:"resource_id"`
@@ -280,6 +315,15 @@ type projectResponse struct {
 	Environments []envResponse `json:"environments"`
 }
 
+type resourceRuntimeReconcileResponse struct {
+	Checked           int `json:"checked"`
+	Updated           int `json:"updated"`
+	Running           int `json:"running"`
+	Stopped           int `json:"stopped"`
+	Errored           int `json:"errored"`
+	MissingContainers int `json:"missing_containers"`
+}
+
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 func (h *ProjectHandler) ListProjects(c *gin.Context) {
@@ -324,6 +368,34 @@ func (h *ProjectHandler) GetProject(c *gin.Context) {
 	response.OK(c, toProjectResponse(project))
 }
 
+func (h *ProjectHandler) ReconcileResources(c *gin.Context) {
+	if h.runtimeReconciler == nil {
+		_ = c.Error(response.BadRequest("resource runtime reconciler is unavailable"))
+		return
+	}
+
+	summary, err := h.runtimeReconciler.ReconcileAll(c.Request.Context())
+	if err != nil {
+		_ = c.Error(response.InternalCause(err, ""))
+		return
+	}
+	response.OK(c, toResourceRuntimeReconcileResponse(summary))
+}
+
+func (h *ProjectHandler) ReconcileResource(c *gin.Context) {
+	if h.runtimeReconciler == nil {
+		_ = c.Error(response.BadRequest("resource runtime reconciler is unavailable"))
+		return
+	}
+
+	summary, err := h.runtimeReconciler.ReconcileResource(c.Request.Context(), c.Param("resourceId"))
+	if err != nil {
+		writeProjectError(c, err)
+		return
+	}
+	response.OK(c, toResourceRuntimeReconcileResponse(summary))
+}
+
 func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	var req updateProjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -348,6 +420,51 @@ func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 		return
 	}
 	response.NoContent(c)
+}
+
+func (h *ProjectHandler) ListResourceTemplates(c *gin.Context) {
+	templates, err := h.listResourceTemplates.Handle(c.Request.Context(), query.ListResourceTemplatesQuery{})
+	if err != nil {
+		_ = c.Error(response.InternalCause(err, ""))
+		return
+	}
+
+	resp := make([]resourceTemplateResponse, 0, len(templates))
+	for _, template := range templates {
+		ports := make([]resourceTemplatePortResponse, 0, len(template.Ports))
+		for _, port := range template.Ports {
+			ports = append(ports, resourceTemplatePortResponse{
+				Host:      port.Host,
+				Container: port.Container,
+			})
+		}
+
+		env := make([]resourceTemplateEnvVarResponse, 0, len(template.Env))
+		for _, entry := range template.Env {
+			env = append(env, resourceTemplateEnvVarResponse{
+				Key:   entry.Key,
+				Value: entry.Value,
+			})
+		}
+
+		resp = append(resp, resourceTemplateResponse{
+			ID:          template.ID,
+			Name:        template.Name,
+			IconURL:     template.IconURL,
+			Image:       template.Image,
+			Description: template.Description,
+			Color:       template.Color,
+			Abbr:        template.Abbr,
+			Tags:        template.Tags,
+			Ports:       ports,
+			Env:         env,
+			Type:        template.Type,
+			Volumes:     template.Volumes,
+			Cmd:         template.Cmd,
+		})
+	}
+
+	response.OK(c, resp)
 }
 
 func (h *ProjectHandler) CreateEnvironment(c *gin.Context) {
@@ -764,6 +881,20 @@ func toResourceRunResponse(run *domain.ResourceRun) resourceRunResponse {
 		resp.FinishedAt = run.FinishedAt.Format(timeLayout)
 	}
 	return resp
+}
+
+func toResourceRuntimeReconcileResponse(summary *appservices.ResourceRuntimeReconcileSummary) resourceRuntimeReconcileResponse {
+	if summary == nil {
+		return resourceRuntimeReconcileResponse{}
+	}
+	return resourceRuntimeReconcileResponse{
+		Checked:           summary.Checked,
+		Updated:           summary.Updated,
+		Running:           summary.Running,
+		Stopped:           summary.Stopped,
+		Errored:           summary.Errored,
+		MissingContainers: summary.MissingContainers,
+	}
 }
 
 func writeProjectError(c *gin.Context, err error) {

@@ -16,19 +16,23 @@ import (
 
 // DockerHandler exposes Docker container and image management endpoints.
 type DockerHandler struct {
-	listContainers  *query.ListContainersHandler
-	listImages      *query.ListImagesHandler
-	createContainer *command.CreateContainerHandler
-	startContainer  *command.StartContainerHandler
-	stopContainer   *command.StopContainerHandler
-	removeContainer *command.RemoveContainerHandler
-	pullImage       *command.PullImageHandler
-	removeImage     *command.RemoveImageHandler
+	listContainers    *query.ListContainersHandler
+	listImages        *query.ListImagesHandler
+	getContainer      *query.GetContainerDetailsHandler
+	getContainerStats *query.GetContainerStatsHandler
+	createContainer   *command.CreateContainerHandler
+	startContainer    *command.StartContainerHandler
+	stopContainer     *command.StopContainerHandler
+	removeContainer   *command.RemoveContainerHandler
+	pullImage         *command.PullImageHandler
+	removeImage       *command.RemoveImageHandler
 }
 
 func NewDockerHandler(
 	listContainers *query.ListContainersHandler,
 	listImages *query.ListImagesHandler,
+	getContainer *query.GetContainerDetailsHandler,
+	getContainerStats *query.GetContainerStatsHandler,
 	createContainer *command.CreateContainerHandler,
 	startContainer *command.StartContainerHandler,
 	stopContainer *command.StopContainerHandler,
@@ -37,19 +41,23 @@ func NewDockerHandler(
 	removeImage *command.RemoveImageHandler,
 ) *DockerHandler {
 	return &DockerHandler{
-		listContainers:  listContainers,
-		listImages:      listImages,
-		createContainer: createContainer,
-		startContainer:  startContainer,
-		stopContainer:   stopContainer,
-		removeContainer: removeContainer,
-		pullImage:       pullImage,
-		removeImage:     removeImage,
+		listContainers:    listContainers,
+		listImages:        listImages,
+		getContainer:      getContainer,
+		getContainerStats: getContainerStats,
+		createContainer:   createContainer,
+		startContainer:    startContainer,
+		stopContainer:     stopContainer,
+		removeContainer:   removeContainer,
+		pullImage:         pullImage,
+		removeImage:       removeImage,
 	}
 }
 
 func (h *DockerHandler) Register(rg *gin.RouterGroup) {
 	rg.GET("/docker/containers", h.ListContainers)
+	rg.GET("/docker/containers/:id", h.GetContainer)
+	rg.GET("/docker/containers/:id/stats", h.GetContainerStats)
 	rg.POST("/docker/containers", h.CreateContainer)
 	rg.POST("/docker/containers/:id/start", h.StartContainer)
 	rg.POST("/docker/containers/:id/stop", h.StopContainer)
@@ -82,6 +90,50 @@ type containerResponse struct {
 	Labels  map[string]string       `json:"labels"`
 }
 
+type containerMountResponse struct {
+	Type        string `json:"type"`
+	Name        string `json:"name"`
+	Source      string `json:"source"`
+	Destination string `json:"destination"`
+	Driver      string `json:"driver"`
+	Mode        string `json:"mode"`
+	RW          bool   `json:"rw"`
+}
+
+type containerDetailsResponse struct {
+	ID           string                   `json:"id"`
+	ShortID      string                   `json:"short_id"`
+	Name         string                   `json:"name"`
+	Image        string                   `json:"image"`
+	ImageID      string                   `json:"image_id"`
+	Command      []string                 `json:"command"`
+	CreatedAt    string                   `json:"created_at"`
+	State        string                   `json:"state"`
+	Status       string                   `json:"status"`
+	StartedAt    string                   `json:"started_at"`
+	FinishedAt   string                   `json:"finished_at"`
+	ExitCode     int                      `json:"exit_code"`
+	Error        string                   `json:"error"`
+	RestartCount int                      `json:"restart_count"`
+	Ports        []containerPortResponse  `json:"ports"`
+	Labels       map[string]string        `json:"labels"`
+	Networks     map[string]string        `json:"networks"`
+	Mounts       []containerMountResponse `json:"mounts"`
+}
+
+type containerStatsResponse struct {
+	ReadAt           string  `json:"read_at"`
+	CPUPercent       float64 `json:"cpu_percent"`
+	MemoryUsageBytes uint64  `json:"memory_usage_bytes"`
+	MemoryLimitBytes uint64  `json:"memory_limit_bytes"`
+	MemoryPercent    float64 `json:"memory_percent"`
+	NetworkRxBytes   uint64  `json:"network_rx_bytes"`
+	NetworkTxBytes   uint64  `json:"network_tx_bytes"`
+	BlockReadBytes   uint64  `json:"block_read_bytes"`
+	BlockWriteBytes  uint64  `json:"block_write_bytes"`
+	PidsCurrent      uint64  `json:"pids_current"`
+}
+
 type imageResponse struct {
 	ID        string   `json:"id"`
 	ShortID   string   `json:"short_id"`
@@ -99,7 +151,7 @@ type createContainerRequest struct {
 	Cmd          []string          `json:"cmd"`
 	Env          map[string]string `json:"env"`
 	PortBindings map[string]string `json:"port_bindings"` // containerPort -> hostPort, e.g. "80" -> "8080"
-	Volumes      []string          `json:"volumes"`        // bind mounts, e.g. "/host:/container"
+	Volumes      []string          `json:"volumes"`       // bind mounts, e.g. "/host:/container"
 	AutoRemove   bool              `json:"auto_remove"`
 }
 
@@ -130,6 +182,24 @@ func (h *DockerHandler) ListContainers(c *gin.Context) {
 		items = append(items, toContainerResponse(ct))
 	}
 	response.OK(c, items)
+}
+
+func (h *DockerHandler) GetContainer(c *gin.Context) {
+	ct, err := h.getContainer.Handle(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		_ = c.Error(writeDockerError(err))
+		return
+	}
+	response.OK(c, toContainerDetailsResponse(ct))
+}
+
+func (h *DockerHandler) GetContainerStats(c *gin.Context) {
+	stats, err := h.getContainerStats.Handle(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		_ = c.Error(writeDockerError(err))
+		return
+	}
+	response.OK(c, toContainerStatsResponse(stats))
 }
 
 // CreateContainer godoc
@@ -351,6 +421,67 @@ func toImageResponse(img domain.Image) imageResponse {
 		Created:   created,
 		Digest:    img.Digest,
 		InUse:     img.InUse,
+	}
+}
+
+func toContainerDetailsResponse(ct domain.ContainerDetails) containerDetailsResponse {
+	ports := make([]containerPortResponse, 0, len(ct.Ports))
+	for _, p := range ct.Ports {
+		ports = append(ports, containerPortResponse{
+			IP:          p.IP,
+			PrivatePort: p.PrivatePort,
+			PublicPort:  p.PublicPort,
+			Type:        p.Type,
+		})
+	}
+
+	mounts := make([]containerMountResponse, 0, len(ct.Mounts))
+	for _, mount := range ct.Mounts {
+		mounts = append(mounts, containerMountResponse{
+			Type:        mount.Type,
+			Name:        mount.Name,
+			Source:      mount.Source,
+			Destination: mount.Destination,
+			Driver:      mount.Driver,
+			Mode:        mount.Mode,
+			RW:          mount.RW,
+		})
+	}
+
+	return containerDetailsResponse{
+		ID:           ct.ID,
+		ShortID:      shortID(ct.ID),
+		Name:         ct.Name,
+		Image:        ct.Image,
+		ImageID:      ct.ImageID,
+		Command:      ct.Command,
+		CreatedAt:    ct.CreatedAt,
+		State:        ct.State,
+		Status:       ct.Status,
+		StartedAt:    ct.StartedAt,
+		FinishedAt:   ct.FinishedAt,
+		ExitCode:     ct.ExitCode,
+		Error:        ct.Error,
+		RestartCount: ct.RestartCount,
+		Ports:        ports,
+		Labels:       ct.Labels,
+		Networks:     ct.Networks,
+		Mounts:       mounts,
+	}
+}
+
+func toContainerStatsResponse(stats domain.ContainerStats) containerStatsResponse {
+	return containerStatsResponse{
+		ReadAt:           stats.ReadAt,
+		CPUPercent:       stats.CPUPercent,
+		MemoryUsageBytes: stats.MemoryUsageBytes,
+		MemoryLimitBytes: stats.MemoryLimitBytes,
+		MemoryPercent:    stats.MemoryPercent,
+		NetworkRxBytes:   stats.NetworkRxBytes,
+		NetworkTxBytes:   stats.NetworkTxBytes,
+		BlockReadBytes:   stats.BlockReadBytes,
+		BlockWriteBytes:  stats.BlockWriteBytes,
+		PidsCurrent:      stats.PidsCurrent,
 	}
 }
 

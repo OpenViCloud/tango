@@ -108,6 +108,25 @@ func buildDatabaseSourceInput(ctx context.Context, cipher appservices.SecretCiph
 			version = detectedVersion
 		}
 	}
+	if dbType == domain.DatabaseTypeMariaDB {
+		detectedVersion, err := tools.DetectMariaDBVersion(ctx, tools.MariaDBConnectionConfig{
+			Host:     strings.TrimSpace(cmd.Host),
+			Port:     cmd.Port,
+			Username: strings.TrimSpace(cmd.Username),
+			Password: cmd.Password,
+			Database: strings.TrimSpace(cmd.DatabaseName),
+		})
+		if err != nil {
+			slog.Default().Warn("mariadb version detection failed on create source; keeping provided version",
+				"host", strings.TrimSpace(cmd.Host),
+				"port", cmd.Port,
+				"database", strings.TrimSpace(cmd.DatabaseName),
+				"err", err,
+			)
+		} else {
+			version = detectedVersion
+		}
+	}
 	if dbType == domain.DatabaseTypePostgres {
 		detectedVersion, err := tools.DetectPostgresVersion(ctx, tools.PostgresConnectionConfig{
 			Host:     strings.TrimSpace(cmd.Host),
@@ -159,6 +178,25 @@ func buildDatabaseSourceUpdateInput(ctx context.Context, cipher appservices.Secr
 		})
 		if detectErr != nil {
 			slog.Default().Warn("mysql version detection failed on update source; keeping provided version",
+				"host", strings.TrimSpace(cmd.Host),
+				"port", cmd.Port,
+				"database", strings.TrimSpace(cmd.DatabaseName),
+				"err", detectErr,
+			)
+		} else {
+			version = detectedVersion
+		}
+	}
+	if dbType, err := domain.ValidateDatabaseType(cmd.DBType); err == nil && dbType == domain.DatabaseTypeMariaDB {
+		detectedVersion, detectErr := tools.DetectMariaDBVersion(ctx, tools.MariaDBConnectionConfig{
+			Host:     strings.TrimSpace(cmd.Host),
+			Port:     cmd.Port,
+			Username: strings.TrimSpace(cmd.Username),
+			Password: cmd.Password,
+			Database: strings.TrimSpace(cmd.DatabaseName),
+		})
+		if detectErr != nil {
+			slog.Default().Warn("mariadb version detection failed on update source; keeping provided version",
 				"host", strings.TrimSpace(cmd.Host),
 				"port", cmd.Port,
 				"database", strings.TrimSpace(cmd.DatabaseName),

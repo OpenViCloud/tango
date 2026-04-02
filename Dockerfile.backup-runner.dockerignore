@@ -1,0 +1,36 @@
+# ── Git & IDE ────────────────────────────────────
+.git
+.gitignore
+.vscode
+.cursor
+.claude
+.docker
+
+# ── macOS ────────────────────────────────────────
+.DS_Store
+.AppleDouble
+
+# ── Env & Secrets ────────────────────────────────
+.env
+.env.*
+
+# ── Logs & Data ──────────────────────────────────
+*.log
+logs/
+*.db
+*.sqlite*
+data/
+notes/
+
+# ── Docker files ─────────────────────────────────
+docker-compose*.yml
+Dockerfile*
+*.dockerignore
+letsencrypt/
+traefik/
+
+# ── Web (runner does not need frontend) ──────────
+web/
+
+# ── Migrations (runner does not need DB schema) ──
+migrations/

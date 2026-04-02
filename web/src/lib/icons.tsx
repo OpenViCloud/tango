@@ -1,20 +1,20 @@
-import type { ComponentProps, ComponentType } from "react"
+import DockerIcon from "@/icons/docker-icon"
+import GitIcon from "@/icons/git-icon"
 import {
+  Box,
   ChatRoundDots,
+  Database,
+  Global,
   HomeSmile,
+  Lightning,
+  Settings,
   ShieldCheck,
   UsersGroupRounded,
 } from "@solar-icons/react"
 import {
   ArrowLeftIcon,
-  BoxIcon,
-  ContainerIcon,
   CopyIcon,
-  DatabaseIcon,
   FilterIcon,
-  FolderIcon,
-  FolderGit2Icon,
-  GlobeIcon,
   PlayIcon,
   PlusIcon,
   RefreshCwIcon,
@@ -25,6 +25,7 @@ import {
   Trash2Icon,
   UploadIcon,
 } from "lucide-react"
+import type { ComponentProps, ComponentType } from "react"
 
 type SolarIconProps = ComponentProps<typeof HomeSmile>
 
@@ -39,13 +40,13 @@ function createSolarIcon(Icon: ComponentType<SolarIconProps>) {
 }
 
 export const appIcons = {
-  builds: BoxIcon,
-  containers: ContainerIcon,
-  databases: DatabaseIcon,
-  domains: GlobeIcon,
-  projects: FolderIcon,
-  sources: FolderGit2Icon,
-  settings: Settings2Icon,
+  builds: createSolarIcon(Lightning),
+  docker: DockerIcon,
+  databases: createSolarIcon(Database),
+  domains: createSolarIcon(Global),
+  projects: createSolarIcon(Box),
+  sources: GitIcon,
+  settings: createSolarIcon(Settings),
   dashboard: createSolarIcon(HomeSmile),
   channels: createSolarIcon(ChatRoundDots),
   users: createSolarIcon(UsersGroupRounded),

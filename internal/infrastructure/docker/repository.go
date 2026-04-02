@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -108,14 +109,169 @@ func (r *Repository) InspectContainer(ctx context.Context, containerID string) (
 	if err != nil {
 		return domain.ContainerInfo{}, fmt.Errorf("inspect container %s: %w", containerID, err)
 	}
-	networks := make(map[string]string, len(info.NetworkSettings.Networks))
-	for name, ep := range info.NetworkSettings.Networks {
-		networks[name] = ep.IPAddress
+	networks := map[string]string{}
+	if info.NetworkSettings != nil {
+		networks = make(map[string]string, len(info.NetworkSettings.Networks))
+		for name, ep := range info.NetworkSettings.Networks {
+			networks[name] = ep.IPAddress
+		}
 	}
 	return domain.ContainerInfo{
 		ID:       info.ID,
 		Name:     strings.TrimPrefix(info.Name, "/"),
 		Networks: networks,
+	}, nil
+}
+
+func (r *Repository) GetContainerDetails(ctx context.Context, containerID string) (domain.ContainerDetails, error) {
+	info, err := r.client.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return domain.ContainerDetails{}, classifyDockerError("inspect container", err)
+	}
+
+	networks := make(map[string]string, len(info.NetworkSettings.Networks))
+	for name, ep := range info.NetworkSettings.Networks {
+		networks[name] = ep.IPAddress
+	}
+
+	ports := make([]domain.ContainerPort, 0)
+	if info.NetworkSettings != nil {
+		for port, bindings := range info.NetworkSettings.Ports {
+			privatePort, proto := splitNatPort(string(port))
+			if len(bindings) == 0 {
+				ports = append(ports, domain.ContainerPort{
+					PrivatePort: privatePort,
+					Type:        proto,
+				})
+				continue
+			}
+			for _, binding := range bindings {
+				publicPort, _ := strconv.Atoi(binding.HostPort)
+				ports = append(ports, domain.ContainerPort{
+					IP:          binding.HostIP,
+					PrivatePort: privatePort,
+					PublicPort:  uint16(publicPort),
+					Type:        proto,
+				})
+			}
+		}
+	}
+
+	mounts := make([]domain.ContainerMount, 0, len(info.Mounts))
+	for _, mountPoint := range info.Mounts {
+		mounts = append(mounts, domain.ContainerMount{
+			Type:        string(mountPoint.Type),
+			Name:        mountPoint.Name,
+			Source:      mountPoint.Source,
+			Destination: mountPoint.Destination,
+			Driver:      mountPoint.Driver,
+			Mode:        mountPoint.Mode,
+			RW:          mountPoint.RW,
+		})
+	}
+
+	command := []string{}
+	image := ""
+	labels := map[string]string{}
+	if info.Config != nil {
+		if info.Path != "" {
+			command = append(command, info.Path)
+		}
+		command = append(command, info.Args...)
+		image = info.Config.Image
+		labels = info.Config.Labels
+	}
+
+	state := ""
+	status := ""
+	startedAt := ""
+	finishedAt := ""
+	exitCode := 0
+	stateError := ""
+	if info.State != nil {
+		state = string(info.State.Status)
+		status = string(info.State.Status)
+		startedAt = info.State.StartedAt
+		finishedAt = info.State.FinishedAt
+		exitCode = info.State.ExitCode
+		stateError = info.State.Error
+	}
+
+	return domain.ContainerDetails{
+		ID:           info.ID,
+		Name:         strings.TrimPrefix(info.Name, "/"),
+		Image:        image,
+		ImageID:      info.Image,
+		Command:      command,
+		CreatedAt:    info.Created,
+		State:        state,
+		Status:       status,
+		StartedAt:    startedAt,
+		FinishedAt:   finishedAt,
+		ExitCode:     exitCode,
+		Error:        stateError,
+		RestartCount: info.RestartCount,
+		Ports:        ports,
+		Labels:       labels,
+		Networks:     networks,
+		Mounts:       mounts,
+	}, nil
+}
+
+func (r *Repository) GetContainerStats(ctx context.Context, containerID string) (domain.ContainerStats, error) {
+	reader, err := r.client.ContainerStatsOneShot(ctx, containerID)
+	if err != nil {
+		return domain.ContainerStats{}, classifyDockerError("container stats", err)
+	}
+	defer reader.Body.Close()
+
+	var stats container.StatsResponse
+	if err := json.NewDecoder(reader.Body).Decode(&stats); err != nil {
+		return domain.ContainerStats{}, fmt.Errorf("decode container stats %s: %w", containerID, err)
+	}
+
+	rxBytes := uint64(0)
+	txBytes := uint64(0)
+	for _, networkStats := range stats.Networks {
+		rxBytes += networkStats.RxBytes
+		txBytes += networkStats.TxBytes
+	}
+
+	readBytes := uint64(0)
+	writeBytes := uint64(0)
+	for _, entry := range stats.BlkioStats.IoServiceBytesRecursive {
+		switch strings.ToLower(entry.Op) {
+		case "read":
+			readBytes += entry.Value
+		case "write":
+			writeBytes += entry.Value
+		}
+	}
+
+	memoryUsage := stats.MemoryStats.Usage
+	inactiveFile, ok := stats.MemoryStats.Stats["inactive_file"]
+	if ok && memoryUsage > inactiveFile {
+		memoryUsage -= inactiveFile
+	}
+
+	memoryPercent := 0.0
+	if stats.MemoryStats.Limit > 0 {
+		memoryPercent = (float64(memoryUsage) / float64(stats.MemoryStats.Limit)) * 100
+	}
+
+	cpuPercent := calculateCPUPercent(stats)
+
+	return domain.ContainerStats{
+		ReadAt:           stats.Read.Format(time.RFC3339),
+		CPUPercent:       cpuPercent,
+		MemoryUsageBytes: memoryUsage,
+		MemoryLimitBytes: stats.MemoryStats.Limit,
+		MemoryPercent:    memoryPercent,
+		NetworkRxBytes:   rxBytes,
+		NetworkTxBytes:   txBytes,
+		BlockReadBytes:   readBytes,
+		BlockWriteBytes:  writeBytes,
+		PidsCurrent:      stats.PidsStats.Current,
 	}, nil
 }
 
@@ -131,6 +287,34 @@ func (r *Repository) ListContainers(ctx context.Context, all bool) ([]domain.Con
 		result = append(result, mapContainerSummary(item))
 	}
 	return result, nil
+}
+
+func splitNatPort(value string) (uint16, string) {
+	port, proto, found := strings.Cut(value, "/")
+	if !found {
+		parsed, _ := strconv.Atoi(value)
+		return uint16(parsed), "tcp"
+	}
+	parsed, _ := strconv.Atoi(port)
+	return uint16(parsed), proto
+}
+
+func calculateCPUPercent(stats container.StatsResponse) float64 {
+	cpuDelta := float64(stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage)
+	systemDelta := float64(stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage)
+	if cpuDelta <= 0 || systemDelta <= 0 {
+		return 0
+	}
+
+	onlineCPUs := float64(stats.CPUStats.OnlineCPUs)
+	if onlineCPUs == 0 {
+		onlineCPUs = float64(len(stats.CPUStats.CPUUsage.PercpuUsage))
+	}
+	if onlineCPUs == 0 {
+		onlineCPUs = 1
+	}
+
+	return (cpuDelta / systemDelta) * onlineCPUs * 100
 }
 
 // EnsureNetwork makes sure a user-defined Docker network exists before

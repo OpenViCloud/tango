@@ -12,6 +12,7 @@ type DatabaseType string
 const (
 	DatabaseTypePostgres DatabaseType = "postgres"
 	DatabaseTypeMySQL    DatabaseType = "mysql"
+	DatabaseTypeMariaDB  DatabaseType = "mariadb"
 	DatabaseTypeMongoDB  DatabaseType = "mongodb"
 )
 
@@ -75,7 +76,7 @@ type UpdateDatabaseSourceInput struct {
 
 func ValidateDatabaseType(value string) (DatabaseType, error) {
 	switch DatabaseType(strings.TrimSpace(value)) {
-	case DatabaseTypePostgres, DatabaseTypeMySQL, DatabaseTypeMongoDB:
+	case DatabaseTypePostgres, DatabaseTypeMySQL, DatabaseTypeMariaDB, DatabaseTypeMongoDB:
 		return DatabaseType(strings.TrimSpace(value)), nil
 	default:
 		return "", ErrInvalidInput

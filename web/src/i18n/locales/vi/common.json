@@ -1,9 +1,16 @@
 {
   "shell": {
     "appName": "Tango",
-    "workspace": "Không gian làm việc",
+    "workspace": "Dashboard",
     "admin": "Quản trị Tango",
     "identity": "Định danh"
+  },
+  "common": {
+    "dashboard": "Dashboard",
+    "syncRuntime": "Sync Runtime",
+    "syncing": "Đang đồng bộ...",
+    "runtimeSyncCompleted": "Đồng bộ runtime xong: {{checked}} đã kiểm tra, {{updated}} đã cập nhật.",
+    "runtimeSyncFailed": "Không thể đồng bộ runtime state."
   },
   "auth": {
     "login": "Đăng nhập",
@@ -1223,11 +1230,46 @@
   },
   "userMenu": {
     "loading": "Đang tải...",
-    "upgrade": "Nâng cấp Pro",
     "account": "Tài khoản",
-    "billing": "Thanh toán",
-    "notifications": "Thông báo",
     "logout": "Đăng xuất"
+  },
+  "account": {
+    "page": {
+      "title": "Tài khoản",
+      "description": "Xem thông tin hồ sơ và thiết lập bảo mật của tài khoản đang đăng nhập."
+    },
+    "profile": {
+      "title": "Thông tin hồ sơ",
+      "description": "Dữ liệu nhận diện cơ bản của tài khoản hiện tại."
+    },
+    "security": {
+      "title": "Mật khẩu",
+      "description": "Đổi mật khẩu và đăng nhập lại bằng thông tin mới.",
+      "helper": "Vì lý do bảo mật, sau khi đổi mật khẩu hệ thống sẽ xóa phiên hiện tại và chuyển bạn về trang đăng nhập.",
+      "currentPassword": "Mật khẩu hiện tại",
+      "newPassword": "Mật khẩu mới",
+      "confirmPassword": "Xác nhận mật khẩu mới",
+      "passwordHint": "Dùng ít nhất 6 ký tự.",
+      "passwordMismatch": "Xác nhận mật khẩu mới không khớp.",
+      "changing": "Đang đổi mật khẩu...",
+      "changed": "Đổi mật khẩu thành công. Vui lòng đăng nhập lại."
+    },
+    "fields": {
+      "displayName": "Tên hiển thị",
+      "email": "Email",
+      "phone": "Số điện thoại",
+      "address": "Địa chỉ",
+      "status": "Trạng thái",
+      "createdAt": "Ngày tạo"
+    },
+    "actions": {
+      "editProfile": "Sửa hồ sơ",
+      "changePassword": "Đổi mật khẩu"
+    },
+    "empty": "Chưa cung cấp",
+    "errors": {
+      "load": "Không thể tải thông tin tài khoản hiện tại."
+    }
   },
   "validation": {
     "required": "Trường này là bắt buộc.",

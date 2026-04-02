@@ -128,6 +128,28 @@ func (r *ResourceRepository) ListByEnvironment(ctx context.Context, environmentI
 	return items, nil
 }
 
+func (r *ResourceRepository) ListAll(ctx context.Context) ([]*domain.Resource, error) {
+	var records []models.ResourceRecord
+	if err := r.db.WithContext(ctx).Find(&records).Error; err != nil {
+		return nil, fmt.Errorf("list resources: %w", err)
+	}
+
+	items := make([]*domain.Resource, 0, len(records))
+	for _, rec := range records {
+		var portRecords []models.ResourcePortRecord
+		if err := r.db.WithContext(ctx).Where("resource_id = ?", rec.ID).Find(&portRecords).Error; err != nil {
+			return nil, fmt.Errorf("list resource ports: %w", err)
+		}
+
+		res, err := toDomainResource(rec, portRecords, nil)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, res)
+	}
+	return items, nil
+}
+
 func (r *ResourceRepository) GetByID(ctx context.Context, id string) (*domain.Resource, error) {
 	var record models.ResourceRecord
 	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&record).Error; err != nil {

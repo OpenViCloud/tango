@@ -11,9 +11,11 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"tango/internal/application/command"
 	"tango/internal/application/query"
+	appservices "tango/internal/application/services"
 	"tango/internal/auth"
 	"tango/internal/config"
 	"tango/internal/domain"
@@ -172,6 +174,8 @@ func main() {
 		dockerHandler = rest.NewDockerHandler(
 			query.NewListContainersHandler(dr),
 			query.NewListImagesHandler(dr),
+			query.NewGetContainerDetailsHandler(dr),
+			query.NewGetContainerStatsHandler(dr),
 			command.NewCreateContainerHandler(dr),
 			command.NewStartContainerHandler(dr),
 			command.NewStopContainerHandler(dr),
@@ -185,6 +189,7 @@ func main() {
 	statusHandler := query.NewGetStatusHandler()
 	createUserHandler := command.NewCreateUserHandler(userRepo)
 	updateUserHandler := command.NewUpdateUserHandler(userRepo)
+	changePasswordHandler := command.NewChangePasswordHandler(userRepo)
 	banUserHandler := command.NewBanUserHandler(userRepo)
 	deleteUserHandler := command.NewDeleteUserHandler(userRepo)
 	assignUserRoleHandler := command.NewAssignUserRoleHandler(userRepo, roleRepo)
@@ -225,11 +230,13 @@ func main() {
 	postgresRestoreStrategy := infraservices.NewPostgresRunnerRestoreStrategy(backupRunnerClient)
 	mysqlBackupStrategy := infraservices.NewMySQLRunnerBackupStrategy(backupRunnerClient)
 	mysqlRestoreStrategy := infraservices.NewMySQLRunnerRestoreStrategy(backupRunnerClient)
+	mariadbBackupStrategy := infraservices.NewMariaDBRunnerBackupStrategy(backupRunnerClient)
+	mariadbRestoreStrategy := infraservices.NewMariaDBRunnerRestoreStrategy(backupRunnerClient)
 	mongoBackupStrategy := infraservices.NewMongoRunnerBackupStrategy(backupRunnerClient)
 	mongoRestoreStrategy := infraservices.NewMongoRunnerRestoreStrategy(backupRunnerClient)
 	localBackupStorage := infraservices.NewLocalBackupStorage()
-	backupStrategyResolver := infraservices.NewBackupStrategyResolver(mysqlBackupStrategy, postgresBackupStrategy, mongoBackupStrategy)
-	restoreStrategyResolver := infraservices.NewRestoreStrategyResolver(mysqlRestoreStrategy, postgresRestoreStrategy, mongoRestoreStrategy)
+	backupStrategyResolver := infraservices.NewBackupStrategyResolver(mysqlBackupStrategy, mariadbBackupStrategy, postgresBackupStrategy, mongoBackupStrategy)
+	restoreStrategyResolver := infraservices.NewRestoreStrategyResolver(mysqlRestoreStrategy, mariadbRestoreStrategy, postgresRestoreStrategy, mongoRestoreStrategy)
 	storageDriverResolver := infraservices.NewStorageDriverResolver(localBackupStorage)
 	backupExecutor := infraservices.NewBackupExecutor(backupRepo, databaseSourceRepo, backupConfigRepo, storageRepo, cipherService, backupStrategyResolver, storageDriverResolver)
 	restoreExecutor := infraservices.NewRestoreExecutor(restoreRepo, backupRepo, databaseSourceRepo, storageRepo, cipherService, restoreStrategyResolver, storageDriverResolver)
@@ -240,7 +247,7 @@ func main() {
 	getRestoreHandler := query.NewGetRestoreHandler(restoreRepo)
 
 	// HTTP handlers
-	authHandler := auth.NewHandler(userRepo)
+	authHandler := auth.NewHandler(userRepo, changePasswordHandler)
 	userHandler := rest.NewUserHandler(
 		createUserHandler,
 		updateUserHandler,
@@ -290,6 +297,10 @@ func main() {
 	}
 
 	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, resourceDomainRepo, platformConfigRepo, traefikFileProvider, logger)
+	var runtimeReconciler appservices.ResourceRuntimeReconciler
+	if dockerRepo != nil {
+		runtimeReconciler = infraservices.NewResourceRuntimeReconciler(resourceRepo, dockerRepo, logger)
+	}
 	buildSvc.SetResourceAutoStarter(resourceRunSvc)
 	createStartResourceRunHandler := command.NewCreateStartResourceRunHandler(resourceRepo, resourceRunRepo, resourceRunSvc)
 	stopResourceHandler := command.NewStopResourceHandler(resourceRepo, dockerRepo, traefikFileProvider)
@@ -297,6 +308,10 @@ func main() {
 	setEnvVarsHandler := command.NewSetResourceEnvVarsHandler(resourceRepo)
 	listProjectsHandler := query.NewListProjectsHandler(projectRepo, environmentRepo)
 	getProjectHandler := query.NewGetProjectHandler(projectRepo, environmentRepo, resourceRepo)
+	listResourceTemplatesHandler, err := query.NewListResourceTemplatesHandler()
+	if err != nil {
+		fatal(logger, "load resource templates failed", err)
+	}
 	listEnvResourcesHandler := query.NewListEnvironmentResourcesHandler(resourceRepo)
 	getResourceHandler := query.NewGetResourceHandler(resourceRepo)
 	telegramProjectNavigator := infraservices.NewTelegramProjectNavigator(
@@ -383,8 +398,10 @@ func main() {
 		setEnvVarsHandler,
 		listProjectsHandler,
 		getProjectHandler,
+		listResourceTemplatesHandler,
 		listEnvResourcesHandler,
 		getResourceHandler,
+		runtimeReconciler,
 		dockerRepo,
 		resourceDomainRepo,
 		platformConfigRepo,
@@ -417,6 +434,7 @@ func main() {
 		protected := api.Group("/")
 		protected.Use(auth.Middleware())
 		{
+			protected.POST("/auth/change-password", authHandler.ChangePassword)
 			userHandler.Register(protected)
 			channelHandler.Register(protected)
 			discordRuntimeHandler.Register(protected)
@@ -438,6 +456,27 @@ func main() {
 				dockerWSHandler.Register(protected)
 			}
 		}
+	}
+
+	if runtimeReconciler != nil {
+		go func() {
+			reconcileCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+
+			summary, err := runtimeReconciler.ReconcileAll(reconcileCtx)
+			if err != nil {
+				logger.Warn("resource runtime reconcile on startup failed", "err", err)
+				return
+			}
+			logger.Info("resource runtime reconcile on startup completed",
+				"checked", summary.Checked,
+				"updated", summary.Updated,
+				"running", summary.Running,
+				"stopped", summary.Stopped,
+				"errored", summary.Errored,
+				"missing_containers", summary.MissingContainers,
+			)
+		}()
 	}
 
 	// ── SPA handler ─────────────────────────────

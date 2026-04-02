@@ -94,7 +94,7 @@ export type RestoreModel = z.infer<typeof restoreSchema>
 
 export type CreateBackupSourceModel = {
   name: string
-  db_type: "mysql" | "postgres" | "mongodb"
+  db_type: "mysql" | "mariadb" | "postgres" | "mongodb"
   version?: string
   is_tls_enabled?: boolean
   resource_id?: string

@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"tango/internal/application/command"
 	"tango/internal/domain"
 	response "tango/internal/handler/rest/response"
 
@@ -34,11 +35,12 @@ type ErrorResponse struct {
 }
 
 type Handler struct {
-	repo domain.UserRepository
+	repo           domain.UserRepository
+	changePassword *command.ChangePasswordHandler
 }
 
-func NewHandler(repo domain.UserRepository) *Handler {
-	return &Handler{repo: repo}
+func NewHandler(repo domain.UserRepository, changePassword *command.ChangePasswordHandler) *Handler {
+	return &Handler{repo: repo, changePassword: changePassword}
 }
 
 // ── Password ─────────────────────────────────────
@@ -50,6 +52,11 @@ func HashPassword(password string) (string, error) {
 
 func CheckPassword(password, hash string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+}
+
+func clearAuthCookies(c *gin.Context) {
+	c.SetCookie("access_token", "", -1, "/", "", false, true)
+	c.SetCookie("refresh_token", "", -1, "/api/auth", "", false, true)
 }
 
 // ── JWT ──────────────────────────────────────────
@@ -166,9 +173,58 @@ func (h *Handler) Refresh(c *gin.Context) {
 // @Success 200 {object} MessageResponse
 // @Router /auth/logout [post]
 func (h *Handler) Logout(c *gin.Context) {
-	c.SetCookie("access_token", "", -1, "/", "", false, true)
-	c.SetCookie("refresh_token", "", -1, "/api/auth", "", false, true)
+	clearAuthCookies(c)
 	response.OK(c, MessageResponse{Message: "Logged out"})
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required,min=6"`
+	NewPassword     string `json:"new_password" binding:"required,min=6"`
+}
+
+// ChangePassword godoc
+// @Summary Change password
+// @Description Changes the current user's password and clears auth cookies so they must log in again.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body ChangePasswordRequest true "Password change payload"
+// @Success 200 {object} MessageResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /auth/change-password [post]
+func (h *Handler) ChangePassword(c *gin.Context) {
+	var req ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(response.Validation(nil, err.Error()))
+		return
+	}
+
+	if h.changePassword == nil {
+		_ = c.Error(response.Internal("Change password handler is not configured"))
+		return
+	}
+
+	if err := h.changePassword.Handle(c.Request.Context(), command.ChangePasswordCommand{
+		ID:              c.GetString("user_id"),
+		CurrentPassword: req.CurrentPassword,
+		NewPassword:     req.NewPassword,
+	}); err != nil {
+		switch err {
+		case domain.ErrInvalidCredentials:
+			_ = c.Error(response.Unauthorized("Current password is incorrect"))
+		case domain.ErrInvalidInput:
+			_ = c.Error(response.BadRequest("Invalid password payload"))
+		default:
+			_ = c.Error(response.Internal(""))
+		}
+		return
+	}
+
+	clearAuthCookies(c)
+	response.OK(c, MessageResponse{Message: "Password changed. Please log in again."})
 }
 
 // ── Middleware ───────────────────────────────────

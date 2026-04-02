@@ -14,7 +14,7 @@ Self-hosted cloud development platform for managing containerized projects, envi
 - Platform Settings for Traefik, TLS, and app domain exposure
 - Real-time Build & Run Logs via WebSocket
 - Container Terminal (interactive shell over WebSocket)
-- Database Backup & Restore for MySQL, PostgreSQL, and MongoDB resources via local storage
+- Database Backup & Restore for MySQL, PostgreSQL, MariaDb and MongoDB resources via local storage
 - Multi-Channel Messaging Integrations (Discord, Telegram, Slack, WhatsApp)
 - Encrypted Secrets & Environment Variables
 - Simple Self-Hosting
@@ -122,17 +122,20 @@ Resources of type `app` can be built from source:
 Database backup/restore is split into two responsibilities:
 
 1. `cmd/api`
+
 - stores backup sources, storages, backup configs, backups, restores
 - exposes public REST endpoints and UI
 - orchestrates backup and restore jobs
 
 2. `cmd/backup-runner`
+
 - stateless internal service
 - runs `mysqldump` / `mysql`, `pg_dump` / `pg_restore`, and `mongodump` / `mongorestore`
 - detects MySQL and PostgreSQL versions when needed
 - streams dump/restore data back to the API
 
 Current scope:
+
 - MySQL logical dump / restore via `mysqldump` / `mysql`
 - PostgreSQL logical dump / restore via `pg_dump -Fc` / `pg_restore`
 - MongoDB logical dump / restore via `mongodump --archive` / `mongorestore --archive`
@@ -199,22 +202,47 @@ cd web && pnpm install && cd ..
 
 ### 3. Set environment variables
 
+Minimal local API setup:
+
 ```bash
 export JWT_SECRET=mysecretkey123
 export PORT=8080
 export DB_DRIVER=postgres
-export DATABASE_URL=postgres://postgres:postgres@localhost:5432/tango_cloud?sslmode=disable
+export DATABASE_URL='postgres://postgres:postgres@localhost:5432/tango_cloud?sslmode=disable'
 export LLM_CONFIG_ENCRYPTION_KEY=12345678901234567890123456789012
 ```
 
-Local SQLite:
+Local SQLite instead of Postgres:
 
 ```bash
 export DB_DRIVER=sqlite
 export DATABASE_URL='file:tango_cloud.db?_foreign_keys=on'
 ```
 
-BuildKit (required for git-based builds):
+Optional local paths and service URLs:
+
+```bash
+export RESOURCE_MOUNT_ROOT=/absolute/host/path/to/tango-cloud/data/resource-volumes
+export RESOURCE_MOUNT_ROOT_APP=/platform/resource-volumes
+export BACKUP_RUNNER_BASE_URL=http://127.0.0.1:8081
+```
+
+If you want local-only development, you can stop here. `go run ./cmd/api` will use `http://localhost:8080` as the API base URL, and the frontend dev server can use its local Vite proxy.
+
+If you need public callback URLs or want to access the app through tunnels, also set:
+
+```bash
+export API_BASE_URL=https://your-api-tunnel.example
+export FRONTEND_BASE_URL=https://your-frontend-tunnel.example
+```
+
+Use tunnel/public URLs only when a feature needs externally reachable URLs, for example:
+
+- GitHub App setup and callbacks
+- OAuth or provider callbacks
+- testing the app from another device or network
+
+BuildKit (required only for git-based resource builds):
 
 ```bash
 docker run -d \
@@ -228,7 +256,7 @@ export BUILDKIT_HOST=tcp://localhost:1234
 export BUILD_WORKSPACE_DIR=/tmp/tango-builds
 ```
 
-Backup runner (required for MySQL, PostgreSQL, and MongoDB backup/restore):
+Backup runner (required only for MySQL, PostgreSQL, and MongoDB backup/restore):
 
 ```bash
 export BACKUP_RUNNER_BASE_URL=http://127.0.0.1:8081
@@ -238,7 +266,7 @@ export BACKUP_RUNNER_TOKEN=
 Traefik / domain routing (required only for domain exposure):
 
 ```bash
-export TRAEFIK_NETWORK=bridge
+export TRAEFIK_DOCKER_NETWORK=bridge
 export APP_DOMAIN=app.example.com
 export APP_TLS_ENABLED=true
 export APP_BACKEND_URL=http://app:8080
@@ -257,8 +285,11 @@ export TELEGRAM_BOT_TOKEN='your_telegram_bot_token'
 
 Notes:
 
+- `JWT_SECRET` should always be set in local dev. Auth currently reads it directly from the environment.
 - `LLM_CONFIG_ENCRYPTION_KEY` must be exactly 32 characters long.
+- `API_BASE_URL` and `FRONTEND_BASE_URL` are optional for local-only development and recommended when using ngrok, dev tunnels, or any provider callback flow.
 - `BUILDKIT_HOST` is required only if using git-based resource builds.
+- `BACKUP_RUNNER_BASE_URL` is required only if using backup/restore flows.
 - `PUBLIC_IP`, base domains, and wildcard DNS are required only if using custom/base-domain routing.
 - `RESOURCE_MOUNT_ROOT` must be an absolute host path visible to the Docker daemon. Tango resolves resource mounts under this root and rejects absolute source paths from resource config.
 
@@ -298,6 +329,8 @@ cd web && pnpm dev
 # → http://localhost:5173 (proxy /api → :8080)
 ```
 
+If you set `API_BASE_URL` and `FRONTEND_BASE_URL` to tunnel URLs, keep `go run ./cmd/api` and `pnpm dev` the same. Only the generated links and callback targets change.
+
 ## Build And Run With Docker
 
 ```bash
@@ -327,6 +360,7 @@ go run ./cmd/api
 ```
 
 For a database container published on the host, prefer one of:
+
 - `<container-name>` when the runner shares the same Docker network
 - `host.docker.internal` when the runner must reach a host-published port from inside the container
 
@@ -354,11 +388,13 @@ docker buildx build \
 ```
 
 `Dockerfile.backup-runner` prepares the database CLI tools the runner needs:
+
 - bundled MySQL client binaries from `assets/tools` into `/usr/local/mysql-<version>/bin`
 - bundled PostgreSQL client binaries from `assets/tools` into `/usr/lib/postgresql/<version>/bin`
 - MongoDB Database Tools into `/usr/local/mongodb-database-tools/bin`
 
 That gives the runner access to:
+
 - `/usr/local/mysql-8.0/bin/mysqldump`
 - `/usr/local/mysql-8.4/bin/mysqldump`
 - `/usr/local/mysql-9/bin/mysqldump`
@@ -381,114 +417,114 @@ MONGODB_TOOLS_DIR=/usr/local/mongodb-database-tools
 
 ### Auth
 
-| Method | Path                 | Auth | Description    |
-| ------ | -------------------- | ---- | -------------- |
-| POST   | /api/auth/login      | ❌   | Log in         |
-| POST   | /api/auth/refresh    | ❌   | Refresh token  |
-| POST   | /api/auth/logout     | ❌   | Log out        |
-| GET    | /api/user/me         | ✅   | Current user   |
+| Method | Path              | Auth | Description   |
+| ------ | ----------------- | ---- | ------------- |
+| POST   | /api/auth/login   | ❌   | Log in        |
+| POST   | /api/auth/refresh | ❌   | Refresh token |
+| POST   | /api/auth/logout  | ❌   | Log out       |
+| GET    | /api/user/me      | ✅   | Current user  |
 
 ### Projects & Environments
 
-| Method | Path                                  | Auth | Description              |
-| ------ | ------------------------------------- | ---- | ------------------------ |
-| GET    | /api/projects                         | ✅   | List projects            |
-| POST   | /api/projects                         | ✅   | Create project           |
-| GET    | /api/projects/:id                     | ✅   | Get project              |
-| PUT    | /api/projects/:id                     | ✅   | Update project           |
-| DELETE | /api/projects/:id                     | ✅   | Delete project           |
-| POST   | /api/projects/:id/environments        | ✅   | Add environment          |
-| POST   | /api/environments/:envId/fork         | ✅   | Fork environment         |
+| Method | Path                           | Auth | Description      |
+| ------ | ------------------------------ | ---- | ---------------- |
+| GET    | /api/projects                  | ✅   | List projects    |
+| POST   | /api/projects                  | ✅   | Create project   |
+| GET    | /api/projects/:id              | ✅   | Get project      |
+| PUT    | /api/projects/:id              | ✅   | Update project   |
+| DELETE | /api/projects/:id              | ✅   | Delete project   |
+| POST   | /api/projects/:id/environments | ✅   | Add environment  |
+| POST   | /api/environments/:envId/fork  | ✅   | Fork environment |
 
 ### Resources
 
-| Method | Path                                          | Auth | Description                  |
-| ------ | --------------------------------------------- | ---- | ---------------------------- |
-| GET    | /api/environments/:envId/resources            | ✅   | List resources in env        |
-| POST   | /api/environments/:envId/resources            | ✅   | Create resource (from image) |
-| POST   | /api/environments/:envId/resources/from-git   | ✅   | Create resource from git     |
-| GET    | /api/resources/:id                            | ✅   | Get resource                 |
-| PUT    | /api/resources/:id                            | ✅   | Update resource              |
-| DELETE | /api/resources/:id                            | ✅   | Delete resource              |
-| POST   | /api/resources/:id/start                      | ✅   | Start resource               |
-| POST   | /api/resources/:id/stop                       | ✅   | Stop resource                |
-| POST   | /api/resources/:id/build                      | ✅   | Trigger build                |
-| GET    | /api/resources/:id/logs                       | ✅   | Get run logs                 |
-| GET    | /api/resources/:id/env-vars                   | ✅   | List env vars                |
-| PUT    | /api/resources/:id/env-vars                   | ✅   | Update env vars              |
+| Method | Path                                        | Auth | Description                  |
+| ------ | ------------------------------------------- | ---- | ---------------------------- |
+| GET    | /api/environments/:envId/resources          | ✅   | List resources in env        |
+| POST   | /api/environments/:envId/resources          | ✅   | Create resource (from image) |
+| POST   | /api/environments/:envId/resources/from-git | ✅   | Create resource from git     |
+| GET    | /api/resources/:id                          | ✅   | Get resource                 |
+| PUT    | /api/resources/:id                          | ✅   | Update resource              |
+| DELETE | /api/resources/:id                          | ✅   | Delete resource              |
+| POST   | /api/resources/:id/start                    | ✅   | Start resource               |
+| POST   | /api/resources/:id/stop                     | ✅   | Stop resource                |
+| POST   | /api/resources/:id/build                    | ✅   | Trigger build                |
+| GET    | /api/resources/:id/logs                     | ✅   | Get run logs                 |
+| GET    | /api/resources/:id/env-vars                 | ✅   | List env vars                |
+| PUT    | /api/resources/:id/env-vars                 | ✅   | Update env vars              |
 
 ### Database Backups
 
-| Method | Path                                           | Auth | Description                           |
-| ------ | ---------------------------------------------- | ---- | ------------------------------------- |
-| POST   | /api/backup-sources                            | ✅   | Create backup source                  |
-| GET    | /api/backup-sources                            | ✅   | List backup sources                   |
-| GET    | /api/backup-sources/:id                        | ✅   | Get backup source                     |
-| PUT    | /api/backup-sources/:id                        | ✅   | Update backup source                  |
-| DELETE | /api/backup-sources/:id                        | ✅   | Delete backup source                  |
-| POST   | /api/storages                                  | ✅   | Create backup storage                 |
-| GET    | /api/storages                                  | ✅   | List backup storages                  |
-| GET    | /api/storages/:id                              | ✅   | Get backup storage                    |
-| PUT    | /api/storages/:id                              | ✅   | Update backup storage                 |
-| DELETE | /api/storages/:id                              | ✅   | Delete backup storage                 |
-| POST   | /api/backup-configs                            | ✅   | Create backup config                  |
-| GET    | /api/backup-configs/:id                        | ✅   | Get backup config                     |
-| GET    | /api/backup-sources/:id/backup-config          | ✅   | Get backup config by source           |
-| PUT    | /api/backup-configs/:id                        | ✅   | Update backup config                  |
-| POST   | /api/backup-sources/:id/backups                | ✅   | Trigger backup                        |
-| GET    | /api/backup-sources/:id/backups                | ✅   | List backups for one source           |
-| GET    | /api/backups/:id                               | ✅   | Get backup                            |
-| POST   | /api/backups/:id/restore                       | ✅   | Trigger restore                       |
-| GET    | /api/restores/:id                              | ✅   | Get restore                           |
+| Method | Path                                  | Auth | Description                 |
+| ------ | ------------------------------------- | ---- | --------------------------- |
+| POST   | /api/backup-sources                   | ✅   | Create backup source        |
+| GET    | /api/backup-sources                   | ✅   | List backup sources         |
+| GET    | /api/backup-sources/:id               | ✅   | Get backup source           |
+| PUT    | /api/backup-sources/:id               | ✅   | Update backup source        |
+| DELETE | /api/backup-sources/:id               | ✅   | Delete backup source        |
+| POST   | /api/storages                         | ✅   | Create backup storage       |
+| GET    | /api/storages                         | ✅   | List backup storages        |
+| GET    | /api/storages/:id                     | ✅   | Get backup storage          |
+| PUT    | /api/storages/:id                     | ✅   | Update backup storage       |
+| DELETE | /api/storages/:id                     | ✅   | Delete backup storage       |
+| POST   | /api/backup-configs                   | ✅   | Create backup config        |
+| GET    | /api/backup-configs/:id               | ✅   | Get backup config           |
+| GET    | /api/backup-sources/:id/backup-config | ✅   | Get backup config by source |
+| PUT    | /api/backup-configs/:id               | ✅   | Update backup config        |
+| POST   | /api/backup-sources/:id/backups       | ✅   | Trigger backup              |
+| GET    | /api/backup-sources/:id/backups       | ✅   | List backups for one source |
+| GET    | /api/backups/:id                      | ✅   | Get backup                  |
+| POST   | /api/backups/:id/restore              | ✅   | Trigger restore             |
+| GET    | /api/restores/:id                     | ✅   | Get restore                 |
 
 ### Routing & Settings
 
-| Method | Path                               | Auth | Description                         |
-| ------ | ---------------------------------- | ---- | ----------------------------------- |
-| GET    | /api/settings                      | ✅   | Get platform settings               |
-| PATCH  | /api/settings                      | ✅   | Update platform settings            |
-| GET    | /api/settings/base-domains         | ✅   | List managed base domains           |
-| POST   | /api/settings/base-domains         | ✅   | Add base domain                     |
-| DELETE | /api/settings/base-domains/:id     | ✅   | Delete base domain                  |
-| GET    | /api/domains/check                 | ✅   | Check whether a hostname is in use  |
+| Method | Path                           | Auth | Description                        |
+| ------ | ------------------------------ | ---- | ---------------------------------- |
+| GET    | /api/settings                  | ✅   | Get platform settings              |
+| PATCH  | /api/settings                  | ✅   | Update platform settings           |
+| GET    | /api/settings/base-domains     | ✅   | List managed base domains          |
+| POST   | /api/settings/base-domains     | ✅   | Add base domain                    |
+| DELETE | /api/settings/base-domains/:id | ✅   | Delete base domain                 |
+| GET    | /api/domains/check             | ✅   | Check whether a hostname is in use |
 
 ### Builds
 
-| Method | Path                  | Auth | Description              |
-| ------ | --------------------- | ---- | ------------------------ |
-| GET    | /api/builds           | ✅   | List build jobs          |
-| POST   | /api/builds           | ✅   | Create build from git    |
-| POST   | /api/builds/upload    | ✅   | Build from archive upload|
-| GET    | /api/builds/:id       | ✅   | Get build job            |
-| POST   | /api/builds/:id/cancel| ✅   | Cancel build             |
+| Method | Path                   | Auth | Description               |
+| ------ | ---------------------- | ---- | ------------------------- |
+| GET    | /api/builds            | ✅   | List build jobs           |
+| POST   | /api/builds            | ✅   | Create build from git     |
+| POST   | /api/builds/upload     | ✅   | Build from archive upload |
+| GET    | /api/builds/:id        | ✅   | Get build job             |
+| POST   | /api/builds/:id/cancel | ✅   | Cancel build              |
 
 ### Source Connections (GitHub)
 
-| Method | Path                                                     | Auth | Description              |
-| ------ | -------------------------------------------------------- | ---- | ------------------------ |
-| POST   | /api/source-connections/github/apps                      | ✅   | Begin GitHub OAuth flow  |
-| POST   | /api/source-connections/pat                              | ✅   | Add PAT connection       |
-| GET    | /api/source-connections                                  | ✅   | List connections         |
-| DELETE | /api/source-connections/:id                              | ✅   | Remove connection        |
-| GET    | /api/source-connections/:id/repos                        | ✅   | List repos               |
-| GET    | /api/source-connections/:id/repos/:owner/:repo/branches  | ✅   | List branches            |
+| Method | Path                                                    | Auth | Description             |
+| ------ | ------------------------------------------------------- | ---- | ----------------------- |
+| POST   | /api/source-connections/github/apps                     | ✅   | Begin GitHub OAuth flow |
+| POST   | /api/source-connections/pat                             | ✅   | Add PAT connection      |
+| GET    | /api/source-connections                                 | ✅   | List connections        |
+| DELETE | /api/source-connections/:id                             | ✅   | Remove connection       |
+| GET    | /api/source-connections/:id/repos                       | ✅   | List repos              |
+| GET    | /api/source-connections/:id/repos/:owner/:repo/branches | ✅   | List branches           |
 
 ### Channels
 
-| Method | Path              | Auth | Description              |
-| ------ | ----------------- | ---- | ------------------------ |
-| GET    | /api/channels     | ✅   | List channels            |
-| POST   | /api/channels     | ✅   | Create channel           |
-| GET    | /api/channels/:id | ✅   | Get channel              |
-| DELETE | /api/channels/:id | ✅   | Delete channel           |
+| Method | Path              | Auth | Description    |
+| ------ | ----------------- | ---- | -------------- |
+| GET    | /api/channels     | ✅   | List channels  |
+| POST   | /api/channels     | ✅   | Create channel |
+| GET    | /api/channels/:id | ✅   | Get channel    |
+| DELETE | /api/channels/:id | ✅   | Delete channel |
 
 ### WebSocket
 
-| Path                              | Description                      |
-| --------------------------------- | -------------------------------- |
-| /api/ws/builds/:id                | Stream build logs                |
-| /api/ws/resource-runs/:id         | Stream resource run logs         |
-| /api/ws/resources/:id/terminal    | Interactive container shell      |
+| Path                           | Description                 |
+| ------------------------------ | --------------------------- |
+| /api/ws/builds/:id             | Stream build logs           |
+| /api/ws/resource-runs/:id      | Stream resource run logs    |
+| /api/ws/resources/:id/terminal | Interactive container shell |
 
 ## Database
 

@@ -24,59 +24,55 @@ export const appSidebarSections: SidebarSection[] = [
     labelKey: "sidebar.platform",
     items: [
       {
-        titleKey: "sidebar.workspace",
+        titleKey: "common.dashboard",
         url: "/dashboard",
         icon: appIcons.dashboard,
-        isActive: true,
-        children: [{ titleKey: "sidebar.overview", url: "/dashboard" }],
-      },
-      {
-        titleKey: "sidebar.channels",
-        url: "/channels",
-        icon: appIcons.channels,
-        children: [{ titleKey: "sidebar.channelList", url: "/channels" }],
-      },
-      {
-        titleKey: "sidebar.builds",
-        url: "/builds",
-        icon: appIcons.builds,
-        children: [{ titleKey: "sidebar.buildList", url: "/builds" }],
-      },
-      {
-        titleKey: "sidebar.containers",
-        url: "/containers",
-        icon: appIcons.containers,
-        children: [{ titleKey: "sidebar.containerList", url: "/containers" }],
       },
       {
         titleKey: "sidebar.projects",
         url: "/projects",
         icon: appIcons.projects,
-        children: [{ titleKey: "sidebar.projectList", url: "/projects" }],
+      },
+      {
+        titleKey: "sidebar.containers",
+        url: "/containers",
+        icon: appIcons.docker,
+      },
+    ],
+  },
+  {
+    labelKey: "sidebar.settings",
+    items: [
+      {
+        titleKey: "sidebar.settingsGeneral",
+        url: "/settings",
+        icon: appIcons.settings,
       },
       {
         titleKey: "sidebar.sources",
         url: "/sources",
         icon: appIcons.sources,
-        children: [{ titleKey: "sidebar.sourceList", url: "/sources" }],
       },
       {
         titleKey: "sidebar.domains",
         url: "/domains",
         icon: appIcons.domains,
-        children: [{ titleKey: "sidebar.domainList", url: "/domains" }],
       },
       {
         titleKey: "sidebar.databases",
         url: "/databases",
         icon: appIcons.databases,
-        children: [{ titleKey: "sidebar.databaseList", url: "/databases" }],
+      },
+
+      {
+        titleKey: "sidebar.builds",
+        url: "/builds",
+        icon: appIcons.builds,
       },
       {
-        titleKey: "sidebar.settings",
-        url: "/settings",
-        icon: appIcons.settings,
-        children: [{ titleKey: "sidebar.settingsGeneral", url: "/settings" }],
+        titleKey: "sidebar.channels",
+        url: "/channels",
+        icon: appIcons.channels,
       },
     ],
   },
@@ -87,13 +83,11 @@ export const appSidebarSections: SidebarSection[] = [
         titleKey: "sidebar.users",
         url: "/users",
         icon: appIcons.users,
-        children: [{ titleKey: "sidebar.userList", url: "/users" }],
       },
       {
         titleKey: "sidebar.roles",
         url: "/roles",
         icon: appIcons.roles,
-        children: [{ titleKey: "sidebar.roleList", url: "/roles" }],
       },
     ],
   },

@@ -1,4 +1,4 @@
-import { CheckIcon, Monitor, Moon, PaletteIcon, Sun } from "lucide-react"
+import { CheckIcon, Monitor, Moon, Sun } from "lucide-react"
 
 import { useTheme } from "@/components/theme-provider-context"
 import { Button } from "@/components/ui/button"
@@ -17,14 +17,14 @@ const options = [
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
-  const currentOption = options.find((option) => option.value === theme) ?? options[2]
+  const currentOption =
+    options.find((option) => option.value === theme) ?? options[2]
   const CurrentIcon = currentOption.icon
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button type="button" variant="outline" size="sm" className="gap-2">
-          <PaletteIcon className="size-4" />
           <span className="flex items-center gap-2">
             <CurrentIcon className="size-4" />
             {currentOption.label}

@@ -9,12 +9,19 @@ import type {
 } from "@/@types/models"
 
 export const USER_QUERY_KEYS = {
+  UseGetCurrentUser: () => ["UseGetCurrentUser"],
   UseGetUserById: (userId: string) => ["UseGetUserById", userId],
   UseGetUserList: (params?: GetUserRequestModel) => [
     "UseGetUserList",
     ...Object.values(params || {}),
   ],
 }
+
+export const useGetCurrentUser = () =>
+  useQuery({
+    queryKey: USER_QUERY_KEYS.UseGetCurrentUser(),
+    queryFn: () => userService.getMe(),
+  })
 
 export const useGetUserById = (userId: string) =>
   useQuery({

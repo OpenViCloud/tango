@@ -84,6 +84,7 @@ type Config struct {
 	BuildRegistryPass   string
 	PostgresInstallDir  string
 	MySQLInstallDir     string
+	MariaDBInstallDir   string
 	MongoToolsDir       string
 	BackupRunnerBaseURL string
 	BackupRunnerToken   string
@@ -178,6 +179,7 @@ func Load() *Config {
 	cfg.BuildRegistryPass = getEnv("BUILD_REGISTRY_PASS", "")
 	cfg.PostgresInstallDir = getEnv("POSTGRES_INSTALL_DIR", defaultPostgresInstallDir())
 	cfg.MySQLInstallDir = getEnv("MYSQL_INSTALL_DIR", defaultMySQLInstallDir())
+	cfg.MariaDBInstallDir = getEnv("MARIADB_INSTALL_DIR", defaultMariaDBInstallDir())
 	cfg.MongoToolsDir = getEnv("MONGODB_TOOLS_DIR", "/usr/local/mongodb-database-tools")
 	cfg.BackupRunnerBaseURL = getEnv("BACKUP_RUNNER_BASE_URL", "http://127.0.0.1:8081")
 	cfg.BackupRunnerToken = getEnv("BACKUP_RUNNER_TOKEN", "")
@@ -225,6 +227,18 @@ func defaultPostgresInstallDir() string {
 		}
 	}
 	return "/usr/lib/postgresql"
+}
+
+func defaultMariaDBInstallDir() string {
+	if cwd, err := os.Getwd(); err == nil {
+		if archDir := mysqlToolsArchDir(runtime.GOARCH); archDir != "" {
+			localToolsDir := filepath.Join(cwd, "assets", "tools", archDir, "mariadb")
+			if info, statErr := os.Stat(localToolsDir); statErr == nil && info.IsDir() {
+				return localToolsDir
+			}
+		}
+	}
+	return "/usr/local/mariadb"
 }
 
 func mysqlToolsArchDir(goarch string) string {

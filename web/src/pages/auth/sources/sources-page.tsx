@@ -3,7 +3,6 @@ import { toast } from "sonner"
 import {
   ArrowLeftIcon,
   ExternalLinkIcon,
-  FolderGit2Icon,
   GithubIcon,
   KeyIcon,
   PlusIcon,
@@ -36,6 +35,9 @@ import {
   useGetSourceList,
 } from "@/hooks/api/use-source"
 import { getErrorMessage } from "@/lib/get-error-message"
+import { appIcons } from "@/lib/icons"
+
+const SourcesIcon = appIcons.sources
 
 function submitGitHubManifest(result: BeginGitHubAppManifestResponseModel) {
   const form = document.createElement("form")
@@ -365,7 +367,7 @@ export function SourcesPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeaderCard
-        icon={<FolderGit2Icon className="size-5" />}
+        icon={<SourcesIcon />}
         title={t("sources.page.title")}
         description={t("sources.page.description")}
         titleMeta={`${data?.length ?? 0}`}

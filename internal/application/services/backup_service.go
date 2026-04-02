@@ -43,6 +43,8 @@ type RestoreExecutor interface {
 type BackupRunnerClient interface {
 	RunMySQLLogicalDump(ctx context.Context, req *MySQLLogicalDumpRequest, writer io.Writer) (*BackupRunnerArtifact, error)
 	RunMySQLLogicalRestore(ctx context.Context, req *MySQLLogicalRestoreRequest, reader io.Reader) error
+	RunMariaDBLogicalDump(ctx context.Context, req *MariaDBLogicalDumpRequest, writer io.Writer) (*BackupRunnerArtifact, error)
+	RunMariaDBLogicalRestore(ctx context.Context, req *MariaDBLogicalRestoreRequest, reader io.Reader) error
 	RunPostgresLogicalDump(ctx context.Context, req *PostgresLogicalDumpRequest, writer io.Writer) (*BackupRunnerArtifact, error)
 	RunPostgresLogicalRestore(ctx context.Context, req *PostgresLogicalRestoreRequest, reader io.Reader) error
 	RunMongoLogicalDump(ctx context.Context, req *MongoLogicalDumpRequest, writer io.Writer) (*BackupRunnerArtifact, error)
@@ -76,6 +78,26 @@ type MySQLLogicalDumpRequest struct {
 }
 
 type MySQLLogicalRestoreRequest struct {
+	Version         string
+	Host            string
+	Port            int
+	Username        string
+	Password        string
+	Database        string
+	CompressionType domain.BackupCompressionType
+}
+
+type MariaDBLogicalDumpRequest struct {
+	Version         string
+	Host            string
+	Port            int
+	Username        string
+	Password        string
+	Database        string
+	CompressionType domain.BackupCompressionType
+}
+
+type MariaDBLogicalRestoreRequest struct {
 	Version         string
 	Host            string
 	Port            int

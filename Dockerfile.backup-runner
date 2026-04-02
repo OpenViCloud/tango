@@ -12,7 +12,7 @@ FROM debian:bookworm-slim
 ARG TARGETARCH
 
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends wget ca-certificates tzdata libncurses6 libtinfo6 libpq5 \
+	&& apt-get install -y --no-install-recommends wget ca-certificates tzdata libncurses6 libtinfo6 libpq5 libedit2 \
 	&& rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -27,12 +27,15 @@ RUN set -eux; \
 		*) echo "unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
 	esac; \
 	mkdir -p /usr/lib/postgresql/12/bin /usr/lib/postgresql/13/bin /usr/lib/postgresql/14/bin /usr/lib/postgresql/15/bin /usr/lib/postgresql/16/bin /usr/lib/postgresql/17/bin /usr/lib/postgresql/18/bin; \
+	mkdir -p /usr/local/mariadb; \
 	for version in 12 13 14 15 16 17 18; do \
 		cp -R "/tmp/tango-tools/${tools_arch}/postgresql/postgresql-${version}/bin/." "/usr/lib/postgresql/${version}/bin/"; \
 	done; \
 	cp -R "/tmp/tango-tools/${tools_arch}/mysql/." /usr/local/; \
+	cp -R "/tmp/tango-tools/${tools_arch}/mariadb/." /usr/local/mariadb/; \
 	find /usr/lib/postgresql -type f \( -name pg_dump -o -name pg_restore \) -exec chmod +x {} \;; \
 	find /usr/local -type f \( -name mysql -o -name mysqldump \) -exec chmod +x {} \;; \
+	find /usr/local/mariadb -type f \( -name mariadb -o -name mariadb-dump \) -exec chmod +x {} \;; \
 	rm -rf /tmp/tango-tools
 
 RUN set -eux; \
@@ -53,6 +56,7 @@ RUN set -eux; \
 
 ENV POSTGRES_INSTALL_DIR=/usr/lib/postgresql
 ENV MYSQL_INSTALL_DIR=/usr/local
+ENV MARIADB_INSTALL_DIR=/usr/local/mariadb
 ENV MONGODB_TOOLS_DIR=/usr/local/mongodb-database-tools
 ENV BACKUP_RUNNER_PORT=8081
 

@@ -122,7 +122,7 @@ const DB_PRESETS: DbPreset[] = [
     description: "Community-developed fork of MySQL with enterprise features.",
     color: "#003545",
     abbr: "MB",
-    tags: ["latest", "11.4", "11.2", "10.11", "10.6"],
+    tags: ["latest", "12.1", "10.6"],
     port: { host: "3306", container: "3306" },
     dataPath: "/var/lib/mysql",
     env: [

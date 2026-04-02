@@ -19,6 +19,8 @@ import (
 const (
 	mySQLRunnerDumpPath       = "/internal/mysql/logical-dump"
 	mySQLRunnerRestorePath    = "/internal/mysql/logical-restore"
+	mariaDBRunnerDumpPath     = "/internal/mariadb/logical-dump"
+	mariaDBRunnerRestorePath  = "/internal/mariadb/logical-restore"
 	postgresRunnerDumpPath    = "/internal/postgres/logical-dump"
 	postgresRunnerRestorePath = "/internal/postgres/logical-restore"
 	mongoRunnerDumpPath       = "/internal/mongo/logical-dump"
@@ -128,6 +130,99 @@ func (c *backupRunnerClient) RunMySQLLogicalRestore(ctx context.Context, req *ap
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
 		return c.decodeRunnerError("mysql restore", resp)
+	}
+	return nil
+}
+
+func (c *backupRunnerClient) RunMariaDBLogicalDump(ctx context.Context, req *appservices.MariaDBLogicalDumpRequest, writer io.Writer) (*appservices.BackupRunnerArtifact, error) {
+	if req == nil {
+		return nil, fmt.Errorf("mariadb dump request is required")
+	}
+	payload, err := json.Marshal(map[string]any{
+		"version":          req.Version,
+		"host":             req.Host,
+		"port":             req.Port,
+		"username":         req.Username,
+		"password":         req.Password,
+		"database":         req.Database,
+		"compression_type": req.CompressionType,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal mariadb dump request: %w", err)
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+mariaDBRunnerDumpPath, bytes.NewReader(payload))
+	if err != nil {
+		return nil, fmt.Errorf("create mariadb dump request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	c.setAuthHeader(httpReq)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("call backup runner dump: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.decodeRunnerError("mariadb dump", resp)
+	}
+	if _, err := io.Copy(writer, resp.Body); err != nil {
+		return nil, fmt.Errorf("read mariadb dump response: %w", err)
+	}
+	return &appservices.BackupRunnerArtifact{
+		FileName: strings.TrimSpace(resp.Header.Get("X-Tango-Artifact-File-Name")),
+		Metadata: map[string]any{
+			"tool":              "mariadb-dump",
+			"mariadb_version":   strings.TrimSpace(resp.Header.Get("X-Tango-MariaDB-Version")),
+			"compression_type":  strings.TrimSpace(resp.Header.Get("X-Tango-Compression-Type")),
+		},
+	}, nil
+}
+
+func (c *backupRunnerClient) RunMariaDBLogicalRestore(ctx context.Context, req *appservices.MariaDBLogicalRestoreRequest, reader io.Reader) error {
+	if req == nil {
+		return fmt.Errorf("mariadb restore request is required")
+	}
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	fields := map[string]string{
+		"version":          req.Version,
+		"host":             req.Host,
+		"port":             strconv.Itoa(req.Port),
+		"username":         req.Username,
+		"password":         req.Password,
+		"database":         req.Database,
+		"compression_type": string(req.CompressionType),
+	}
+	for key, value := range fields {
+		if err := writer.WriteField(key, value); err != nil {
+			return fmt.Errorf("write restore field %s: %w", key, err)
+		}
+	}
+	part, err := writer.CreateFormFile("artifact", filepath.Base(req.Database)+restoreArtifactSuffix(req.CompressionType, "sql"))
+	if err != nil {
+		return fmt.Errorf("create restore artifact form file: %w", err)
+	}
+	if _, err := io.Copy(part, reader); err != nil {
+		return fmt.Errorf("write restore artifact: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("close restore multipart writer: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+mariaDBRunnerRestorePath, &body)
+	if err != nil {
+		return fmt.Errorf("create mariadb restore request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
+	c.setAuthHeader(httpReq)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("call backup runner restore: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		return c.decodeRunnerError("mariadb restore", resp)
 	}
 	return nil
 }

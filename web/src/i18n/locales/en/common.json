@@ -1,9 +1,16 @@
 {
   "shell": {
     "appName": "Tango",
-    "workspace": "Workspace",
+    "workspace": "Dashboard",
     "admin": "Tango Admin",
     "identity": "Identity"
+  },
+  "common": {
+    "dashboard": "Dashboard",
+    "syncRuntime": "Sync Runtime",
+    "syncing": "Syncing...",
+    "runtimeSyncCompleted": "Runtime sync completed: {{checked}} checked, {{updated}} updated.",
+    "runtimeSyncFailed": "Could not sync runtime state."
   },
   "auth": {
     "login": "Sign in",
@@ -244,27 +251,27 @@
     "errors": {
       "loadProviders": "Could not load the provider list."
     },
-  "credentials": {
-    "title": "Provider credentials",
-    "description": "Manage API credentials that agents use at runtime.",
-    "searchPlaceholder": "Search credentials by provider or status",
+    "credentials": {
+      "title": "Provider credentials",
+      "description": "Manage API credentials that agents use at runtime.",
+      "searchPlaceholder": "Search credentials by provider or status",
       "emptyCredentials": "No provider credentials match the current search.",
       "actions": {
         "newCredential": "New credential",
         "deleteSelected_one": "Delete 1 credential",
         "deleteSelected_other": "Delete {{count}} credentials"
       },
-    "table": {
-      "selectAll": "Select all credentials on this page",
-      "selectRow": "Select credential {{id}}",
-      "provider": "Provider",
+      "table": {
+        "selectAll": "Select all credentials on this page",
+        "selectRow": "Select credential {{id}}",
+        "provider": "Provider",
         "status": "Status",
         "primary": "Primary",
         "updatedAt": "Updated",
         "actions": "Actions"
-    },
-    "form": {
-      "provider": "Provider",
+      },
+      "form": {
+        "provider": "Provider",
         "selectProvider": "Select a provider",
         "noProvidersFound": "No providers found.",
         "apiKey": "API key",
@@ -274,14 +281,14 @@
         "apiKeyUpdateHelp": "Leave this blank if you want to keep the current encrypted API key.",
         "status": "Status",
         "statusPlaceholder": "active",
-      "primary": "Primary",
-      "primaryHelp": "Mark this credential as the default credential for this provider."
-    },
-    "sheet": {
-      "createTitle": "Create provider credential",
-      "createDescription": "Add an API credential for an LLM provider.",
-      "editTitle": "Update provider credential",
-      "editDescription": "Rotate or adjust the runtime credential used by agents."
+        "primary": "Primary",
+        "primaryHelp": "Mark this credential as the default credential for this provider."
+      },
+      "sheet": {
+        "createTitle": "Create provider credential",
+        "createDescription": "Add an API credential for an LLM provider.",
+        "editTitle": "Update provider credential",
+        "editDescription": "Rotate or adjust the runtime credential used by agents."
       },
       "errors": {
         "loadCredentials": "Could not load the provider credential list."
@@ -688,7 +695,7 @@
     "domainList": "Domains",
     "projects": "Projects",
     "projectList": "Projects",
-    "settingsGeneral": "General"
+    "settingsGeneral": "General settings"
   },
   "settings": {
     "page": {
@@ -1223,11 +1230,46 @@
   },
   "userMenu": {
     "loading": "Loading...",
-    "upgrade": "Upgrade to Pro",
     "account": "Account",
-    "billing": "Billing",
-    "notifications": "Notifications",
     "logout": "Log out"
+  },
+  "account": {
+    "page": {
+      "title": "Account",
+      "description": "View your signed-in profile and account security settings."
+    },
+    "profile": {
+      "title": "Profile details",
+      "description": "Basic identity data for the current signed-in account."
+    },
+    "security": {
+      "title": "Password",
+      "description": "Change your password and then sign in again with the new credentials.",
+      "helper": "For security, changing your password clears the current session and sends you back to the login page.",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "passwordHint": "Use at least 6 characters.",
+      "passwordMismatch": "The new password confirmation does not match.",
+      "changing": "Changing password...",
+      "changed": "Password changed. Please log in again."
+    },
+    "fields": {
+      "displayName": "Display name",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "status": "Status",
+      "createdAt": "Created at"
+    },
+    "actions": {
+      "editProfile": "Edit profile",
+      "changePassword": "Change password"
+    },
+    "empty": "Not provided",
+    "errors": {
+      "load": "Unable to load the current account."
+    }
   },
   "validation": {
     "required": "This field is required.",

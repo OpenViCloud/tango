@@ -1,5 +1,5 @@
 import { toast } from "sonner"
-import { GlobeIcon, PlusIcon, Settings2Icon, Trash2 } from "lucide-react"
+import { PlusIcon, Settings2Icon, Trash2 } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 
@@ -16,7 +16,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { appIcons } from "@/lib/icons"
 import { useState } from "react"
+
+const DomainsIcon = appIcons.domains
 
 const DOMAIN_PATTERN =
   /^(?=.{1,253}$)(?!-)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[A-Za-z]{2,}$/
@@ -74,7 +77,7 @@ export function DomainsPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeaderCard
-        icon={<GlobeIcon className="size-6" />}
+        icon={<DomainsIcon />}
         title={t("domains.page.title")}
         description={t("domains.page.description")}
       />

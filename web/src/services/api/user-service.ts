@@ -11,6 +11,10 @@ import { unwrapApiResponse } from "@/lib/api-response"
 const baseUrl = "/users"
 
 export const userService = {
+  getMe: () =>
+    api
+      .get<ApiResponse<UserModel>>(`/user/me`)
+      .then((res) => unwrapApiResponse(res.data)),
   getById: (userId: string) =>
     api
       .get<ApiResponse<UserModel>>(`/user/${userId}`)

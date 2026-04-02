@@ -1,0 +1,38 @@
+# ── Git & IDE ────────────────────────────────────
+.git
+.gitignore
+.vscode
+.cursor
+.claude
+.docker
+
+# ── macOS ────────────────────────────────────────
+.DS_Store
+.AppleDouble
+
+# ── Env & Secrets ────────────────────────────────
+.env
+.env.*
+
+# ── Logs & Data ──────────────────────────────────
+*.log
+logs/
+*.db
+*.sqlite*
+data/
+notes/
+
+# ── Docker files ─────────────────────────────────
+docker-compose*.yml
+Dockerfile*
+*.dockerignore
+letsencrypt/
+traefik/
+
+# ── FE build artifacts (rebuild in Docker) ───────
+web/node_modules
+web/dist
+web/.vite
+
+# ── DB Tools binaries (only backup-runner needs) ─
+assets/tools

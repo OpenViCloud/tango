@@ -72,11 +72,38 @@ export const resourceEnvVarSchema = z.object({
   is_secret: z.boolean(),
 })
 
+export const resourceTemplateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  icon_url: z.string(),
+  image: z.string(),
+  description: z.string(),
+  color: z.string(),
+  abbr: z.string(),
+  tags: z.array(z.string()),
+  ports: z.array(
+    z.object({
+      host: z.string(),
+      container: z.string(),
+    })
+  ),
+  env: z.array(
+    z.object({
+      key: z.string(),
+      value: z.string(),
+    })
+  ),
+  type: z.string(),
+  volumes: z.array(z.string()).optional(),
+  cmd: z.array(z.string()).optional(),
+})
+
 export type ProjectModel = z.infer<typeof projectSchema>
 export type EnvironmentModel = z.infer<typeof environmentSchema>
 export type ResourceModel = z.infer<typeof resourceSchema>
 export type ResourcePortModel = z.infer<typeof resourcePortSchema>
 export type ResourceEnvVarModel = z.infer<typeof resourceEnvVarSchema>
+export type ResourceTemplateModel = z.infer<typeof resourceTemplateSchema>
 export type ResourceRunModel = z.infer<typeof resourceRunSchema>
 export type ResourceLogsModel = z.infer<typeof resourceLogsSchema>
 

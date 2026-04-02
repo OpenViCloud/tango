@@ -46,7 +46,7 @@ export function ResourceConfigurationTab({
   return (
     <>
       <aside
-        className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed top-0 left-0 z-40 min-h-[calc(100vh-120px)] w-64 shrink-0 border-r border-border bg-background p-4 transition-transform md:sticky md:top-auto md:min-h-0 md:translate-x-0 md:transition-none`}
+        className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed top-0 left-0 z-40 min-h-[calc(100vh-120px)] w-64 shrink-0 border-r border-border/80 bg-card/95 p-4 transition-transform md:sticky md:top-auto md:min-h-0 md:translate-x-0 md:bg-transparent md:transition-none`}
       >
         <ConfigSidebar
           active={activeSection}
@@ -59,7 +59,7 @@ export function ResourceConfigurationTab({
 
       {sidebarOpen ? (
         <div
-          className="fixed inset-0 z-30 bg-background/60 md:hidden"
+          className="fixed inset-0 z-30 bg-background/70 md:hidden"
           onClick={onDismissSidebar}
         />
       ) : null}

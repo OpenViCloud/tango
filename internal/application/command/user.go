@@ -89,6 +89,50 @@ func (h *UpdateUserHandler) Handle(ctx context.Context, cmd UpdateUserCommand) (
 	return updated, nil
 }
 
+type ChangePasswordCommand struct {
+	ID              string
+	CurrentPassword string
+	NewPassword     string
+}
+
+type ChangePasswordHandler struct {
+	repo domain.UserRepository
+}
+
+func NewChangePasswordHandler(repo domain.UserRepository) *ChangePasswordHandler {
+	return &ChangePasswordHandler{repo: repo}
+}
+
+func (h *ChangePasswordHandler) Handle(ctx context.Context, cmd ChangePasswordCommand) error {
+	if cmd.ID == "" || cmd.CurrentPassword == "" || len(cmd.NewPassword) < 6 {
+		return domain.ErrInvalidInput
+	}
+
+	user, err := h.repo.GetByID(ctx, cmd.ID)
+	if err != nil {
+		return err
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(cmd.CurrentPassword)); err != nil {
+		return domain.ErrInvalidCredentials
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(cmd.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	if err := user.ChangePassword(string(passwordHash)); err != nil {
+		return err
+	}
+
+	if _, err := h.repo.Update(ctx, user); err != nil {
+		return fmt.Errorf("update user password: %w", err)
+	}
+
+	return nil
+}
+
 type BanUserCommand struct {
 	ID string
 }

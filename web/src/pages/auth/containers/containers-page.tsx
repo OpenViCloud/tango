@@ -19,7 +19,9 @@ import type {
 } from "@/@types/models"
 import { pullImageSchema } from "@/@types/models/container"
 import {
+  useGetContainer,
   useGetContainerList,
+  useGetContainerStats,
   useGetImageList,
   useStartContainer,
   useStopContainer,
@@ -46,7 +48,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { appIcons, actionIcons } from "@/lib/icons"
 
-const DockerIcon = appIcons.containers
+const DockerIcon = appIcons.docker
 const CreateIcon = actionIcons.create
 const StartIcon = actionIcons.start
 const StopIcon = actionIcons.stop
@@ -69,6 +71,37 @@ function StateDot({ state }: { state: string }) {
       className={`inline-block size-2 shrink-0 rounded-full ${STATE_DOT[state] ?? "bg-muted-foreground/40"}`}
     />
   )
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "0 B"
+  const units = ["B", "KB", "MB", "GB", "TB"]
+  let size = value
+  let unitIndex = 0
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex += 1
+  }
+  return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return "—"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "—"
+  return new Intl.DateTimeFormat("vi-VN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date)
+}
+
+function statBadgeVariant(
+  state: string
+): "default" | "secondary" | "outline" | "warning" | "success" {
+  if (state === "running") return "success"
+  if (state === "paused" || state === "restarting") return "warning"
+  if (state === "created") return "default"
+  return "secondary"
 }
 
 // ── Grouping helpers ──────────────────────────────────────────────────────────
@@ -103,7 +136,8 @@ function groupContainers(containers: ContainerModel[]): {
 
 // ── Table layout constant ─────────────────────────────────────────────────────
 
-const COLS = "grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_minmax(0,1.5fr)_9rem]"
+const COLS =
+  "grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_minmax(0,1.5fr)_14rem]"
 
 // ── Table header ──────────────────────────────────────────────────────────────
 
@@ -125,6 +159,7 @@ function ContainerTableHeader() {
 
 function ContainerRow({
   container,
+  onDetails,
   onStart,
   onStop,
   onRemove,
@@ -132,6 +167,7 @@ function ContainerRow({
   indent = false,
 }: {
   container: ContainerModel
+  onDetails: (id: string) => void
   onStart: (id: string) => void
   onStop: (id: string) => void
   onRemove: (id: string) => void
@@ -164,6 +200,14 @@ function ContainerRow({
         {portSummary || "—"}
       </span>
       <div className="flex items-center justify-end gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={busy}
+          onClick={() => onDetails(container.id)}
+        >
+          Details
+        </Button>
         {isRunning ? (
           <Button
             variant="outline"
@@ -201,12 +245,14 @@ function ContainerRow({
 
 function ProjectGroupRow({
   group,
+  onDetails,
   onStart,
   onStop,
   onRemove,
   busy,
 }: {
   group: ContainerGroup
+  onDetails: (id: string) => void
   onStart: (id: string) => void
   onStop: (id: string) => void
   onRemove: (id: string) => void
@@ -244,6 +290,7 @@ function ProjectGroupRow({
           <ContainerRow
             key={ct.id}
             container={ct}
+            onDetails={onDetails}
             onStart={onStart}
             onStop={onStop}
             onRemove={onRemove}
@@ -255,12 +302,277 @@ function ProjectGroupRow({
   )
 }
 
+function DetailMetric({
+  label,
+  value,
+  hint,
+}: {
+  label: string
+  value: string
+  hint?: string
+}) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-background/70 p-4">
+      <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
+        {label}
+      </p>
+      <p className="mt-2 text-lg font-semibold">{value}</p>
+      {hint ? (
+        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+      ) : null}
+    </div>
+  )
+}
+
+function ContainerDetailsSheet({
+  containerId,
+  open,
+  onOpenChange,
+}: {
+  containerId: string | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const { data: details, isLoading: detailsLoading } = useGetContainer(
+    containerId ?? ""
+  )
+  const { data: stats, isLoading: statsLoading } = useGetContainerStats(
+    containerId ?? "",
+    open
+  )
+
+  const labels = Object.entries(details?.labels ?? {})
+  const networks = Object.entries(details?.networks ?? {})
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="flex flex-col gap-0 overflow-y-auto sm:max-w-2xl">
+        <SheetHeader className="border-b pb-4">
+          <SheetTitle>
+            {details?.name || details?.short_id || "Container details"}
+          </SheetTitle>
+          {details ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <Badge variant={statBadgeVariant(details.state)}>
+                {details.state}
+              </Badge>
+              <span className="font-mono">{details.image}</span>
+            </div>
+          ) : null}
+        </SheetHeader>
+
+        {detailsLoading ? (
+          <div className="flex flex-col gap-4 py-4">
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-56 rounded-xl" />
+          </div>
+        ) : !details ? (
+          <div className="py-6 text-sm text-muted-foreground">
+            Could not load container details.
+          </div>
+        ) : (
+          <div className="flex flex-col gap-6 p-4">
+            <div className="flex flex-col gap-3">
+              <DetailMetric
+                label="CPU"
+                value={stats ? `${stats.cpu_percent.toFixed(1)}%` : "—"}
+              />
+              <DetailMetric
+                label="Memory"
+                value={
+                  stats
+                    ? `${formatBytes(stats.memory_usage_bytes)} / ${formatBytes(stats.memory_limit_bytes)}`
+                    : "—"
+                }
+                hint={
+                  stats ? `${stats.memory_percent.toFixed(1)}% used` : undefined
+                }
+              />
+              <DetailMetric
+                label="Network"
+                value={
+                  stats
+                    ? `${formatBytes(stats.network_rx_bytes)} down / ${formatBytes(stats.network_tx_bytes)} up`
+                    : "—"
+                }
+              />
+              <DetailMetric
+                label="Block I/O"
+                value={
+                  stats
+                    ? `${formatBytes(stats.block_read_bytes)} read / ${formatBytes(stats.block_write_bytes)} write`
+                    : "—"
+                }
+              />
+              <DetailMetric
+                label="PIDs"
+                value={stats ? String(stats.pids_current) : "—"}
+              />
+              <DetailMetric
+                label="Last sample"
+                value={
+                  stats
+                    ? formatDateTime(stats.read_at)
+                    : statsLoading
+                      ? "Loading..."
+                      : "—"
+                }
+              />
+            </div>
+
+            <div className="rounded-2xl border border-border/70 p-4">
+              <h3 className="text-sm font-semibold">Container</h3>
+              <div className="mt-4 grid gap-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Created</p>
+                  <p>{formatDateTime(details.created_at)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Started</p>
+                  <p>{formatDateTime(details.started_at)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Finished</p>
+                  <p>{formatDateTime(details.finished_at)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Restart count</p>
+                  <p>{details.restart_count}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Exit code</p>
+                  <p>{details.exit_code}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Command</p>
+                  <p className="font-mono text-xs break-all">
+                    {details.command.length > 0
+                      ? details.command.join(" ")
+                      : "—"}
+                  </p>
+                </div>
+                {details.error ? (
+                  <div>
+                    <p className="text-muted-foreground">Error</p>
+                    <p className="text-destructive">{details.error}</p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border/70 p-4">
+              <h3 className="text-sm font-semibold">Networks</h3>
+              <div className="mt-4 flex flex-col gap-3">
+                {networks.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No network addresses found.
+                  </p>
+                ) : (
+                  networks.map(([name, ip]) => (
+                    <div
+                      key={name}
+                      className="rounded-xl border border-border/70 bg-background/70 p-3"
+                    >
+                      <p className="font-medium">{name}</p>
+                      <p className="mt-1 font-mono text-xs text-muted-foreground">
+                        {ip || "—"}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border/70 p-4">
+              <h3 className="text-sm font-semibold">Ports</h3>
+              <div className="mt-4 flex flex-col gap-2">
+                {details.ports.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No ports exposed.
+                  </p>
+                ) : (
+                  details.ports.map((port, index) => (
+                    <div
+                      key={`${port.private_port}-${port.public_port}-${index}`}
+                      className="flex items-center justify-between rounded-xl border border-border/70 bg-background/70 px-3 py-2 text-sm"
+                    >
+                      <span className="font-mono">
+                        {port.public_port
+                          ? `${port.public_port} → ${port.private_port}`
+                          : `${port.private_port}`}
+                      </span>
+                      <Badge variant="outline">{port.type}</Badge>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border/70 p-4">
+              <h3 className="text-sm font-semibold">Mounts</h3>
+              <div className="mt-4 flex flex-col gap-2">
+                {details.mounts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No mounts configured.
+                  </p>
+                ) : (
+                  details.mounts.map((mount, index) => (
+                    <div
+                      key={`${mount.destination}-${index}`}
+                      className="rounded-xl border border-border/70 bg-background/70 p-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-mono text-xs">{mount.destination}</p>
+                        <Badge variant="outline">{mount.type}</Badge>
+                      </div>
+                      <p className="mt-2 text-xs break-all text-muted-foreground">
+                        {mount.source || mount.name || "—"}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border/70 p-4">
+              <h3 className="text-sm font-semibold">Labels</h3>
+              <div className="mt-4 flex flex-col gap-2">
+                {labels.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No labels found.
+                  </p>
+                ) : (
+                  labels.map(([key, value]) => (
+                    <div
+                      key={key}
+                      className="flex flex-col gap-1 rounded-xl border border-border/70 bg-background/70 p-3"
+                    >
+                      <p className="font-mono text-xs break-all">{key}</p>
+                      <p className="text-xs break-all text-muted-foreground">
+                        {value}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 // ── Containers tab ────────────────────────────────────────────────────────────
 
 function ContainersTab() {
   const { t } = useTranslation()
   const [showAll, setShowAll] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
+  const [selectedContainerId, setSelectedContainerId] = useState<string | null>(
+    null
+  )
 
   const { data: containers, isLoading } = useGetContainerList(showAll)
   const startMutation = useStartContainer()
@@ -286,6 +598,10 @@ function ContainersTab() {
         onSuccess: () => toast.success(t("docker.container.removed")),
       }
     )
+  }
+
+  const handleDetails = (id: string) => {
+    setSelectedContainerId(id)
   }
 
   const busy =
@@ -330,6 +646,7 @@ function ContainersTab() {
             <ContainerRow
               key={ct.id}
               container={ct}
+              onDetails={handleDetails}
               onStart={handleStart}
               onStop={handleStop}
               onRemove={handleRemove}
@@ -340,6 +657,7 @@ function ContainersTab() {
             <ProjectGroupRow
               key={g.project}
               group={g}
+              onDetails={handleDetails}
               onStart={handleStart}
               onStop={handleStop}
               onRemove={handleRemove}
@@ -350,6 +668,13 @@ function ContainersTab() {
       )}
 
       <RunContainerSheet open={showCreate} onOpenChange={setShowCreate} />
+      <ContainerDetailsSheet
+        containerId={selectedContainerId}
+        open={Boolean(selectedContainerId)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedContainerId(null)
+        }}
+      />
     </div>
   )
 }
@@ -471,201 +796,206 @@ function RunContainerSheet({
         </SheetHeader>
 
         <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-0">
-          {/* Image input — only shown when not pre-set */}
-          {!defaultImage && (
-            <div className="flex flex-col gap-1.5 border-b py-4">
-              <Label>{t("docker.container.imageLabel")}</Label>
-              <Input placeholder="nginx:latest" {...form.register("image")} />
-              {form.formState.errors.image && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.image.message}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Optional settings collapsible */}
-          <button
-            type="button"
-            onClick={() => setOptionsOpen((v) => !v)}
-            className="flex w-full items-center justify-between border-b py-4 text-left text-sm font-medium"
-          >
-            <span>{t("docker.container.optionalSettings")}</span>
-            {optionsOpen ? (
-              <ChevronDownIcon className="size-4 text-muted-foreground" />
-            ) : (
-              <ChevronRightIcon className="size-4 text-muted-foreground" />
-            )}
-          </button>
-
-          {optionsOpen && (
-            <div className="flex flex-col gap-5 py-4">
-              {/* Container name */}
-              <div className="flex flex-col gap-1.5">
-                <Label>{t("docker.container.nameLabel")}</Label>
-                <Input
-                  placeholder={t("docker.container.namePlaceholder")}
-                  {...form.register("name", {
-                    pattern: {
-                      value: /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/,
-                      message: t("docker.container.nameInvalid"),
-                    },
-                  })}
-                />
-                {form.formState.errors.name ? (
+          <div className="px-4">
+            {/* Image input — only shown when not pre-set */}
+            {!defaultImage && (
+              <div className="flex flex-col gap-1.5 border-b py-4">
+                <Label>{t("docker.container.imageLabel")}</Label>
+                <Input placeholder="nginx:latest" {...form.register("image")} />
+                {form.formState.errors.image && (
                   <p className="text-xs text-destructive">
-                    {form.formState.errors.name.message}
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    {t("docker.container.nameHint")}
+                    {form.formState.errors.image.message}
                   </p>
                 )}
               </div>
+            )}
 
-              {/* Ports */}
-              <div className="flex flex-col gap-2">
-                <Label>{t("docker.container.portsLabel")}</Label>
-                <p className="-mt-1 text-xs text-muted-foreground">
-                  {t("docker.container.portsHint")}
-                </p>
-                {ports.fields.map((field, i) => (
-                  <div key={field.id} className="flex items-center gap-2">
-                    <Input
-                      className="flex-1"
-                      placeholder={t("docker.container.hostPort")}
-                      {...form.register(`ports.${i}.hostPort`)}
-                    />
-                    <span className="shrink-0 text-sm text-muted-foreground">
-                      :
-                    </span>
-                    <Input
-                      className="flex-1"
-                      placeholder="80"
-                      {...form.register(`ports.${i}.containerPort`)}
-                    />
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      /tcp
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 shrink-0"
-                      onClick={() =>
-                        ports.fields.length > 1
-                          ? ports.remove(i)
-                          : ports.update(i, { hostPort: "", containerPort: "" })
-                      }
-                    >
-                      <MinusIcon className="size-3.5" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="self-start"
-                  onClick={() =>
-                    ports.append({ hostPort: "", containerPort: "" })
-                  }
-                >
-                  <PlusIcon className="mr-1 size-3.5" />
-                  {t("docker.container.addPort")}
-                </Button>
-              </div>
+            {/* Optional settings collapsible */}
+            <button
+              type="button"
+              onClick={() => setOptionsOpen((v) => !v)}
+              className="flex w-full items-center justify-between border-b py-4 text-left text-sm font-medium"
+            >
+              <span>{t("docker.container.optionalSettings")}</span>
+              {optionsOpen ? (
+                <ChevronDownIcon className="size-4 text-muted-foreground" />
+              ) : (
+                <ChevronRightIcon className="size-4 text-muted-foreground" />
+              )}
+            </button>
 
-              {/* Volumes */}
-              <div className="flex flex-col gap-2">
-                <Label>{t("docker.container.volumesLabel")}</Label>
-                {volumes.fields.map((field, i) => (
-                  <div key={field.id} className="flex items-center gap-2">
-                    <Input
-                      className="flex-1"
-                      placeholder={t("docker.container.hostPath")}
-                      {...form.register(`volumes.${i}.hostPath`)}
-                    />
-                    <Input
-                      className="flex-1"
-                      placeholder={t("docker.container.containerPath")}
-                      {...form.register(`volumes.${i}.containerPath`)}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 shrink-0"
-                      onClick={() =>
-                        volumes.fields.length > 1
-                          ? volumes.remove(i)
-                          : volumes.update(i, {
-                              hostPath: "",
-                              containerPath: "",
-                            })
-                      }
-                    >
-                      <MinusIcon className="size-3.5" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="self-start"
-                  onClick={() =>
-                    volumes.append({ hostPath: "", containerPath: "" })
-                  }
-                >
-                  <PlusIcon className="mr-1 size-3.5" />
-                  {t("docker.container.addVolume")}
-                </Button>
-              </div>
+            {optionsOpen && (
+              <div className="flex flex-col gap-5 py-4">
+                {/* Container name */}
+                <div className="flex flex-col gap-1.5">
+                  <Label>{t("docker.container.nameLabel")}</Label>
+                  <Input
+                    placeholder={t("docker.container.namePlaceholder")}
+                    {...form.register("name", {
+                      pattern: {
+                        value: /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/,
+                        message: t("docker.container.nameInvalid"),
+                      },
+                    })}
+                  />
+                  {form.formState.errors.name ? (
+                    <p className="text-xs text-destructive">
+                      {form.formState.errors.name.message}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {t("docker.container.nameHint")}
+                    </p>
+                  )}
+                </div>
 
-              {/* Env vars */}
-              <div className="flex flex-col gap-2">
-                <Label>{t("docker.container.envLabel")}</Label>
-                {envVars.fields.map((field, i) => (
-                  <div key={field.id} className="flex items-center gap-2">
-                    <Input
-                      className="flex-1"
-                      placeholder={t("docker.container.envKey")}
-                      {...form.register(`envVars.${i}.key`)}
-                    />
-                    <Input
-                      className="flex-1"
-                      placeholder={t("docker.container.envValue")}
-                      {...form.register(`envVars.${i}.value`)}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 shrink-0"
-                      onClick={() =>
-                        envVars.fields.length > 1
-                          ? envVars.remove(i)
-                          : envVars.update(i, { key: "", value: "" })
-                      }
-                    >
-                      <MinusIcon className="size-3.5" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="self-start"
-                  onClick={() => envVars.append({ key: "", value: "" })}
-                >
-                  <PlusIcon className="mr-1 size-3.5" />
-                  {t("docker.container.addEnv")}
-                </Button>
+                {/* Ports */}
+                <div className="flex flex-col gap-2">
+                  <Label>{t("docker.container.portsLabel")}</Label>
+                  <p className="-mt-1 text-xs text-muted-foreground">
+                    {t("docker.container.portsHint")}
+                  </p>
+                  {ports.fields.map((field, i) => (
+                    <div key={field.id} className="flex items-center gap-2">
+                      <Input
+                        className="flex-1"
+                        placeholder={t("docker.container.hostPort")}
+                        {...form.register(`ports.${i}.hostPort`)}
+                      />
+                      <span className="shrink-0 text-sm text-muted-foreground">
+                        :
+                      </span>
+                      <Input
+                        className="flex-1"
+                        placeholder="80"
+                        {...form.register(`ports.${i}.containerPort`)}
+                      />
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        /tcp
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0"
+                        onClick={() =>
+                          ports.fields.length > 1
+                            ? ports.remove(i)
+                            : ports.update(i, {
+                                hostPort: "",
+                                containerPort: "",
+                              })
+                        }
+                      >
+                        <MinusIcon className="size-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="self-start"
+                    onClick={() =>
+                      ports.append({ hostPort: "", containerPort: "" })
+                    }
+                  >
+                    <PlusIcon className="mr-1 size-3.5" />
+                    {t("docker.container.addPort")}
+                  </Button>
+                </div>
+
+                {/* Volumes */}
+                <div className="flex flex-col gap-2">
+                  <Label>{t("docker.container.volumesLabel")}</Label>
+                  {volumes.fields.map((field, i) => (
+                    <div key={field.id} className="flex items-center gap-2">
+                      <Input
+                        className="flex-1"
+                        placeholder={t("docker.container.hostPath")}
+                        {...form.register(`volumes.${i}.hostPath`)}
+                      />
+                      <Input
+                        className="flex-1"
+                        placeholder={t("docker.container.containerPath")}
+                        {...form.register(`volumes.${i}.containerPath`)}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0"
+                        onClick={() =>
+                          volumes.fields.length > 1
+                            ? volumes.remove(i)
+                            : volumes.update(i, {
+                                hostPath: "",
+                                containerPath: "",
+                              })
+                        }
+                      >
+                        <MinusIcon className="size-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="self-start"
+                    onClick={() =>
+                      volumes.append({ hostPath: "", containerPath: "" })
+                    }
+                  >
+                    <PlusIcon className="mr-1 size-3.5" />
+                    {t("docker.container.addVolume")}
+                  </Button>
+                </div>
+
+                {/* Env vars */}
+                <div className="flex flex-col gap-2">
+                  <Label>{t("docker.container.envLabel")}</Label>
+                  {envVars.fields.map((field, i) => (
+                    <div key={field.id} className="flex items-center gap-2">
+                      <Input
+                        className="flex-1"
+                        placeholder={t("docker.container.envKey")}
+                        {...form.register(`envVars.${i}.key`)}
+                      />
+                      <Input
+                        className="flex-1"
+                        placeholder={t("docker.container.envValue")}
+                        {...form.register(`envVars.${i}.value`)}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0"
+                        onClick={() =>
+                          envVars.fields.length > 1
+                            ? envVars.remove(i)
+                            : envVars.update(i, { key: "", value: "" })
+                        }
+                      >
+                        <MinusIcon className="size-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="self-start"
+                    onClick={() => envVars.append({ key: "", value: "" })}
+                  >
+                    <PlusIcon className="mr-1 size-3.5" />
+                    {t("docker.container.addEnv")}
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           <SheetFooter className="mt-auto gap-2 border-t pt-4">
             <Button
@@ -890,7 +1220,7 @@ function PullImageSheet({
           </SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={onSubmit} className="mt-4 flex gap-2">
+        <form onSubmit={onSubmit} className="mt-4 flex gap-2 px-4">
           <Input
             placeholder="nginx:latest"
             className="flex-1"

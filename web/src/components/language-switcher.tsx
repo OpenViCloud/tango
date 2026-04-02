@@ -1,4 +1,4 @@
-import { CheckIcon, LanguagesIcon } from "lucide-react"
+import { CheckIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -24,17 +24,16 @@ export function LanguageSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button type="button" variant="outline" size="sm" className="gap-2">
-          <LanguagesIcon className="size-4" />
           <span className="flex items-center gap-2">
             <img
               src={currentLanguage.flagSrc}
               alt={currentLanguage.label}
-              className="h-4 w-4 rounded-full object-cover"
+              className="h-4 rounded object-cover"
               onError={(event) => {
                 event.currentTarget.style.display = "none"
               }}
             />
-            {currentLanguage.code.toUpperCase()}
+            {currentLanguage.label.toUpperCase()}
           </span>
         </Button>
       </DropdownMenuTrigger>
@@ -49,7 +48,7 @@ export function LanguageSwitcher() {
               <img
                 src={language.flagSrc}
                 alt={language.label}
-                className="h-4 w-4 rounded-full object-cover"
+                className="h-4 rounded object-cover"
                 onError={(event) => {
                   event.currentTarget.style.display = "none"
                 }}

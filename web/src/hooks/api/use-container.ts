@@ -5,6 +5,8 @@ import { containerService } from "@/services/api/container-service"
 
 export const CONTAINER_QUERY_KEYS = {
   containers: (all: boolean) => ["UseContainerList", all],
+  container: (id: string) => ["UseContainer", id],
+  containerStats: (id: string) => ["UseContainerStats", id],
   images: () => ["UseImageList"],
 }
 
@@ -13,6 +15,21 @@ export const useGetContainerList = (all = false) =>
     queryKey: CONTAINER_QUERY_KEYS.containers(all),
     queryFn: () => containerService.listContainers(all),
     refetchInterval: 5000,
+  })
+
+export const useGetContainer = (id: string) =>
+  useQuery({
+    queryKey: CONTAINER_QUERY_KEYS.container(id),
+    queryFn: () => containerService.getContainer(id),
+    enabled: !!id,
+  })
+
+export const useGetContainerStats = (id: string, enabled = true) =>
+  useQuery({
+    queryKey: CONTAINER_QUERY_KEYS.containerStats(id),
+    queryFn: () => containerService.getContainerStats(id),
+    enabled: !!id && enabled,
+    refetchInterval: enabled ? 5000 : false,
   })
 
 export const useGetImageList = () =>
@@ -36,8 +53,10 @@ export const useStartContainer = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => containerService.startContainer(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ["UseContainerList"] })
+      queryClient.invalidateQueries({ queryKey: CONTAINER_QUERY_KEYS.container(id) })
+      queryClient.invalidateQueries({ queryKey: CONTAINER_QUERY_KEYS.containerStats(id) })
     },
   })
 }
@@ -46,8 +65,10 @@ export const useStopContainer = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => containerService.stopContainer(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ["UseContainerList"] })
+      queryClient.invalidateQueries({ queryKey: CONTAINER_QUERY_KEYS.container(id) })
+      queryClient.invalidateQueries({ queryKey: CONTAINER_QUERY_KEYS.containerStats(id) })
     },
   })
 }
@@ -57,8 +78,10 @@ export const useRemoveContainer = () => {
   return useMutation({
     mutationFn: ({ id, force }: { id: string; force?: boolean }) =>
       containerService.removeContainer(id, force),
-    onSuccess: () => {
+    onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["UseContainerList"] })
+      queryClient.removeQueries({ queryKey: CONTAINER_QUERY_KEYS.container(id) })
+      queryClient.removeQueries({ queryKey: CONTAINER_QUERY_KEYS.containerStats(id) })
     },
   })
 }

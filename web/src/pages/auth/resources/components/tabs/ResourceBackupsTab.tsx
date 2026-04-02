@@ -1,5 +1,3 @@
-import { useEffect, useMemo, useState } from "react"
-import { toast } from "sonner"
 import {
   HardDriveDownload,
   Pencil,
@@ -10,8 +8,11 @@ import {
   ServerCrash,
   Trash2,
 } from "lucide-react"
+import { useMemo, useState } from "react"
+import { toast } from "sonner"
 
 import type {
+  BackupSourceModel,
   CreateBackupSourceModel,
   CreateStorageModel,
   ResourceModel,
@@ -20,8 +21,20 @@ import type {
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -41,7 +54,14 @@ import {
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -61,7 +81,10 @@ import {
   useUpdateBackupSource,
   useUpdateStorage,
 } from "@/hooks/api/use-backup"
-import { useGetResourceConnectionInfo, useGetResourceEnvVars } from "@/hooks/api/use-project"
+import {
+  useGetResourceConnectionInfo,
+  useGetResourceEnvVars,
+} from "@/hooks/api/use-project"
 import { cn } from "@/lib/utils"
 
 type ResourceBackupsTabProps = {
@@ -88,13 +111,17 @@ type StorageFormState = {
   path: string
 }
 
+type HostMode = "internal" | "external" | "manual"
+
 const ADD_NEW_STORAGE_VALUE = "__add_new_storage__"
 
 export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
   const { data: connectionInfo } = useGetResourceConnectionInfo(resource.id)
   const { data: envVars } = useGetResourceEnvVars(resource.id)
-  const { data: sources = [], isLoading: isLoadingSources } = useGetBackupSourceList(resource.id)
-  const { data: storages = [], isLoading: isLoadingStorages } = useGetStorageList()
+  const { data: sources = [], isLoading: isLoadingSources } =
+    useGetBackupSourceList(resource.id)
+  const { data: storages = [], isLoading: isLoadingStorages } =
+    useGetStorageList()
 
   const [selectedSourceId, setSelectedSourceId] = useState("")
   const [selectedStorageId, setSelectedStorageId] = useState("")
@@ -105,6 +132,7 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
   const [activeTab, setActiveTab] = useState("config")
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null)
   const [editingStorageId, setEditingStorageId] = useState<string | null>(null)
+  const [hostMode, setHostMode] = useState<HostMode>("manual")
 
   const prefill = useMemo(
     () => buildPrefillFromResource(resource, connectionInfo, envVars ?? []),
@@ -131,6 +159,25 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
     [prefill, resource.id, resource.name]
   )
 
+  const hostOptions = useMemo(() => {
+    const options: Array<{ value: HostMode; label: string; host: string }> = []
+    if (prefill.internalHost) {
+      options.push({
+        value: "internal",
+        label: `Internal container (${prefill.internalHost})`,
+        host: prefill.internalHost,
+      })
+    }
+    if (prefill.externalHost) {
+      options.push({
+        value: "external",
+        label: `Published host (${prefill.externalHost})`,
+        host: prefill.externalHost,
+      })
+    }
+    return options
+  }, [prefill.externalHost, prefill.internalHost])
+
   const emptyStorageForm = useMemo<StorageFormState>(
     () => ({
       name: `${resource.name} local storage`,
@@ -139,99 +186,79 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
     [resource.name]
   )
 
-  const [sourceForm, setSourceForm] = useState<CreateBackupSourceModel>(emptySourceForm)
-  const [storageForm, setStorageForm] = useState<StorageFormState>(emptyStorageForm)
-  const [configForm, setConfigForm] = useState<BackupConfigFormState>({
-    is_enabled: true,
-    schedule_type: "manual_only",
-    time_of_day: "02:00",
-    interval_hours: 24,
-    retention_type: "count",
-    retention_days: 7,
-    retention_count: 7,
-    is_retry_if_failed: true,
-    max_retry_count: 2,
-    encryption_type: "none",
-    compression_type: "gzip",
-    backup_method: "logical_dump",
-  })
+  const [sourceForm, setSourceForm] =
+    useState<CreateBackupSourceModel>(emptySourceForm)
+  const [storageForm, setStorageForm] =
+    useState<StorageFormState>(emptyStorageForm)
 
-  useEffect(() => {
-    if (!editingSourceId) {
-      setSourceForm((current) => ({
-        ...emptySourceForm,
-        name: current.name || emptySourceForm.name,
-        connection: {
-          ...emptySourceForm.connection,
-          host: current.connection.host || emptySourceForm.connection.host,
-          port: current.connection.port || emptySourceForm.connection.port,
-          username: current.connection.username || emptySourceForm.connection.username,
-          password: current.connection.password || emptySourceForm.connection.password,
-          database: current.connection.database || emptySourceForm.connection.database,
-          auth_database: current.connection.auth_database || emptySourceForm.connection.auth_database,
-        },
-      }))
+  const effectiveSelectedSourceId = useMemo(() => {
+    if (
+      selectedSourceId &&
+      sources.some((item) => item.id === selectedSourceId)
+    ) {
+      return selectedSourceId
     }
-  }, [editingSourceId, emptySourceForm])
-
-  useEffect(() => {
-    if (!editingStorageId) {
-      setStorageForm(emptyStorageForm)
-    }
-  }, [editingStorageId, emptyStorageForm])
-
-  useEffect(() => {
-    if (!selectedSourceId && sources.length > 0) {
-      const matchingName = sources.find((item) =>
-        item.name.toLowerCase().includes(resource.name.toLowerCase())
-      )
-      setSelectedSourceId(matchingName?.id ?? sources[0].id)
-    }
+    const matchingName = sources.find((item) =>
+      item.name.toLowerCase().includes(resource.name.toLowerCase())
+    )
+    return matchingName?.id ?? sources[0]?.id ?? ""
   }, [resource.name, selectedSourceId, sources])
 
   const selectedSource = useMemo(
-    () => sources.find((item) => item.id === selectedSourceId) ?? null,
-    [sources, selectedSourceId]
+    () => sources.find((item) => item.id === effectiveSelectedSourceId) ?? null,
+    [sources, effectiveSelectedSourceId]
   )
-  const { data: backupConfig } = useGetBackupConfig(selectedSourceId)
-
-  useEffect(() => {
-    if (backupConfig) {
-      setConfigForm({
-        is_enabled: backupConfig.is_enabled,
-        schedule_type: normalizeScheduleType(backupConfig.schedule_type),
-        time_of_day: backupConfig.time_of_day || "02:00",
-        interval_hours: backupConfig.interval_hours || 24,
-        retention_type: normalizeRetentionType(backupConfig.retention_type),
-        retention_days: backupConfig.retention_days || 7,
-        retention_count: backupConfig.retention_count || 7,
-        is_retry_if_failed: backupConfig.is_retry_if_failed,
-        max_retry_count: backupConfig.max_retry_count,
-        encryption_type: normalizeEncryptionType(backupConfig.encryption_type),
-        compression_type: normalizeCompressionType(backupConfig.compression_type),
-        backup_method: normalizeBackupMethod(backupConfig.backup_method),
-      })
-      setSelectedStorageId(backupConfig.storage_id)
-    }
-  }, [backupConfig])
-
-  useEffect(() => {
-    if (!selectedStorageId && storages.length > 0) {
-      const localStorage = storages.find((item) => item.type === "local") ?? storages[0]
-      setSelectedStorageId(localStorage.id)
-    }
-  }, [selectedStorageId, storages])
+  const { data: backupConfig } = useGetBackupConfig(effectiveSelectedSourceId)
+  const defaultStorageId = useMemo(
+    () =>
+      (storages.find((item) => item.type === "local") ?? storages[0])?.id ?? "",
+    [storages]
+  )
+  const effectiveStorageId =
+    backupConfig?.storage_id || selectedStorageId || defaultStorageId
+  const configSummary = useMemo(
+    () => ({
+      is_enabled: backupConfig?.is_enabled ?? true,
+      schedule_type: normalizeScheduleType(
+        backupConfig?.schedule_type || "manual_only"
+      ),
+      time_of_day: backupConfig?.time_of_day || "02:00",
+      interval_hours: backupConfig?.interval_hours || 24,
+      retention_type: normalizeRetentionType(
+        backupConfig?.retention_type || "count"
+      ),
+      retention_days: backupConfig?.retention_days || 7,
+      retention_count: backupConfig?.retention_count || 7,
+      is_retry_if_failed: backupConfig?.is_retry_if_failed ?? true,
+      max_retry_count: backupConfig?.max_retry_count ?? 2,
+      encryption_type: normalizeEncryptionType(
+        backupConfig?.encryption_type || "none"
+      ),
+      compression_type: normalizeCompressionType(
+        backupConfig?.compression_type || "gzip"
+      ),
+      backup_method: normalizeBackupMethod(
+        backupConfig?.backup_method || "logical_dump"
+      ),
+    }),
+    [backupConfig]
+  )
 
   const selectedStorage = useMemo(
-    () => storages.find((item) => item.id === selectedStorageId) ?? null,
-    [storages, selectedStorageId]
+    () => storages.find((item) => item.id === effectiveStorageId) ?? null,
+    [effectiveStorageId, storages]
   )
 
-  const { data: backups = [], isLoading: isLoadingBackups } = useGetBackupList(selectedSourceId)
+  const { data: backups = [], isLoading: isLoadingBackups } = useGetBackupList(
+    effectiveSelectedSourceId
+  )
   const { data: restoreStatus } = useGetRestore(lastRestoreId)
 
   const latestFailedBackup = useMemo(
-    () => backups.find((backup) => backup.status === "failed" && backup.fail_message),
+    () =>
+      backups.find(
+        (backup) => backup.status === "failed" && backup.fail_message
+      ),
     [backups]
   )
 
@@ -242,8 +269,11 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
   const updateStorageMutation = useUpdateStorage()
   const deleteStorageMutation = useDeleteStorage()
   const createConfigMutation = useCreateBackupConfig()
-  const updateConfigMutation = useUpdateBackupConfig(selectedSourceId, backupConfig?.id ?? "")
-  const triggerBackupMutation = useTriggerBackup(selectedSourceId)
+  const updateConfigMutation = useUpdateBackupConfig(
+    effectiveSelectedSourceId,
+    backupConfig?.id ?? ""
+  )
+  const triggerBackupMutation = useTriggerBackup(effectiveSelectedSourceId)
   const triggerRestoreMutation = useTriggerRestore()
 
   const openCreateSourceSheet = () => {
@@ -257,7 +287,11 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
     setEditingSourceId(selectedSource.id)
     setSourceForm({
       name: selectedSource.name,
-      db_type: selectedSource.db_type as "mysql" | "postgres" | "mongodb",
+      db_type: selectedSource.db_type as
+        | "mysql"
+        | "mariadb"
+        | "postgres"
+        | "mongodb",
       version: selectedSource.version || "",
       is_tls_enabled: selectedSource.is_tls_enabled,
       resource_id: selectedSource.resource_id || resource.id,
@@ -271,6 +305,7 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
         connection_uri: "",
       },
     })
+    setHostMode(resolveHostMode(selectedSource, prefill))
     setSourceSheetOpen(true)
   }
 
@@ -362,20 +397,23 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
     }
   }
 
-  const handleSaveConfig = async () => {
-    if (!selectedSourceId || !selectedStorageId) {
+  const handleSaveConfigDraft = async (
+    storageId: string,
+    configForm: BackupConfigFormState
+  ) => {
+    if (!effectiveSelectedSourceId || !storageId) {
       toast.error("Select a backup source and storage first")
       return
     }
     const payload = {
-      database_source_id: selectedSourceId,
-      storage_id: selectedStorageId,
+      database_source_id: effectiveSelectedSourceId,
+      storage_id: storageId,
       ...configForm,
     }
     try {
       if (backupConfig?.id) {
         await updateConfigMutation.mutateAsync({
-          storage_id: selectedStorageId,
+          storage_id: storageId,
           ...configForm,
         })
         toast.success("Backup config updated")
@@ -383,6 +421,7 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
         await createConfigMutation.mutateAsync(payload)
         toast.success("Backup config created")
       }
+      setSelectedStorageId(storageId)
       setConfigSheetOpen(false)
     } catch (error) {
       toast.error(getErrorMessage(error))
@@ -390,14 +429,17 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
   }
 
   const handleTriggerBackup = async () => {
-    if (!selectedSourceId) {
+    if (!effectiveSelectedSourceId) {
       toast.error("Select a backup source first")
       return
     }
     try {
       await triggerBackupMutation.mutateAsync({
-        storage_id: selectedStorageId || undefined,
-        metadata: { triggered_from: "resource_tab", resource_name: resource.name },
+        storage_id: effectiveStorageId || undefined,
+        metadata: {
+          triggered_from: "resource_tab",
+          resource_name: resource.name,
+        },
       })
       toast.success("Backup started")
     } catch (error) {
@@ -406,14 +448,14 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
   }
 
   const handleRestore = async (backupId: string) => {
-    if (!selectedSourceId) {
+    if (!effectiveSelectedSourceId) {
       toast.error("Select a target backup source first")
       return
     }
     try {
       const restore = await triggerRestoreMutation.mutateAsync({
         backupId,
-        payload: { database_source_id: selectedSourceId },
+        payload: { database_source_id: effectiveSelectedSourceId },
       })
       setLastRestoreId(restore.id)
       toast.success("Restore started")
@@ -429,7 +471,10 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
           <Card className="xl:sticky xl:top-6 xl:h-fit">
             <CardHeader className="gap-3">
               <CardTitle className="text-base">Backup Sources</CardTitle>
-              <CardDescription>Choose the database connection you want to back up for this resource.</CardDescription>
+              <CardDescription>
+                Choose the database connection you want to back up for this
+                resource.
+              </CardDescription>
               <Button type="button" onClick={openCreateSourceSheet}>
                 <Plus data-icon="inline-start" />
                 Add source
@@ -447,7 +492,8 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                 </div>
               ) : (
                 sources.map((source) => {
-                  const sourceBackups = source.id === selectedSourceId ? backups : []
+                  const sourceBackups =
+                    source.id === effectiveSelectedSourceId ? backups : []
                   const latestBackup = sourceBackups[0]
                   const hasError = latestBackup?.status === "failed"
 
@@ -458,20 +504,24 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                       onClick={() => setSelectedSourceId(source.id)}
                       className={cn(
                         "flex flex-col gap-3 rounded-xl border px-4 py-4 text-left transition-colors",
-                        selectedSourceId === source.id
+                        effectiveSelectedSourceId === source.id
                           ? "border-primary bg-primary/5"
                           : "border-border/70 bg-card hover:bg-muted/40"
                       )}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="truncate font-medium text-foreground">{source.name}</div>
+                          <div className="truncate font-medium text-foreground">
+                            {source.name}
+                          </div>
                           <div className="mt-1 text-xs text-muted-foreground">
                             {source.host}:{source.port}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant={hasError ? "warning" : "secondary"}>{source.db_type}</Badge>
+                          <Badge variant={hasError ? "warning" : "secondary"}>
+                            {source.db_type}
+                          </Badge>
                           <DeleteConfirmDialog
                             title="Delete backup source"
                             description={`This will delete ${source.name}, its backup config, and backup/restore history for this source.`}
@@ -497,14 +547,22 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                       <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                         <span>
                           Storage:{" "}
-                          {selectedSourceId === source.id
+                          {effectiveSelectedSourceId === source.id
                             ? selectedStorage?.name || "Not set"
                             : "Open source to inspect"}
                         </span>
                         <span>
-                          Last backup: {selectedSourceId === source.id && latestBackup ? formatRelativeDate(latestBackup.created_at) : "Open source to inspect"}
+                          Last backup:{" "}
+                          {effectiveSelectedSourceId === source.id &&
+                          latestBackup
+                            ? formatRelativeDate(latestBackup.created_at)
+                            : "Open source to inspect"}
                         </span>
-                        {hasError ? <span className="font-medium text-destructive">Has backup error</span> : null}
+                        {hasError ? (
+                          <span className="font-medium text-destructive">
+                            Has backup error
+                          </span>
+                        ) : null}
                       </div>
                     </button>
                   )
@@ -517,32 +575,49 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
             {!selectedSource ? (
               <Card>
                 <CardContent className="flex min-h-64 items-center justify-center px-6 py-12 text-sm text-muted-foreground">
-                  Select a backup source or add a new one to configure database backups.
+                  Select a backup source or add a new one to configure database
+                  backups.
                 </CardContent>
               </Card>
             ) : (
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col gap-4">
+              <Tabs
+                value={activeTab}
+                onValueChange={setActiveTab}
+                className="flex flex-col gap-4"
+              >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="text-2xl font-semibold tracking-tight text-foreground">{selectedSource.name}</h2>
+                    <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+                      {selectedSource.name}
+                    </h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {selectedSource.host}:{selectedSource.port} · {selectedSource.database_name}
+                      {selectedSource.host}:{selectedSource.port} ·{" "}
+                      {selectedSource.database_name}
                     </p>
                   </div>
                   <TabsList className="w-full sm:w-auto">
                     <TabsTrigger value="config" className="flex-1 sm:flex-none">
                       Config
                     </TabsTrigger>
-                    <TabsTrigger value="storage" className="flex-1 sm:flex-none">
+                    <TabsTrigger
+                      value="storage"
+                      className="flex-1 sm:flex-none"
+                    >
                       Storage
                     </TabsTrigger>
-                    <TabsTrigger value="backups" className="flex-1 sm:flex-none">
+                    <TabsTrigger
+                      value="backups"
+                      className="flex-1 sm:flex-none"
+                    >
                       Backups
                     </TabsTrigger>
                   </TabsList>
                 </div>
 
-                <TabsContent value="config" className="mt-0 flex flex-col gap-6">
+                <TabsContent
+                  value="config"
+                  className="mt-0 flex flex-col gap-6"
+                >
                   {latestFailedBackup?.fail_message ? (
                     <Card className="border-destructive/50 bg-destructive/5">
                       <CardHeader className="gap-2">
@@ -551,7 +626,8 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                           Last backup error
                         </CardTitle>
                         <CardDescription className="text-destructive/80">
-                          The latest backup for this source failed. Update the connection or policy below, then run a new backup.
+                          The latest backup for this source failed. Update the
+                          connection or policy below, then run a new backup.
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -568,48 +644,101 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                     <Card>
                       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
                         <div className="space-y-1.5">
-                          <CardTitle className="text-base">Database settings</CardTitle>
-                          <CardDescription>Connection details stored in the selected backup source.</CardDescription>
+                          <CardTitle className="text-base">
+                            Database settings
+                          </CardTitle>
+                          <CardDescription>
+                            Connection details stored in the selected backup
+                            source.
+                          </CardDescription>
                         </div>
-                        <Button type="button" variant="ghost" size="icon" className="size-8" onClick={openEditSourceSheet}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={openEditSourceSheet}
+                        >
                           <Pencil className="size-4" />
                         </Button>
                       </CardHeader>
                       <CardContent className="grid gap-3 text-sm">
-                        <InfoRow label="Database type" value={selectedSource.db_type.toUpperCase()} />
-                        <InfoRow label="Version" value={selectedSource.version || "Auto-detect on runner"} />
+                        <InfoRow
+                          label="Database type"
+                          value={selectedSource.db_type.toUpperCase()}
+                        />
+                        <InfoRow
+                          label="Version"
+                          value={
+                            selectedSource.version || "Auto-detect on runner"
+                          }
+                        />
                         <InfoRow label="Host" value={selectedSource.host} />
-                        <InfoRow label="Port" value={String(selectedSource.port)} />
-                        <InfoRow label="Username" value={selectedSource.username} />
-                        <InfoRow label="Database" value={selectedSource.database_name} />
+                        <InfoRow
+                          label="Port"
+                          value={String(selectedSource.port)}
+                        />
+                        <InfoRow
+                          label="Username"
+                          value={selectedSource.username}
+                        />
+                        <InfoRow
+                          label="Database"
+                          value={selectedSource.database_name}
+                        />
                       </CardContent>
                     </Card>
 
                     <Card>
                       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
                         <div className="space-y-1.5">
-                          <CardTitle className="text-base">Backup config</CardTitle>
-                          <CardDescription>Choose where artifacts are stored and how backups should behave.</CardDescription>
+                          <CardTitle className="text-base">
+                            Backup config
+                          </CardTitle>
+                          <CardDescription>
+                            Choose where artifacts are stored and how backups
+                            should behave.
+                          </CardDescription>
                         </div>
-                        <Button type="button" variant="ghost" size="icon" className="size-8" onClick={() => setConfigSheetOpen(true)}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={() => setConfigSheetOpen(true)}
+                        >
                           <Pencil className="size-4" />
                         </Button>
                       </CardHeader>
                       <CardContent className="grid gap-3 text-sm">
-                        <InfoRow label="Storage" value={selectedStorage?.name || "Not configured"} />
-                        <InfoRow label="Compression" value={configForm.compression_type} />
+                        <InfoRow
+                          label="Storage"
+                          value={selectedStorage?.name || "Not configured"}
+                        />
+                        <InfoRow
+                          label="Compression"
+                          value={configSummary.compression_type}
+                        />
                         <InfoRow
                           label="Retention"
                           value={
-                            configForm.retention_type === "count"
-                              ? `Count (${configForm.retention_count})`
-                              : configForm.retention_type === "days"
-                                ? `Days (${configForm.retention_days})`
+                            configSummary.retention_type === "count"
+                              ? `Count (${configSummary.retention_count})`
+                              : configSummary.retention_type === "days"
+                                ? `Days (${configSummary.retention_days})`
                                 : "None"
                           }
                         />
-                        <InfoRow label="Retry failed backups" value={configForm.is_retry_if_failed ? "Yes" : "No"} />
-                        <InfoRow label="Max retry count" value={String(configForm.max_retry_count)} />
+                        <InfoRow
+                          label="Retry failed backups"
+                          value={
+                            configSummary.is_retry_if_failed ? "Yes" : "No"
+                          }
+                        />
+                        <InfoRow
+                          label="Max retry count"
+                          value={String(configSummary.max_retry_count)}
+                        />
                       </CardContent>
                     </Card>
                   </div>
@@ -620,7 +749,10 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                     <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
                       <div className="space-y-1.5">
                         <CardTitle className="text-base">Storage</CardTitle>
-                        <CardDescription>Manage destinations where backup artifacts are stored for this project.</CardDescription>
+                        <CardDescription>
+                          Manage destinations where backup artifacts are stored
+                          for this project.
+                        </CardDescription>
                       </div>
                       <Button type="button" onClick={openCreateStorageSheet}>
                         <Plus data-icon="inline-start" />
@@ -635,7 +767,8 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                         </div>
                       ) : storages.length === 0 ? (
                         <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                          No storage destinations yet. Add one to save backup artifacts.
+                          No storage destinations yet. Add one to save backup
+                          artifacts.
                         </div>
                       ) : (
                         <Table>
@@ -645,32 +778,50 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                               <TableHead>Type</TableHead>
                               <TableHead>Base path</TableHead>
                               <TableHead>Updated</TableHead>
-                              <TableHead className="w-[160px] text-right">Actions</TableHead>
+                              <TableHead className="w-40 text-right">
+                                Actions
+                              </TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {storages.map((storage) => {
-                              const isSelected = selectedStorageId === storage.id
+                              const isSelected =
+                                effectiveStorageId === storage.id
                               return (
-                                <TableRow key={storage.id} data-state={isSelected ? "selected" : undefined}>
+                                <TableRow
+                                  key={storage.id}
+                                  data-state={
+                                    isSelected ? "selected" : undefined
+                                  }
+                                >
                                   <TableCell>
                                     <div className="flex items-center gap-2">
-                                      <span className="font-medium text-foreground">{storage.name}</span>
-                                      {isSelected ? <Badge variant="secondary">Selected</Badge> : null}
+                                      <span className="font-medium text-foreground">
+                                        {storage.name}
+                                      </span>
+                                      {isSelected ? (
+                                        <Badge variant="secondary">
+                                          Selected
+                                        </Badge>
+                                      ) : null}
                                     </div>
                                   </TableCell>
                                   <TableCell>{storage.type}</TableCell>
                                   <TableCell className="max-w-[320px] truncate">
                                     {String(storage.config.base_path || "n/a")}
                                   </TableCell>
-                                  <TableCell>{formatDate(storage.updated_at)}</TableCell>
+                                  <TableCell>
+                                    {formatDate(storage.updated_at)}
+                                  </TableCell>
                                   <TableCell>
                                     <div className="flex justify-end gap-2">
                                       <Button
                                         type="button"
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => openEditStorageSheet(storage)}
+                                        onClick={() =>
+                                          openEditStorageSheet(storage)
+                                        }
                                       >
                                         <Pencil data-icon="inline-start" />
                                         Edit
@@ -680,13 +831,17 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                                         description={`This will delete ${storage.name} if it is not currently used by any backup config or backup history.`}
                                         confirmLabel="Delete"
                                         cancelLabel="Cancel"
-                                        onConfirm={() => handleDeleteStorage(storage.id)}
+                                        onConfirm={() =>
+                                          handleDeleteStorage(storage.id)
+                                        }
                                         trigger={
                                           <Button
                                             type="button"
                                             variant="outline"
                                             size="sm"
-                                            disabled={deleteStorageMutation.isPending}
+                                            disabled={
+                                              deleteStorageMutation.isPending
+                                            }
                                           >
                                             <Trash2 data-icon="inline-start" />
                                             Delete
@@ -713,22 +868,34 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                         <Button
                           type="button"
                           onClick={handleTriggerBackup}
-                          disabled={!selectedSourceId || triggerBackupMutation.isPending}
+                          disabled={
+                            !effectiveSelectedSourceId ||
+                            triggerBackupMutation.isPending
+                          }
                         >
                           <RefreshCw data-icon="inline-start" />
-                          {triggerBackupMutation.isPending ? "Starting..." : "Run backup"}
+                          {triggerBackupMutation.isPending
+                            ? "Starting..."
+                            : "Run backup"}
                         </Button>
                       </CardTitle>
                       <CardDescription>
-                        Run a fresh snapshot for the selected source and restore any completed backup back into the same target.
+                        Run a fresh snapshot for the selected source and restore
+                        any completed backup back into the same target.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
                       {restoreStatus ? (
                         <div className="rounded-lg border border-border/70 bg-muted/30 px-4 py-3 text-sm">
-                          Latest restore status: <span className="font-medium text-foreground">{restoreStatus.status}</span>
+                          Latest restore status:{" "}
+                          <span className="font-medium text-foreground">
+                            {restoreStatus.status}
+                          </span>
                           {restoreStatus.fail_message ? (
-                            <span className="text-destructive"> · {restoreStatus.fail_message}</span>
+                            <span className="text-destructive">
+                              {" "}
+                              · {restoreStatus.fail_message}
+                            </span>
                           ) : null}
                         </div>
                       ) : null}
@@ -751,17 +918,31 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <span className="font-medium text-foreground">{backup.file_name || backup.id}</span>
-                                  <Badge variant="outline">{backup.status}</Badge>
-                                  <Badge variant="secondary">{backup.backup_method}</Badge>
+                                  <span className="font-medium text-foreground">
+                                    {backup.file_name || backup.id}
+                                  </span>
+                                  <Badge variant="outline">
+                                    {backup.status}
+                                  </Badge>
+                                  <Badge variant="secondary">
+                                    {backup.backup_method}
+                                  </Badge>
                                 </div>
                                 <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                  <span>Created: {formatDate(backup.created_at)}</span>
-                                  {typeof backup.file_size_bytes === "number" ? (
-                                    <span>Size: {formatBytes(backup.file_size_bytes)}</span>
+                                  <span>
+                                    Created: {formatDate(backup.created_at)}
+                                  </span>
+                                  {typeof backup.file_size_bytes ===
+                                  "number" ? (
+                                    <span>
+                                      Size:{" "}
+                                      {formatBytes(backup.file_size_bytes)}
+                                    </span>
                                   ) : null}
                                   {backup.fail_message ? (
-                                    <span className="text-destructive">Error: {backup.fail_message}</span>
+                                    <span className="text-destructive">
+                                      Error: {backup.fail_message}
+                                    </span>
                                   ) : null}
                                 </div>
                                 {backup.file_path ? (
@@ -783,7 +964,10 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                                   <Button
                                     type="button"
                                     variant="outline"
-                                    disabled={backup.status !== "completed" || triggerRestoreMutation.isPending}
+                                    disabled={
+                                      backup.status !== "completed" ||
+                                      triggerRestoreMutation.isPending
+                                    }
                                   >
                                     <RotateCcw data-icon="inline-start" />
                                     Restore
@@ -812,21 +996,26 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
       >
         <SheetContent className="flex w-full flex-col sm:max-w-lg">
           <SheetHeader className="border-b pb-4">
-            <SheetTitle>{editingSourceId ? "Edit backup source" : "Add backup source"}</SheetTitle>
+            <SheetTitle>
+              {editingSourceId ? "Edit backup source" : "Add backup source"}
+            </SheetTitle>
             <SheetDescription>
               {editingSourceId
                 ? "Update the selected database connection."
                 : "Create a reusable database connection for backup and restore."}
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto py-6">
+          <div className="flex-1 overflow-y-auto px-4 py-6">
             <FieldGroup>
               <Field>
                 <FieldLabel>Name</FieldLabel>
                 <Input
                   value={sourceForm.name}
                   onChange={(event) =>
-                    setSourceForm((current) => ({ ...current, name: event.target.value }))
+                    setSourceForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
                   }
                 />
               </Field>
@@ -835,7 +1024,9 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                 <FieldLabel>Database type</FieldLabel>
                 <Select
                   value={sourceForm.db_type}
-                  onValueChange={(value: "mysql" | "postgres" | "mongodb") =>
+                  onValueChange={(
+                    value: "mysql" | "mariadb" | "postgres" | "mongodb"
+                  ) =>
                     setSourceForm((current) => ({ ...current, db_type: value }))
                   }
                 >
@@ -845,46 +1036,119 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                   <SelectContent>
                     <SelectGroup>
                       <SelectItem value="mysql">MySQL</SelectItem>
+                      <SelectItem value="mariadb">MariaDB</SelectItem>
                       <SelectItem value="postgres">PostgreSQL</SelectItem>
                       <SelectItem value="mongodb">MongoDB</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
                 <FieldDescription>
-                  MySQL backup/restore is wired now. PostgreSQL and MongoDB can be prepared in the UI but backend execution is not wired yet.
+                  MySQL and MariaDB backup/restore are wired now. PostgreSQL and
+                  MongoDB can be prepared in the UI but backend execution is not
+                  wired yet.
                 </FieldDescription>
               </Field>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field>
+              <Field>
+                <div className="flex items-center justify-between gap-3">
                   <FieldLabel>Host</FieldLabel>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      Manual
+                    </span>
+                    <Switch
+                      checked={hostMode === "manual"}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setHostMode("manual")
+                          return
+                        }
+                        const fallbackMode = hostOptions[0]?.value ?? "manual"
+                        setHostMode(fallbackMode)
+                        const selectedOption = hostOptions.find(
+                          (option) => option.value === fallbackMode
+                        )
+                        if (selectedOption) {
+                          setSourceForm((current) => ({
+                            ...current,
+                            connection: {
+                              ...current.connection,
+                              host: selectedOption.host,
+                            },
+                          }))
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                {hostMode === "manual" ? (
                   <Input
                     value={sourceForm.connection.host}
                     onChange={(event) =>
                       setSourceForm((current) => ({
                         ...current,
-                        connection: { ...current.connection, host: event.target.value },
-                      }))
-                    }
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Port</FieldLabel>
-                  <Input
-                    type="number"
-                    value={sourceForm.connection.port}
-                    onChange={(event) =>
-                      setSourceForm((current) => ({
-                        ...current,
                         connection: {
                           ...current.connection,
-                          port: Number(event.target.value) || 0,
+                          host: event.target.value,
                         },
                       }))
                     }
                   />
-                </Field>
-              </div>
+                ) : (
+                  <Select
+                    value={hostMode}
+                    onValueChange={(value: HostMode) => {
+                      setHostMode(value)
+                      const selectedOption = hostOptions.find(
+                        (option) => option.value === value
+                      )
+                      if (selectedOption) {
+                        setSourceForm((current) => ({
+                          ...current,
+                          connection: {
+                            ...current.connection,
+                            host: selectedOption.host,
+                          },
+                        }))
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose host preset" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {hostOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+                <FieldDescription>
+                  Use the internal container host when backup-runner is on the
+                  same Docker network. Switch to manual if you need a custom
+                  address.
+                </FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel>Port</FieldLabel>
+                <Input
+                  type="number"
+                  value={sourceForm.connection.port}
+                  onChange={(event) =>
+                    setSourceForm((current) => ({
+                      ...current,
+                      connection: {
+                        ...current.connection,
+                        port: Number(event.target.value) || 0,
+                      },
+                    }))
+                  }
+                />
+              </Field>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <Field>
@@ -894,7 +1158,10 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                     onChange={(event) =>
                       setSourceForm((current) => ({
                         ...current,
-                        connection: { ...current.connection, username: event.target.value },
+                        connection: {
+                          ...current.connection,
+                          username: event.target.value,
+                        },
                       }))
                     }
                   />
@@ -907,7 +1174,10 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                     onChange={(event) =>
                       setSourceForm((current) => ({
                         ...current,
-                        connection: { ...current.connection, password: event.target.value },
+                        connection: {
+                          ...current.connection,
+                          password: event.target.value,
+                        },
                       }))
                     }
                   />
@@ -921,7 +1191,10 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                   onChange={(event) =>
                     setSourceForm((current) => ({
                       ...current,
-                      connection: { ...current.connection, database: event.target.value },
+                      connection: {
+                        ...current.connection,
+                        database: event.target.value,
+                      },
                     }))
                   }
                 />
@@ -929,13 +1202,19 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
             </FieldGroup>
           </div>
           <SheetFooter className="border-t pt-4 sm:flex-row sm:justify-end">
-            <Button type="button" variant="outline" onClick={() => setSourceSheetOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSourceSheetOpen(false)}
+            >
               Cancel
             </Button>
             <Button
               type="button"
               onClick={handleSaveSource}
-              disabled={createSourceMutation.isPending || updateSourceMutation.isPending}
+              disabled={
+                createSourceMutation.isPending || updateSourceMutation.isPending
+              }
             >
               <Save data-icon="inline-start" />
               {createSourceMutation.isPending || updateSourceMutation.isPending
@@ -957,7 +1236,9 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
       >
         <SheetContent className="flex w-full flex-col sm:max-w-lg">
           <SheetHeader className="border-b pb-4">
-            <SheetTitle>{editingStorageId ? "Edit storage" : "Add local storage"}</SheetTitle>
+            <SheetTitle>
+              {editingStorageId ? "Edit storage" : "Add local storage"}
+            </SheetTitle>
             <SheetDescription>
               {editingStorageId
                 ? "Update the local destination for backup artifacts."
@@ -971,7 +1252,10 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                 <Input
                   value={storageForm.name}
                   onChange={(event) =>
-                    setStorageForm((current) => ({ ...current, name: event.target.value }))
+                    setStorageForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
                   }
                 />
               </Field>
@@ -980,23 +1264,34 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
                 <Input
                   value={storageForm.path}
                   onChange={(event) =>
-                    setStorageForm((current) => ({ ...current, path: event.target.value }))
+                    setStorageForm((current) => ({
+                      ...current,
+                      path: event.target.value,
+                    }))
                   }
                 />
               </Field>
             </FieldGroup>
           </div>
           <SheetFooter className="border-t pt-4 sm:flex-row sm:justify-end">
-            <Button type="button" variant="outline" onClick={() => setStorageSheetOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStorageSheetOpen(false)}
+            >
               Cancel
             </Button>
             <Button
               type="button"
               onClick={handleSaveStorage}
-              disabled={createStorageMutation.isPending || updateStorageMutation.isPending}
+              disabled={
+                createStorageMutation.isPending ||
+                updateStorageMutation.isPending
+              }
             >
               <HardDriveDownload data-icon="inline-start" />
-              {createStorageMutation.isPending || updateStorageMutation.isPending
+              {createStorageMutation.isPending ||
+              updateStorageMutation.isPending
                 ? "Saving..."
                 : editingStorageId
                   ? "Save changes"
@@ -1006,150 +1301,217 @@ export function ResourceBackupsTab({ resource }: ResourceBackupsTabProps) {
         </SheetContent>
       </Sheet>
 
-      <Sheet open={configSheetOpen} onOpenChange={setConfigSheetOpen}>
-        <SheetContent className="flex w-full flex-col sm:max-w-lg">
-          <SheetHeader className="border-b pb-4">
-            <SheetTitle>Edit backup config</SheetTitle>
-            <SheetDescription>Choose storage and policy for the selected backup source.</SheetDescription>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto py-6">
-            <FieldGroup>
-              <Field>
-                <FieldLabel>Storage</FieldLabel>
-                <Select
-                  value={selectedStorageId}
-                  onValueChange={(value) => {
-                    if (value === ADD_NEW_STORAGE_VALUE) {
-                      openCreateStorageSheet()
-                      return
+      <BackupConfigSheet
+        open={configSheetOpen}
+        onOpenChange={setConfigSheetOpen}
+        initialConfig={configSummary}
+        initialStorageId={effectiveStorageId}
+        isLoadingStorages={isLoadingStorages}
+        storages={storages}
+        onAddStorage={openCreateStorageSheet}
+        onSave={handleSaveConfigDraft}
+        isSaving={
+          createConfigMutation.isPending || updateConfigMutation.isPending
+        }
+        canSave={Boolean(effectiveSelectedSourceId)}
+      />
+    </>
+  )
+}
+
+function BackupConfigSheet({
+  open,
+  onOpenChange,
+  initialConfig,
+  initialStorageId,
+  isLoadingStorages,
+  storages,
+  onAddStorage,
+  onSave,
+  isSaving,
+  canSave,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  initialConfig: BackupConfigFormState
+  initialStorageId: string
+  isLoadingStorages: boolean
+  storages: StorageModel[]
+  onAddStorage: () => void
+  onSave: (storageId: string, configForm: BackupConfigFormState) => void
+  isSaving: boolean
+  canSave: boolean
+}) {
+  const [storageId, setStorageId] = useState(initialStorageId)
+  const [configForm, setConfigForm] = useState(initialConfig)
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        key={`${initialStorageId}:${JSON.stringify(initialConfig)}`}
+        className="flex w-full flex-col sm:max-w-lg"
+      >
+        <SheetHeader className="border-b pb-4">
+          <SheetTitle>Edit backup config</SheetTitle>
+          <SheetDescription>
+            Choose storage and policy for the selected backup source.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto py-6">
+          <FieldGroup>
+            <Field>
+              <FieldLabel>Storage</FieldLabel>
+              <Select
+                value={storageId}
+                onValueChange={(value) => {
+                  if (value === ADD_NEW_STORAGE_VALUE) {
+                    onAddStorage()
+                    return
+                  }
+                  setStorageId(value)
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      isLoadingStorages
+                        ? "Loading storages..."
+                        : "Choose a storage"
                     }
-                    setSelectedStorageId(value)
-                  }}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {storages.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name} · {item.type}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={ADD_NEW_STORAGE_VALUE}>
+                      + Add new storage
+                    </SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field>
+                <FieldLabel>Compression</FieldLabel>
+                <Select
+                  value={configForm.compression_type}
+                  onValueChange={(value: "none" | "gzip") =>
+                    setConfigForm((current) => ({
+                      ...current,
+                      compression_type: value,
+                    }))
+                  }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={isLoadingStorages ? "Loading storages..." : "Choose a storage"} />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {storages.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.name} · {item.type}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value={ADD_NEW_STORAGE_VALUE}>+ Add new storage</SelectItem>
+                      <SelectItem value="gzip">gzip</SelectItem>
+                      <SelectItem value="none">none</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
               </Field>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel>Compression</FieldLabel>
-                  <Select
-                    value={configForm.compression_type}
-                    onValueChange={(value: "none" | "gzip") =>
-                      setConfigForm((current) => ({ ...current, compression_type: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="gzip">gzip</SelectItem>
-                        <SelectItem value="none">none</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel>Retention</FieldLabel>
-                  <Select
-                    value={configForm.retention_type}
-                    onValueChange={(value: "none" | "days" | "count") =>
-                      setConfigForm((current) => ({ ...current, retention_type: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="count">Count</SelectItem>
-                        <SelectItem value="days">Days</SelectItem>
-                        <SelectItem value="none">None</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel>Retention count</FieldLabel>
-                  <Input
-                    type="number"
-                    value={configForm.retention_count}
-                    onChange={(event) =>
-                      setConfigForm((current) => ({
-                        ...current,
-                        retention_count: Number(event.target.value) || 0,
-                      }))
-                    }
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Max retry count</FieldLabel>
-                  <Input
-                    type="number"
-                    value={configForm.max_retry_count}
-                    onChange={(event) =>
-                      setConfigForm((current) => ({
-                        ...current,
-                        max_retry_count: Number(event.target.value) || 0,
-                      }))
-                    }
-                  />
-                </Field>
-              </div>
-
-              <Field orientation="horizontal" className="items-center justify-between rounded-lg border p-3">
-                <FieldContent>
-                  <FieldLabel>Retry failed backups</FieldLabel>
-                  <FieldDescription>Keep this ready for scheduler support later.</FieldDescription>
-                </FieldContent>
-                <Switch
-                  checked={configForm.is_retry_if_failed}
-                  onCheckedChange={(checked) =>
-                    setConfigForm((current) => ({ ...current, is_retry_if_failed: checked }))
+              <Field>
+                <FieldLabel>Retention</FieldLabel>
+                <Select
+                  value={configForm.retention_type}
+                  onValueChange={(value: "none" | "days" | "count") =>
+                    setConfigForm((current) => ({
+                      ...current,
+                      retention_type: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="count">Count</SelectItem>
+                      <SelectItem value="days">Days</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field>
+                <FieldLabel>Retention count</FieldLabel>
+                <Input
+                  type="number"
+                  value={configForm.retention_count}
+                  onChange={(event) =>
+                    setConfigForm((current) => ({
+                      ...current,
+                      retention_count: Number(event.target.value) || 0,
+                    }))
                   }
                 />
               </Field>
-            </FieldGroup>
-          </div>
-          <SheetFooter className="border-t pt-4 sm:flex-row sm:justify-end">
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setConfigSheetOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleSaveConfig}
-                disabled={
-                  !selectedSourceId ||
-                  !selectedStorageId ||
-                  createConfigMutation.isPending ||
-                  updateConfigMutation.isPending
-                }
-              >
-                <Save data-icon="inline-start" />
-                {createConfigMutation.isPending || updateConfigMutation.isPending ? "Saving..." : "Save backup config"}
-              </Button>
+              <Field>
+                <FieldLabel>Max retry count</FieldLabel>
+                <Input
+                  type="number"
+                  value={configForm.max_retry_count}
+                  onChange={(event) =>
+                    setConfigForm((current) => ({
+                      ...current,
+                      max_retry_count: Number(event.target.value) || 0,
+                    }))
+                  }
+                />
+              </Field>
             </div>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-    </>
+            <Field
+              orientation="horizontal"
+              className="items-center justify-between rounded-lg border p-3"
+            >
+              <FieldContent>
+                <FieldLabel>Retry failed backups</FieldLabel>
+                <FieldDescription>
+                  Keep this ready for scheduler support later.
+                </FieldDescription>
+              </FieldContent>
+              <Switch
+                checked={configForm.is_retry_if_failed}
+                onCheckedChange={(checked) =>
+                  setConfigForm((current) => ({
+                    ...current,
+                    is_retry_if_failed: checked,
+                  }))
+                }
+              />
+            </Field>
+          </FieldGroup>
+        </div>
+        <SheetFooter className="border-t pt-4 sm:flex-row sm:justify-end">
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => onSave(storageId, configForm)}
+              disabled={!canSave || !storageId || isSaving}
+            >
+              <Save data-icon="inline-start" />
+              {isSaving ? "Saving..." : "Save backup config"}
+            </Button>
+          </div>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -1157,21 +1519,34 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1 sm:grid-cols-[140px_minmax(0,1fr)] sm:gap-4">
       <div className="text-muted-foreground">{label}</div>
-      <div className="min-w-0 truncate font-medium text-foreground">{value}</div>
+      <div className="min-w-0 truncate font-medium text-foreground">
+        {value}
+      </div>
     </div>
   )
 }
 
-function buildPrefillFromResource(resource: ResourceModel, connectionInfo: any, envVars: Array<{ key: string; value?: string }>) {
+function buildPrefillFromResource(
+  resource: ResourceModel,
+  connectionInfo: any,
+  envVars: Array<{ key: string; value?: string }>
+) {
   const image = resource.image.toLowerCase()
   const envMap = new Map(envVars.map((item) => [item.key, item.value ?? ""]))
-  const host = connectionInfo?.external_host || connectionInfo?.internal_host || "127.0.0.1"
-  const port = connectionInfo?.ports?.[0]?.host_port || resource.ports?.[0]?.host_port || defaultPortForImage(image)
+  const internalHost = connectionInfo?.internal_host || resource.name || ""
+  const externalHost = connectionInfo?.external_host || ""
+  const host = internalHost || externalHost || "127.0.0.1"
+  const port =
+    connectionInfo?.ports?.[0]?.host_port ||
+    resource.ports?.[0]?.host_port ||
+    defaultPortForImage(image)
 
   if (image.includes("postgres")) {
     return {
       dbType: "postgres" as const,
       host,
+      internalHost,
+      externalHost,
       port,
       username: envMap.get("POSTGRES_USER") || "postgres",
       password: envMap.get("POSTGRES_PASSWORD") || "",
@@ -1184,6 +1559,8 @@ function buildPrefillFromResource(resource: ResourceModel, connectionInfo: any, 
     return {
       dbType: "mongodb" as const,
       host,
+      internalHost,
+      externalHost,
       port,
       username: envMap.get("MONGO_INITDB_ROOT_USERNAME") || "root",
       password: envMap.get("MONGO_INITDB_ROOT_PASSWORD") || "",
@@ -1192,15 +1569,53 @@ function buildPrefillFromResource(resource: ResourceModel, connectionInfo: any, 
     }
   }
 
+  if (image.includes("mariadb")) {
+    return {
+      dbType: "mariadb" as const,
+      host,
+      internalHost,
+      externalHost,
+      port,
+      username:
+        envMap.get("MARIADB_USER") || envMap.get("MYSQL_USER") || "root",
+      password:
+        envMap.get("MARIADB_PASSWORD") ||
+        envMap.get("MARIADB_ROOT_PASSWORD") ||
+        envMap.get("MYSQL_PASSWORD") ||
+        envMap.get("MYSQL_ROOT_PASSWORD") ||
+        "",
+      database:
+        envMap.get("MARIADB_DATABASE") ||
+        envMap.get("MYSQL_DATABASE") ||
+        "mysql",
+      authDatabase: "",
+    }
+  }
+
   return {
     dbType: "mysql" as const,
     host,
+    internalHost,
+    externalHost,
     port,
-    username: envMap.get("MYSQL_USER") || envMap.get("MYSQL_ROOT_USER") || "root",
-    password: envMap.get("MYSQL_PASSWORD") || envMap.get("MYSQL_ROOT_PASSWORD") || "",
+    username:
+      envMap.get("MYSQL_USER") || envMap.get("MYSQL_ROOT_USER") || "root",
+    password:
+      envMap.get("MYSQL_PASSWORD") || envMap.get("MYSQL_ROOT_PASSWORD") || "",
     database: envMap.get("MYSQL_DATABASE") || "mysql",
     authDatabase: "",
   }
+}
+
+function resolveHostMode(
+  source: Pick<BackupSourceModel, "host">,
+  prefill: { internalHost?: string; externalHost?: string }
+): HostMode {
+  if (prefill.internalHost && source.host === prefill.internalHost)
+    return "internal"
+  if (prefill.externalHost && source.host === prefill.externalHost)
+    return "external"
+  return "manual"
 }
 
 function defaultPortForImage(image: string) {
@@ -1231,38 +1646,51 @@ function formatRelativeDate(value?: string) {
 function formatBytes(value: number) {
   if (value < 1024) return `${value} B`
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
-  if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`
+  if (value < 1024 * 1024 * 1024)
+    return `${(value / (1024 * 1024)).toFixed(1)} MB`
   return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`
 }
 
-function normalizeScheduleType(value: string): BackupConfigFormState["schedule_type"] {
+function normalizeScheduleType(
+  value: string
+): BackupConfigFormState["schedule_type"] {
   if (value === "daily" || value === "hourly") return value
   return "manual_only"
 }
 
-function normalizeRetentionType(value: string): BackupConfigFormState["retention_type"] {
+function normalizeRetentionType(
+  value: string
+): BackupConfigFormState["retention_type"] {
   if (value === "days" || value === "count") return value
   return "none"
 }
 
-function normalizeEncryptionType(value: string): BackupConfigFormState["encryption_type"] {
+function normalizeEncryptionType(
+  value: string
+): BackupConfigFormState["encryption_type"] {
   if (value === "aes256") return value
   return "none"
 }
 
-function normalizeCompressionType(value: string): BackupConfigFormState["compression_type"] {
+function normalizeCompressionType(
+  value: string
+): BackupConfigFormState["compression_type"] {
   if (value === "none") return value
   return "gzip"
 }
 
-function normalizeBackupMethod(value: string): BackupConfigFormState["backup_method"] {
+function normalizeBackupMethod(
+  value: string
+): BackupConfigFormState["backup_method"] {
   if (value === "postgres_pitr") return value
   return "logical_dump"
 }
 
 function getErrorMessage(error: unknown) {
   if (error && typeof error === "object" && "response" in error) {
-    const response = (error as { response?: { data?: { error?: { message?: string } } } }).response
+    const response = (
+      error as { response?: { data?: { error?: { message?: string } } } }
+    ).response
     return response?.data?.error?.message || "Request failed"
   }
   if (error instanceof Error) return error.message

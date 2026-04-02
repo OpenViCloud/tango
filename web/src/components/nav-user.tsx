@@ -2,7 +2,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -14,37 +13,62 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { useSidebar } from "@/components/ui/sidebar-context"
-import { api } from "@/lib/api"
+import { useGetCurrentUser } from "@/hooks/api/use-user"
 import { useAuthStore } from "@/store/auth"
-import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import {
   BadgeCheckIcon,
-  BellIcon,
   ChevronsUpDownIcon,
-  CreditCardIcon,
   LogOutIcon,
-  SparklesIcon,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
+
+function getDisplayName(user?: {
+  nickname?: string
+  first_name?: string
+  last_name?: string
+  email?: string
+}) {
+  const fullName = [user?.first_name, user?.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim()
+
+  if (fullName) return fullName
+  if (user?.nickname?.trim()) return user.nickname.trim()
+  return user?.email ?? "Account"
+}
+
+function getInitials(name: string) {
+  const tokens = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+
+  if (tokens.length === 0) return "AC"
+
+  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("")
+}
 
 export function NavUser() {
   const { t } = useTranslation()
   const { isMobile } = useSidebar()
   const { logout } = useAuthStore()
   const navigate = useNavigate()
+  const { data: user, isLoading } = useGetCurrentUser()
+
   const handleLogout = async () => {
     await logout()
     navigate({ to: "/login" })
   }
-  const { data: user, isLoading } = useQuery({
-    queryKey: ["user", "me"],
-    queryFn: () => api.get("/user/me").then((r) => r.data),
-  })
+
   if (isLoading) {
     return <div>{t("userMenu.loading")}</div>
   }
-  const username = user.name || "shadcn"
+
+  const username = getDisplayName(user)
+  const initials = getInitials(username)
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -55,12 +79,12 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src="/avatars/shadcn.jpg" alt={username} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                <AvatarImage alt={username} />
+                <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{username}</span>
-                <span className="truncate text-xs">{user.email}</span>
+                <span className="truncate text-xs">{user?.email}</span>
               </div>
               <ChevronsUpDownIcon className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -74,37 +98,20 @@ export function NavUser() {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={username} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarImage alt={username} />
+                  <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{username}</span>
-                  <span className="truncate text-xs">{user.email}</span>
+                  <span className="truncate text-xs">{user?.email}</span>
                 </div>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <SparklesIcon />
-                {t("userMenu.upgrade")}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate({ to: "/account" })}>
                 <BadgeCheckIcon />
                 {t("userMenu.account")}
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon />
-                {t("userMenu.billing")}
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BellIcon />
-                {t("userMenu.notifications")}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <LogOutIcon />

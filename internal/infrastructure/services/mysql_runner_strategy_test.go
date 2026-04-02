@@ -39,6 +39,14 @@ func (c *fakeBackupRunnerClient) RunMySQLLogicalRestore(_ context.Context, req *
 	return c.restoreErr
 }
 
+func (c *fakeBackupRunnerClient) RunMariaDBLogicalDump(_ context.Context, _ *appservices.MariaDBLogicalDumpRequest, _ io.Writer) (*appservices.BackupRunnerArtifact, error) {
+	return nil, nil
+}
+
+func (c *fakeBackupRunnerClient) RunMariaDBLogicalRestore(_ context.Context, _ *appservices.MariaDBLogicalRestoreRequest, _ io.Reader) error {
+	return nil
+}
+
 func (c *fakeBackupRunnerClient) RunPostgresLogicalDump(_ context.Context, _ *appservices.PostgresLogicalDumpRequest, _ io.Writer) (*appservices.BackupRunnerArtifact, error) {
 	return nil, nil
 }

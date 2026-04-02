@@ -39,6 +39,35 @@ export function NavMain({ sections }: { sections: SidebarSection[] }) {
                 item.children?.some((subItem) => isRouteActive(subItem.url)) ||
                 false
               const Icon = item.icon
+              const hasChildren = Boolean(item.children?.length)
+
+              if (!hasChildren) {
+                return (
+                  <SidebarMenuItem key={item.titleKey}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isItemActive}
+                      size="lg"
+                      tooltip={t(item.titleKey)}
+                      className="group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:[&_svg]:size-5"
+                    >
+                      <Link
+                        to={item.url}
+                        onClick={() => {
+                          if (isMobile) {
+                            setOpenMobile(false)
+                          }
+                        }}
+                      >
+                        {Icon ? <Icon className="size-6" /> : null}
+                        <span className="group-data-[collapsible=icon]:hidden">
+                          {t(item.titleKey)}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              }
 
               return (
                 <Collapsible

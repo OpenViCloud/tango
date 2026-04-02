@@ -10,6 +10,16 @@ type MySQLLogicalDumpRequest struct {
 	CompressionType string `json:"compression_type"`
 }
 
+type MariaDBLogicalDumpRequest struct {
+	Version         string `json:"version"`
+	Host            string `json:"host"`
+	Port            int    `json:"port"`
+	Username        string `json:"username"`
+	Password        string `json:"password"`
+	Database        string `json:"database"`
+	CompressionType string `json:"compression_type"`
+}
+
 type MongoLogicalDumpRequest struct {
 	Host            string `json:"host"`
 	Port            int    `json:"port"`

@@ -37,3 +37,31 @@ func NewListImagesHandler(docker domain.DockerRepository) *ListImagesHandler {
 func (h *ListImagesHandler) Handle(ctx context.Context) ([]domain.Image, error) {
 	return h.docker.ListImages(ctx)
 }
+
+// ── Container Details ─────────────────────────────────────────────────────────
+
+type GetContainerDetailsHandler struct {
+	docker domain.DockerRepository
+}
+
+func NewGetContainerDetailsHandler(docker domain.DockerRepository) *GetContainerDetailsHandler {
+	return &GetContainerDetailsHandler{docker: docker}
+}
+
+func (h *GetContainerDetailsHandler) Handle(ctx context.Context, containerID string) (domain.ContainerDetails, error) {
+	return h.docker.GetContainerDetails(ctx, containerID)
+}
+
+// ── Container Stats ───────────────────────────────────────────────────────────
+
+type GetContainerStatsHandler struct {
+	docker domain.DockerRepository
+}
+
+func NewGetContainerStatsHandler(docker domain.DockerRepository) *GetContainerStatsHandler {
+	return &GetContainerStatsHandler{docker: docker}
+}
+
+func (h *GetContainerStatsHandler) Handle(ctx context.Context, containerID string) (domain.ContainerStats, error) {
+	return h.docker.GetContainerStats(ctx, containerID)
+}

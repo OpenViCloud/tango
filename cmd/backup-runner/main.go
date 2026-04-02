@@ -28,6 +28,7 @@ func main() {
 		"port", cfg.BackupRunnerPort,
 		"postgresInstallDir", cfg.PostgresInstallDir,
 		"mysqlInstallDir", cfg.MySQLInstallDir,
+		"mariadbInstallDir", cfg.MariaDBInstallDir,
 		"mongoToolsDir", cfg.MongoToolsDir,
 	)
 	if err := runnertools.VerifyPostgresInstallation(cfg.PostgresInstallDir); err != nil {
@@ -40,6 +41,11 @@ func main() {
 	} else {
 		logger.Info("backup runner mysql client tools verified", "installDir", cfg.MySQLInstallDir)
 	}
+	if err := runnertools.VerifyMariaDBInstallation(cfg.MariaDBInstallDir); err != nil {
+		logger.Warn("backup runner mariadb client tools verification failed", "installDir", cfg.MariaDBInstallDir, "err", err)
+	} else {
+		logger.Info("backup runner mariadb client tools verified", "installDir", cfg.MariaDBInstallDir)
+	}
 	if err := runnertools.VerifyMongoInstallation(cfg.MongoToolsDir); err != nil {
 		logger.Warn("backup runner mongo tools verification failed", "toolsDir", cfg.MongoToolsDir, "err", err)
 	} else {
@@ -48,8 +54,9 @@ func main() {
 
 	postgresRunner := runnerservice.NewPostgresRunner(cfg.PostgresInstallDir)
 	mysqlRunner := runnerservice.NewMySQLRunner(cfg.MySQLInstallDir)
+	mariadbRunner := runnerservice.NewMariaDBRunner(cfg.MariaDBInstallDir)
 	mongoRunner := runnerservice.NewMongoRunner(cfg.MongoToolsDir)
-	handler := runnerhttp.NewHandler(cfg.BackupRunnerToken, mysqlRunner, postgresRunner, mongoRunner)
+	handler := runnerhttp.NewHandler(cfg.BackupRunnerToken, mysqlRunner, mariadbRunner, postgresRunner, mongoRunner)
 	server := &nethttp.Server{
 		Addr:              ":" + cfg.BackupRunnerPort,
 		Handler:           runnerhttp.NewRouter(handler),

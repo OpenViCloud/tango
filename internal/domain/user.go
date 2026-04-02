@@ -17,6 +17,7 @@ var (
 	ErrUserNotFound      = errors.New("user not found")
 	ErrUserAlreadyExists = errors.New("user already exists")
 	ErrInvalidInput      = errors.New("invalid input")
+	ErrInvalidCredentials = errors.New("invalid credentials")
 )
 
 type User struct {
@@ -85,6 +86,15 @@ func (u *User) UpdateAddress(address string) {
 func (u *User) UpdateNickname(nickname string) {
 	u.Nickname = nickname
 	u.UpdatedAt = time.Now().UTC()
+}
+
+func (u *User) ChangePassword(passwordHash string) error {
+	if passwordHash == "" {
+		return ErrInvalidInput
+	}
+	u.PasswordHash = passwordHash
+	u.UpdatedAt = time.Now().UTC()
+	return nil
 }
 
 func (u *User) Ban() error {

@@ -15,11 +15,8 @@ import {
 } from "@/components/ui/sidebar"
 import { useSidebar } from "@/components/ui/sidebar-context"
 import { appSidebarSections } from "@/constants/sidebar"
-import {
-  AudioLinesIcon,
-  GalleryVerticalEndIcon,
-  TerminalIcon,
-} from "lucide-react"
+import LogoIcon from "@/icons/logo-icon"
+import { AudioLinesIcon, TerminalIcon } from "lucide-react"
 
 // This is sample data.
 const data = {
@@ -30,8 +27,8 @@ const data = {
   },
   teams: [
     {
-      name: "Acme Inc",
-      logo: <GalleryVerticalEndIcon />,
+      name: "Tango Cloud",
+      logo: <LogoIcon className="size-6 text-sidebar-primary" />,
       plan: "Enterprise",
     },
     {

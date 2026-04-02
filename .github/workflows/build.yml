@@ -21,33 +21,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Print build info
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          file: Dockerfile.backup-runner
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            timegroups/tango-backup-runner:latest
+      - name: Show image size
         run: |
-          echo "=== Backup Runner Build ==="
-          echo "Trigger: ${{ github.event_name }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "Image: timegroups/tango-backup-runner:latest"
-          echo "Platforms: linux/amd64, linux/arm64"
+          echo "=== Image Size ==="
+          docker manifest inspect timegroups/tango-backup-runner:latest -v | \
+            grep -E '"size"|"platform"' || \
+            echo "Use Docker Hub to check compressed size"
           echo ""
-          echo "=== Dockerfile.backup-runner.dockerignore ==="
-          cat Dockerfile.backup-runner.dockerignore
-          echo ""
-          echo "=== Dockerfile.backup-runner ==="
-          cat Dockerfile.backup-runner
-
-      # TODO: uncomment to enable actual build & push
-      # - uses: docker/setup-buildx-action@v3
-      # - uses: docker/login-action@v3
-      #   with:
-      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
-      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
-      # - uses: docker/build-push-action@v6
-      #   with:
-      #     file: Dockerfile.backup-runner
-      #     platforms: linux/amd64,linux/arm64
-      #     push: true
-      #     tags: |
-      #       timegroups/tango-backup-runner:latest
+          echo "Check: https://hub.docker.com/r/timegroups/tango-backup-runner/tags"
 
   build-app:
     if: >
@@ -65,33 +58,24 @@ jobs:
             TAG="${{ github.sha }}"
           fi
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-      - name: Print build info
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            timegroups/tango-cloud:${{ steps.version.outputs.tag }}
+            timegroups/tango-cloud:latest
+      - name: Show image size
         run: |
-          echo "=== App Build ==="
-          echo "Trigger: ${{ github.event_name }}"
-          echo "Version: ${{ steps.version.outputs.tag }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "Image: timegroups/tango-cloud:${{ steps.version.outputs.tag }}"
-          echo "Image: timegroups/tango-cloud:latest"
-          echo "Platforms: linux/amd64, linux/arm64"
+          echo "=== Image Size ==="
+          docker manifest inspect timegroups/tango-cloud:${{ steps.version.outputs.tag }} -v | \
+            grep -E '"size"|"platform"' || \
+            echo "Use Docker Hub to check compressed size"
           echo ""
-          echo "=== Dockerfile.dockerignore ==="
-          cat Dockerfile.dockerignore
-          echo ""
-          echo "=== Dockerfile ==="
-          cat Dockerfile
-
-      # TODO: uncomment to enable actual build & push
-      # - uses: docker/setup-buildx-action@v3
-      # - uses: docker/login-action@v3
-      #   with:
-      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
-      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
-      # - uses: docker/build-push-action@v6
-      #   with:
-      #     file: Dockerfile
-      #     platforms: linux/amd64,linux/arm64
-      #     push: true
-      #     tags: |
-      #       timegroups/tango-cloud:${{ steps.version.outputs.tag }}
-      #       timegroups/tango-cloud:latest
+          echo "Check: https://hub.docker.com/r/timegroups/tango-cloud/tags"

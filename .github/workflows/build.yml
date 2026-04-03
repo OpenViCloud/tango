@@ -1,3 +1,6 @@
+permissions:
+  contents: write
+
 name: Build
 
 on:
@@ -12,6 +15,10 @@ on:
         default: false
       build_app:
         description: 'Build app'
+        type: boolean
+        default: false
+      build_cli:
+        description: 'Build CLI'
         type: boolean
         default: false
 
@@ -79,3 +86,43 @@ jobs:
             echo "Use Docker Hub to check compressed size"
           echo ""
           echo "Check: https://hub.docker.com/r/timegroups/tango-cloud/tags"
+
+  build-cli:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.build_cli == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - name: Build CLI
+        run: |
+          mkdir -p dist
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -o dist/tango-linux-${{ matrix.arch }} ./cmd/cli
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tango-cli-${{ matrix.arch }}
+          path: dist/tango-linux-${{ matrix.arch }}
+
+  publish-cli:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.build_cli == 'true'
+    needs: build-cli
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tango-cli-*
+          merge-multiple: true
+          path: dist
+      - name: Publish CLI release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: cli-latest
+          name: CLI Latest
+          make_latest: false
+          files: |
+            dist/tango-linux-amd64
+            dist/tango-linux-arm64

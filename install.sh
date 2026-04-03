@@ -19,6 +19,8 @@ CLI_BINARY_TARGET="/usr/local/bin/tango"
 COMPOSE_FILE="$BASE_DIR/docker-compose.yml"
 PROJECT_NAME="tango"
 HEALTH_URL="http://localhost:8080/api/status"
+CLI_RELEASE_TAG="${CLI_RELEASE_TAG:-cli-latest}"
+CLI_DOWNLOAD_BASE_URL="${CLI_DOWNLOAD_BASE_URL:-https://github.com/timegroups/tango-cloud/releases/download/$CLI_RELEASE_TAG}"
 
 EMAIL=""
 DOMAIN=""
@@ -119,7 +121,7 @@ detect_arch() {
 }
 
 install_cli() {
-  local arch cli_source
+  local arch cli_source cli_download_url
   arch="$(detect_arch)"
   if [ "$arch" = "unsupported" ]; then
     echo "Unsupported architecture: $(uname -m)"
@@ -134,12 +136,28 @@ install_cli() {
   fi
 
   cli_source="$BASE_DIR/bin/tango-linux-$arch"
+  cli_download_url="$CLI_DOWNLOAD_BASE_URL/tango-linux-$arch"
+
+  mkdir -p "$BASE_DIR/bin"
 
   if [ -f "$cli_source" ]; then
     echo "Installing prebuilt CLI binary: $cli_source"
     sudo install -m 0755 "$cli_source" "$CLI_BINARY_TARGET"
     return
   fi
+
+  echo "Downloading prebuilt CLI binary for linux/$arch"
+  echo "CLI download URL: $cli_download_url"
+  if curl -fsSL "$cli_download_url" -o "$cli_source"; then
+    chmod +x "$cli_source"
+    sudo install -m 0755 "$cli_source" "$CLI_BINARY_TARGET"
+    return
+  fi
+
+  rm -f "$cli_source"
+  echo "Prebuilt CLI download failed from: $cli_download_url"
+  echo "If the release asset does not exist yet, run GitHub Actions -> Build -> Run workflow -> enable 'Build CLI'."
+  echo "Expected release tag: $CLI_RELEASE_TAG"
 
   if command -v go >/dev/null 2>&1; then
     echo "Prebuilt binary not found. Building CLI from source for linux/$arch"
@@ -149,7 +167,8 @@ install_cli() {
     return
   fi
 
-  echo "Error: CLI binary $cli_source not found and Go is not installed."
+  echo "Error: CLI binary download failed and Go is not installed."
+  echo "Publish the CLI release asset first or install Go on the target machine."
   exit 1
 }
 

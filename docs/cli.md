@@ -29,11 +29,15 @@ The API and all workloads run inside Docker. The CLI runs outside Docker as the 
 go install tango/cmd/cli@latest
 
 # Option 2: Download binary from GitHub Releases
-# (available after GoReleaser is configured)
+curl -fsSL https://github.com/time-groups/tango-cloud/releases/download/cli-latest/tango-linux-amd64 -o tango
+chmod +x tango
+sudo install -m 0755 tango /usr/local/bin/tango
 
 # Option 3: Homebrew (planned)
 # brew install tango-cloud/tap/tango
 ```
+
+For ARM Linux hosts, replace `tango-linux-amd64` with `tango-linux-arm64`.
 
 ## File Layout
 

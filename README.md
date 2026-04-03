@@ -97,13 +97,21 @@ HTTPS/Let's Encrypt cannot be tested locally — a publicly reachable domain is 
 
 ```bash
 # Basic install (HTTP only)
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/time-groups/tango-cloud/main/install.sh | sudo bash
 
 # With HTTPS via Let's Encrypt
-./install.sh --email you@example.com --domain app.example.com --https
+curl -fsSL https://raw.githubusercontent.com/time-groups/tango-cloud/main/install.sh | \
+  sudo bash -s -- --email you@example.com --domain app.example.com --https
 ```
 
-`install.sh` installs Docker if missing, creates required directories, generates `traefik/traefik.yml`, writes `.env`, installs the CLI daemon as a system service, and starts the full stack.
+`install.sh` installs Docker if missing, creates required directories, downloads `docker-compose.yml`, generates `traefik/traefik.yml`, writes `/opt/tango/.env`, installs the CLI daemon as a system service, and starts the full stack.
+
+On first install, the script generates and stores these secrets in `/opt/tango/.env` with `root:root` ownership and `600` permissions:
+
+- `POSTGRES_PASSWORD`
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `DATA_ENCRYPTION_KEY`
 
 After deployment, HTTPS settings (email, domain, TLS toggle) can also be changed at any time from the **Settings** page in the UI — the app rewrites `traefik/traefik.yml` and restarts Traefik automatically.
 
@@ -115,7 +123,9 @@ After deployment, HTTPS settings (email, domain, TLS toggle) can also be changed
 ### Install CLI
 
 ```bash
-go install tango/cmd/cli@latest
+curl -fsSL https://github.com/time-groups/tango-cloud/releases/download/cli-latest/tango-linux-amd64 -o tango
+chmod +x tango
+sudo install -m 0755 tango /usr/local/bin/tango
 ```
 
 See [CLI documentation](docs/cli.md) for orchestration commands, daemon setup, and service management.

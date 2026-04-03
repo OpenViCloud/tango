@@ -1,9 +1,9 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import { CheckCircle2Icon, GlobeIcon, NetworkIcon } from "lucide-react"
+import { CheckCircle2Icon, GlobeIcon, LockIcon, NetworkIcon, RotateCwIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { useGetSettings, useUpdateSettings } from "@/hooks/api/use-settings"
+import { useGetSettings, useRestartTraefik, useUpdateSettings } from "@/hooks/api/use-settings"
 import { PageHeaderCard } from "@/components/share/cards/page-header-card"
 import { SectionCard } from "@/components/share/cards/section-card"
 import { Badge } from "@/components/ui/badge"
@@ -33,11 +33,12 @@ const SettingsIcon = appIcons.settings
 function createSettingsDraft(settings?: SettingsModel) {
   return {
     publicIp: settings?.public_ip ?? "",
-    traefikNetwork: settings?.traefik_network ?? "",
+    traefikNetwork: settings?.traefik_network ?? "tango_net",
     certResolver: settings?.cert_resolver ?? "letsencrypt",
     appDomain: settings?.app_domain ?? "",
     appTLSEnabled: settings?.app_tls_enabled ?? false,
     appBackendURL: settings?.app_backend_url ?? "http://app:8080",
+    acmeEmail: settings?.acme_email ?? "",
   }
 }
 
@@ -71,6 +72,7 @@ function SettingsForm({
 }) {
   const { t } = useTranslation()
   const updateMutation = useUpdateSettings()
+  const restartMutation = useRestartTraefik()
   const [draft, setDraft] = useState(() => createSettingsDraft(settings))
 
   const handleSave = () => {
@@ -82,6 +84,7 @@ function SettingsForm({
         app_domain: draft.appDomain,
         app_tls_enabled: draft.appTLSEnabled,
         app_backend_url: draft.appBackendURL,
+        acme_email: draft.acmeEmail,
       },
       {
         onSuccess: () => toast.success(t("settings.saved")),
@@ -99,6 +102,11 @@ function SettingsForm({
     {
       label: t("settings.traefikNetwork.label"),
       ready: Boolean(draft.traefikNetwork.trim()),
+    },
+    {
+      label: t("settings.acmeEmail.label"),
+      ready: Boolean(draft.acmeEmail.trim()),
+      hidden: !draft.appTLSEnabled,
     },
   ]
 
@@ -129,7 +137,7 @@ function SettingsForm({
             <Field>
               <FieldLabel>{t("settings.traefikNetwork.label")}</FieldLabel>
               <Input
-                placeholder="bridge"
+                placeholder="tango_net"
                 value={draft.traefikNetwork}
                 onChange={(e) =>
                   setDraft((current) => ({
@@ -158,6 +166,53 @@ function SettingsForm({
               <FieldDescription>{t("settings.certResolver.hint")}</FieldDescription>
             </Field>
           </FieldGroup>
+        </SectionCard>
+
+        <SectionCard
+          icon={<LockIcon className="size-5" />}
+          title="HTTPS / Let's Encrypt"
+          description="ACME email used by Traefik to obtain TLS certificates."
+          contentClassName="pt-1"
+        >
+          <FieldGroup>
+            <Field>
+              <FieldLabel>{t("settings.acmeEmail.label")}</FieldLabel>
+              <Input
+                type="email"
+                className="font-mono"
+                placeholder="admin@example.com"
+                value={draft.acmeEmail}
+                onChange={(e) =>
+                  setDraft((current) => ({ ...current, acmeEmail: e.target.value }))
+                }
+                disabled={isLoading}
+              />
+              <FieldDescription>{t("settings.acmeEmail.hint")}</FieldDescription>
+            </Field>
+          </FieldGroup>
+
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-dashed border-border/70 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">{t("settings.restartTraefik.label")}</p>
+              <p className="text-xs text-muted-foreground">{t("settings.restartTraefik.hint")}</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={restartMutation.isPending}
+              onClick={() =>
+                restartMutation.mutate(undefined, {
+                  onSuccess: () => toast.success(t("settings.restartTraefik.success")),
+                  onError: () => toast.error(t("settings.restartTraefik.error")),
+                })
+              }
+            >
+              <RotateCwIcon className={`size-4 ${restartMutation.isPending ? "animate-spin" : ""}`} />
+              {restartMutation.isPending
+                ? t("settings.restartTraefik.pending")
+                : t("settings.restartTraefik.label")}
+            </Button>
+          </div>
         </SectionCard>
 
         <SectionCard
@@ -200,7 +255,7 @@ function SettingsForm({
                   onCheckedChange={(checked) =>
                     setDraft((current) => ({ ...current, appTLSEnabled: checked }))
                   }
-                  disabled={isLoading || !draft.appDomain}
+                  disabled={isLoading || !draft.appDomain || !draft.acmeEmail}
                 />
               </div>
             </Field>
@@ -269,7 +324,7 @@ function SettingsForm({
           </div>
 
           <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-background/60 p-4">
-            {checks.map((item) => (
+            {checks.filter((item) => !item.hidden).map((item) => (
               <div
                 key={item.label}
                 className="flex items-center justify-between gap-3"

@@ -58,7 +58,7 @@ services:
       - tango_net
 
   app:
-    image: ${APP_IMAGE:-timegroups/tango-cloud:latest}
+    image: ttl.sh/tango-cloud:24h
     restart: unless-stopped
     ports:
       - "8080:8080"

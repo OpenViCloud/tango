@@ -58,12 +58,14 @@ func renderRootScreen(cmd *cobra.Command) string {
 		))
 	}
 
-	usage := rootMutedStyle.Render("Run `demo <command> --help` for command details.")
+	usage := rootMutedStyle.Render("Run `tango <command> --help` for command details.")
 	examples := strings.Join([]string{
 		rootAccentStyle.Render("Examples"),
-		"  demo onboard",
-		"  demo chat --stream",
-		"  demo discord status",
+		"  tango service list            List all Docker services",
+		"  tango service logs app        View app container logs",
+		"  tango daemon start            Start health-check daemon",
+		"  tango daemon status           Show service health table",
+		"  tango uninstall --purge       Remove Tango runtime and Docker resources",
 	}, "\n")
 
 	return lipgloss.JoinVertical(
@@ -71,7 +73,7 @@ func renderRootScreen(cmd *cobra.Command) string {
 		rootBannerStyle.Render(strings.TrimPrefix(tangoBanner, "\n")),
 		"",
 		rootTagStyle.Render("TANGO CLI"),
-		rootMutedStyle.Render("Terminal control surface for local setup, chat, and runtime operations."),
+		rootMutedStyle.Render("Manage Docker services, health monitoring, and runtime operations."),
 		"",
 		rootSectionStyle.Render("Commands"),
 		strings.Join(commands, "\n"),

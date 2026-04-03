@@ -1,6 +1,120 @@
 services:
+  traefik:
+    image: traefik:v3.6
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--configFile=/traefik/traefik.yml"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Linux compat; no-op on Mac/Windows
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/ping",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./letsencrypt:/letsencrypt"
+      - "./traefik:/traefik"
+    networks:
+      - tango_net
+
   backup-runner:
     build:
       context: .
       dockerfile: Dockerfile.backup-runner
     image: tango-backup-runner:dev
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8081/healthz",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    environment:
+      BACKUP_RUNNER_PORT: "8081"
+      BACKUP_RUNNER_TOKEN: "${BACKUP_RUNNER_TOKEN:-}"
+      MYSQL_INSTALL_DIR: "/usr/local"
+      MARIADB_INSTALL_DIR: "/usr/local/mariadb"
+    networks:
+      - tango_net
+      - internal
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: tango
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tango"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  buildkitd:
+    image: moby/buildkit:latest
+    restart: unless-stopped
+    privileged: true
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "buildctl",
+          "--addr",
+          "tcp://localhost:1234",
+          "debug",
+          "workers",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    command:
+      - --addr
+      - tcp://0.0.0.0:1234
+    ports:
+      - "1234:1234"
+    volumes:
+      - buildkit_cache_dev:/var/lib/buildkit
+    networks:
+      - internal
+
+volumes:
+  pgdata_dev:
+  buildkit_cache_dev:
+
+networks:
+  tango_net:
+    name: tango_net
+    external: true
+  internal:

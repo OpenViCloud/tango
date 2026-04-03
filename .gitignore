@@ -8,6 +8,7 @@
 
 # ── Environment ──────────────────────────────────
 .env
+.env.dev
 .env.local
 .env.*.local
 
@@ -26,6 +27,12 @@ web/.vite/
 
 # ── Docker ───────────────────────────────────────
 .docker/
+
+# ── Traefik / Let's Encrypt runtime ──────────────
+letsencrypt/acme.json
+traefik/traefik.yml
+traefik/config/tango-app.yaml
+traefik/config/resource-*.yaml
 
 # ── CLI credentials (không commit token user) ────
 .config/

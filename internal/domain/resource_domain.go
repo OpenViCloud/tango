@@ -54,4 +54,7 @@ type TraefikFileProvider interface {
 	WriteAppConfig(appDomain string, tlsEnabled bool, certResolver string, backendURL string) error
 	// DeleteAppConfig removes the Tango app's Traefik config file.
 	DeleteAppConfig() error
+	// WriteStaticConfig writes the Traefik static configuration file (traefik.yml).
+	// acmeEmail enables Let's Encrypt when non-empty; empty disables ACME.
+	WriteStaticConfig(acmeEmail string) error
 }

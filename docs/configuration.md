@@ -97,6 +97,18 @@ shared/cache:/data:ro
 | `TELEGRAM_ENABLE_TYPING` | `true` | Show typing indicator |
 | `TELEGRAM_ALLOWED_USER_IDS` | (empty) | Comma-separated allowed user IDs |
 
+## CLI Daemon
+
+The CLI daemon has its own configuration file at `~/.config/tango/daemon.json`. See [CLI docs](cli.md) for the full config reference.
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `TANGO_DRIVER` | `compose` | Orchestrator backend |
+| `TANGO_CHECK_INTERVAL` | `30s` | Health check interval |
+| `TANGO_COMPOSE_FILE` | (empty) | Path to docker-compose.yml |
+| `TANGO_PROJECT_NAME` | (empty) | Compose project name |
+| `TANGO_HEALTH_URL` | `http://localhost:8080/api/status` | HTTP health check endpoint |
+
 ## Logging
 
 | Variable | Default | Description |

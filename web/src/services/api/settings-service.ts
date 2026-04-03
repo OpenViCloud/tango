@@ -9,6 +9,7 @@ export type SettingsModel = {
   app_domain: string
   app_tls_enabled: boolean
   app_backend_url: string
+  acme_email: string
 }
 
 export type UpdateSettingsModel = {
@@ -20,6 +21,7 @@ export type UpdateSettingsModel = {
   app_domain?: string
   app_tls_enabled?: boolean
   app_backend_url?: string
+  acme_email?: string
 }
 
 export const settingsService = {
@@ -28,4 +30,7 @@ export const settingsService = {
 
   updateSettings: (payload: UpdateSettingsModel): Promise<SettingsModel> =>
     api.patch("/settings", payload).then((r) => r.data),
+
+  restartTraefik: (): Promise<{ message: string }> =>
+    api.post("/settings/traefik/restart").then((r) => r.data),
 }

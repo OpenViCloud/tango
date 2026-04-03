@@ -292,8 +292,15 @@ func main() {
 
 	// Traefik file provider — optional, only active when TRAEFIK_CONFIG_DIR is set
 	var traefikFileProvider domain.TraefikFileProvider
+	var traefikRestarter domain.TraefikRestarter
 	if cfg.TraefikConfigDir != "" {
-		traefikFileProvider = infratraefik.NewFileProvider(cfg.TraefikConfigDir)
+		fp := infratraefik.NewFileProvider(cfg.TraefikConfigDir)
+		traefikFileProvider = fp
+		if r, err := infratraefik.NewRestarter("traefik"); err != nil {
+			logger.Warn("traefik restarter unavailable", "err", err)
+		} else {
+			traefikRestarter = r
+		}
 	}
 
 	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, resourceDomainRepo, platformConfigRepo, traefikFileProvider, logger)
@@ -352,7 +359,7 @@ func main() {
 	if dockerRepo != nil {
 		resourceTerminalWSHandler = rest.NewResourceTerminalWSHandler(dockerRepo, getResourceHandler)
 	}
-	settingsHandler := rest.NewSettingsHandler(platformConfigRepo, traefikFileProvider)
+	settingsHandler := rest.NewSettingsHandler(platformConfigRepo, traefikFileProvider, traefikRestarter)
 	baseDomainHandler := rest.NewBaseDomainHandler(baseDomainRepo, resourceDomainRepo, resourceRepo)
 	backupHandler := rest.NewBackupHandler(
 		createDatabaseSourceHandler,
@@ -376,8 +383,9 @@ func main() {
 		getRestoreHandler,
 	)
 
-	// Write app Traefik config on every startup (picks up any env-seeded domain)
+	// Write Traefik static + dynamic config on every startup.
 	if traefikFileProvider != nil {
+		refreshTraefikStaticConfig(ctx, platformConfigRepo, traefikFileProvider, logger)
 		refreshAppTraefikConfig(ctx, platformConfigRepo, traefikFileProvider, logger)
 	}
 
@@ -536,6 +544,7 @@ func bootstrapPlatformConfig(ctx context.Context, cfg *config.Config, repo domai
 	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigAppTLSEnabled, appTLS)
 	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigAppBackendURL, cfg.AppBackendURL)
 	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigResourceMountRoot, cfg.ResourceMountRoot)
+	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigACMEEmail, "")
 	logger.Info("platform config seeded", "public_ip", ip, "app_domain", cfg.AppDomain)
 }
 
@@ -545,6 +554,18 @@ func seedPlatformConfigIfMissing(ctx context.Context, repo domain.PlatformConfig
 	}
 	if err := repo.Set(ctx, key, value); err != nil {
 		logger.Warn("seed platform config failed", "key", key, "err", err)
+	}
+}
+
+func refreshTraefikStaticConfig(ctx context.Context, repo domain.PlatformConfigRepository, fp domain.TraefikFileProvider, logger *slog.Logger) {
+	acmeEmail := ""
+	if cfg, err := repo.Get(ctx, domain.PlatformConfigACMEEmail); err == nil {
+		acmeEmail = cfg.Value
+	}
+	if err := fp.WriteStaticConfig(acmeEmail); err != nil {
+		logger.Warn("write traefik static config failed", "err", err)
+	} else {
+		logger.Info("traefik static config written", "acme_email_set", acmeEmail != "")
 	}
 }
 

@@ -21,3 +21,8 @@ export const useUpdateSettings = () => {
     },
   })
 }
+
+export const useRestartTraefik = () =>
+  useMutation({
+    mutationFn: () => settingsService.restartTraefik(),
+  })

@@ -3,13 +3,22 @@
 set -e
 
 APP_NAME="tango"
-BASE_DIR="$(pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="${TANGO_DIR:-/opt/tango}"
 LETSENCRYPT_DIR="$BASE_DIR/letsencrypt"
 ACME_FILE="$LETSENCRYPT_DIR/acme.json"
-TRAEFIK_CONFIG_DIR="$BASE_DIR/traefik/config"
+TRAEFIK_DIR="$BASE_DIR/traefik"
+TRAEFIK_CONFIG_DIR="$TRAEFIK_DIR/config"
+TRAEFIK_STATIC_CONFIG="$TRAEFIK_DIR/traefik.yml"
 RESOURCE_MOUNT_ROOT="$BASE_DIR/data/resource-volumes"
 RESOURCE_MOUNT_ROOT_APP="/platform/resource-volumes"
 ENV_FILE="$BASE_DIR/.env"
+CLI_CONFIG_DIR="$HOME/.config/tango"
+CLI_CONFIG_FILE="$CLI_CONFIG_DIR/daemon.json"
+CLI_BINARY_TARGET="/usr/local/bin/tango"
+COMPOSE_FILE="$BASE_DIR/docker-compose.yml"
+PROJECT_NAME="tango"
+HEALTH_URL="http://localhost:8080/api/status"
 
 EMAIL=""
 DOMAIN=""
@@ -95,9 +104,93 @@ install_docker() {
   echo "NOTE: Run 'newgrp docker' or re-login to use Docker without sudo."
 }
 
+detect_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64)
+      echo "amd64"
+      ;;
+    aarch64|arm64)
+      echo "arm64"
+      ;;
+    *)
+      echo "unsupported"
+      ;;
+  esac
+}
+
+install_cli() {
+  local arch cli_source
+  arch="$(detect_arch)"
+  if [ "$arch" = "unsupported" ]; then
+    echo "Unsupported architecture: $(uname -m)"
+    exit 1
+  fi
+
+  echo "=== INSTALL CLI ==="
+
+  if [ -x "$CLI_BINARY_TARGET" ]; then
+    echo "Using existing CLI binary: $CLI_BINARY_TARGET"
+    return
+  fi
+
+  cli_source="$BASE_DIR/bin/tango-linux-$arch"
+
+  if [ -f "$cli_source" ]; then
+    echo "Installing prebuilt CLI binary: $cli_source"
+    sudo install -m 0755 "$cli_source" "$CLI_BINARY_TARGET"
+    return
+  fi
+
+  if command -v go >/dev/null 2>&1; then
+    echo "Prebuilt binary not found. Building CLI from source for linux/$arch"
+    GOOS=linux GOARCH="$arch" go build -o /tmp/tango-install ./cmd/cli
+    sudo install -m 0755 /tmp/tango-install "$CLI_BINARY_TARGET"
+    rm -f /tmp/tango-install
+    return
+  fi
+
+  echo "Error: CLI binary $cli_source not found and Go is not installed."
+  exit 1
+}
+
+write_cli_config() {
+  echo "=== WRITE CLI CONFIG ==="
+  mkdir -p "$CLI_CONFIG_DIR"
+  cat > "$CLI_CONFIG_FILE" <<EOF
+{
+  "driver": "compose",
+  "check_interval": "30s",
+  "max_retries": 3,
+  "retry_backoff": "10s",
+  "retry_cooldown": "5m",
+  "compose_file": "$COMPOSE_FILE",
+  "project_name": "$PROJECT_NAME",
+  "health_url": "$HEALTH_URL",
+  "services": ["app", "traefik", "db", "buildkitd", "backup-runner"]
+}
+EOF
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 echo "=== SETUP: $APP_NAME ==="
+echo "Install directory: $BASE_DIR"
+
+echo "=== SETUP BASE DIR ==="
+mkdir -p "$BASE_DIR"
+
+# Copy docker-compose.yml from repo if running from a cloned git repo,
+# otherwise download from GitHub.
+if [ -f "$SCRIPT_DIR/docker-compose.yml" ] && [ "$SCRIPT_DIR" != "$BASE_DIR" ] && [ -d "$SCRIPT_DIR/.git" ]; then
+  echo "Copying docker-compose.yml from repo: $SCRIPT_DIR"
+  cp "$SCRIPT_DIR/docker-compose.yml" "$COMPOSE_FILE"
+elif [ ! -f "$COMPOSE_FILE" ]; then
+  echo "Downloading docker-compose.yml from GitHub..."
+  curl -fsSL "https://raw.githubusercontent.com/timegroups/tango-cloud/main/docker-compose.yml" \
+    -o "$COMPOSE_FILE"
+else
+  echo "Using existing $COMPOSE_FILE"
+fi
 
 echo "=== CHECK DOCKER ==="
 if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
@@ -116,8 +209,46 @@ chmod 600 "$ACME_FILE"
 echo "=== TRAEFIK CONFIG DIR ==="
 mkdir -p "$TRAEFIK_CONFIG_DIR"
 
+write_traefik_static_config() {
+  local email="$1"
+  cat > "$TRAEFIK_STATIC_CONFIG" <<TRAEFIK_EOF
+api:
+  dashboard: true
+  insecure: false
+providers:
+  docker:
+    exposedByDefault: false
+  file:
+    directory: /traefik/config
+    watch: true
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+ping: {}
+TRAEFIK_EOF
+
+  if [ -n "$email" ]; then
+    cat >> "$TRAEFIK_STATIC_CONFIG" <<ACME_EOF
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: $email
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+ACME_EOF
+  fi
+}
+
 echo "=== RESOURCE MOUNT ROOT ==="
 mkdir -p "$RESOURCE_MOUNT_ROOT"
+
+echo "=== DOCKER NETWORK ==="
+if ! docker network inspect tango_net >/dev/null 2>&1; then
+  docker network create tango_net
+fi
 
 echo "=== WRITE .env ==="
 
@@ -128,7 +259,7 @@ existing_tls="false"
 existing_resource_mount_root=""
 existing_resource_mount_root_app=""
 if [ -f "$ENV_FILE" ]; then
-  existing_email=$(grep "^TRAEFIK_ACME_EMAIL=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
+  existing_email=$(grep "^ACME_EMAIL=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
   existing_domain=$(grep "^APP_DOMAIN=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
   existing_tls=$(grep "^APP_TLS_ENABLED=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2 || echo "false")
   existing_resource_mount_root=$(grep "^RESOURCE_MOUNT_ROOT=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
@@ -149,7 +280,6 @@ if [ "$final_tls" = "true" ] && [ -z "$final_email" ]; then
 fi
 
 cat > "$ENV_FILE" <<EOF
-TRAEFIK_ACME_EMAIL=$final_email
 APP_DOMAIN=$final_domain
 APP_TLS_ENABLED=$final_tls
 RESOURCE_MOUNT_ROOT=$final_resource_mount_root
@@ -161,15 +291,33 @@ echo "App domain    : ${final_domain:-not set (configure in Settings)}"
 echo "App HTTPS     : $final_tls"
 echo "Mount root    : $final_resource_mount_root"
 
+echo "=== TRAEFIK STATIC CONFIG ==="
+write_traefik_static_config "$final_email"
+echo "Traefik static config : $TRAEFIK_STATIC_CONFIG (acme=${final_email:-disabled})"
+
+install_cli
+write_cli_config
+
 echo "=== PULL LATEST IMAGES ==="
-docker compose pull
+docker compose -f "$COMPOSE_FILE" pull
 
 echo "=== START SERVICES ==="
-docker compose up -d
+docker compose -f "$COMPOSE_FILE" up -d
+echo "Services started."
+
+echo "=== INSTALL DAEMON SERVICE ==="
+sudo "$CLI_BINARY_TARGET" daemon install
+
+echo "=== CHECK ORCHESTRATION STATUS ==="
+"$CLI_BINARY_TARGET" status || true
+"$CLI_BINARY_TARGET" daemon status || true
+"$CLI_BINARY_TARGET" service list || true
 
 echo ""
 echo "=================================="
-echo " $APP_NAME is up!"
+echo " $APP_NAME orchestration is installed!"
+echo " CLI binary     : $CLI_BINARY_TARGET"
+echo " CLI config     : $CLI_CONFIG_FILE"
 echo " ACME file      : $ACME_FILE"
 echo " Traefik config : $TRAEFIK_CONFIG_DIR"
 echo " ENV file       : $ENV_FILE"

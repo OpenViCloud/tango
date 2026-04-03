@@ -738,6 +738,17 @@
       "label": "App Backend URL",
       "hint": "Internal URL Traefik uses to reach this app. Default: http://app:8080 (Docker Compose service name)."
     },
+    "acmeEmail": {
+      "label": "Let's Encrypt Email",
+      "hint": "Email registered with Let's Encrypt for TLS certificate notifications. Saved to DB immediately — use Restart Traefik to apply."
+    },
+    "restartTraefik": {
+      "label": "Restart Traefik",
+      "hint": "Apply the current ACME config and restart Traefik (~5s downtime).",
+      "pending": "Restarting...",
+      "success": "Traefik restarted",
+      "error": "Failed to restart Traefik"
+    },
     "baseDomains": {
       "title": "Base Domains",
       "description": "Wildcard domains that can be used to auto-assign subdomains to resources.",

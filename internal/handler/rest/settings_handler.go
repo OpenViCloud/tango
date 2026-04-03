@@ -2,7 +2,9 @@ package rest
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"time"
 
 	"tango/internal/domain"
 
@@ -10,17 +12,23 @@ import (
 )
 
 type SettingsHandler struct {
-	configRepo   domain.PlatformConfigRepository
-	fileProvider domain.TraefikFileProvider
+	configRepo       domain.PlatformConfigRepository
+	fileProvider     domain.TraefikFileProvider
+	traefikRestarter domain.TraefikRestarter // optional, nil = no restart capability
 }
 
-func NewSettingsHandler(configRepo domain.PlatformConfigRepository, fileProvider domain.TraefikFileProvider) *SettingsHandler {
-	return &SettingsHandler{configRepo: configRepo, fileProvider: fileProvider}
+func NewSettingsHandler(configRepo domain.PlatformConfigRepository, fileProvider domain.TraefikFileProvider, traefikRestarter domain.TraefikRestarter) *SettingsHandler {
+	return &SettingsHandler{
+		configRepo:       configRepo,
+		fileProvider:     fileProvider,
+		traefikRestarter: traefikRestarter,
+	}
 }
 
 func (h *SettingsHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/settings", h.GetSettings)
 	rg.PATCH("/settings", h.UpdateSettings)
+	rg.POST("/settings/traefik/restart", h.RestartTraefik)
 }
 
 type settingsResponse struct {
@@ -33,6 +41,7 @@ type settingsResponse struct {
 	AppTLSEnabled     bool   `json:"app_tls_enabled"`
 	AppBackendURL     string `json:"app_backend_url"`
 	ResourceMountRoot string `json:"resource_mount_root"`
+	ACMEEmail         string `json:"acme_email"`
 }
 
 type updateSettingsRequest struct {
@@ -45,6 +54,7 @@ type updateSettingsRequest struct {
 	AppTLSEnabled     *bool   `json:"app_tls_enabled"`
 	AppBackendURL     *string `json:"app_backend_url"`
 	ResourceMountRoot *string `json:"resource_mount_root"`
+	ACMEEmail         *string `json:"acme_email"`
 }
 
 func (h *SettingsHandler) GetSettings(c *gin.Context) {
@@ -57,6 +67,7 @@ func (h *SettingsHandler) GetSettings(c *gin.Context) {
 	resp := settingsResponse{
 		BaseDomain:      "localhost",
 		WildcardEnabled: true,
+		TraefikNetwork:  "tango_net",
 		AppBackendURL:   "http://app:8080",
 	}
 	for _, cfg := range configs {
@@ -81,6 +92,8 @@ func (h *SettingsHandler) GetSettings(c *gin.Context) {
 			}
 		case domain.PlatformConfigResourceMountRoot:
 			resp.ResourceMountRoot = cfg.Value
+		case domain.PlatformConfigACMEEmail:
+			resp.ACMEEmail = cfg.Value
 		}
 	}
 
@@ -158,13 +171,64 @@ func (h *SettingsHandler) UpdateSettings(c *gin.Context) {
 			return
 		}
 	}
+	if req.ACMEEmail != nil {
+		if err := h.configRepo.Set(ctx, domain.PlatformConfigACMEEmail, *req.ACMEEmail); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
 
-	// Refresh app Traefik config whenever domain-related settings change
+	// Refresh dynamic app Traefik config whenever domain-related settings change.
 	if h.fileProvider != nil && (req.AppDomain != nil || req.AppTLSEnabled != nil || req.CertResolver != nil || req.AppBackendURL != nil) {
 		h.refreshAppConfig(ctx)
 	}
 
+	// Rewrite static Traefik config when ACME email changes (no restart — user triggers that separately).
+	if h.fileProvider != nil && req.ACMEEmail != nil {
+		if err := h.fileProvider.WriteStaticConfig(*req.ACMEEmail); err != nil {
+			slog.Warn("write traefik static config failed", "err", err)
+		}
+	}
+
 	h.GetSettings(c)
+}
+
+// RestartTraefik rewrites the Traefik static config from DB and restarts the container.
+func (h *SettingsHandler) RestartTraefik(c *gin.Context) {
+	if h.fileProvider == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "traefik file provider not configured"})
+		return
+	}
+	if h.traefikRestarter == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "traefik restarter not available"})
+		return
+	}
+
+	reqCtx := c.Request.Context()
+
+	acmeEmail := ""
+	if cfg, err := h.configRepo.Get(reqCtx, domain.PlatformConfigACMEEmail); err == nil {
+		acmeEmail = cfg.Value
+	}
+
+	if err := h.fileProvider.WriteStaticConfig(acmeEmail); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "write traefik config: " + err.Error()})
+		return
+	}
+
+	// Use a detached context so the Docker restart is not cancelled if the
+	// HTTP request times out or the client disconnects mid-restart.
+	restartCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := h.traefikRestarter.RestartTraefik(restartCtx); err != nil {
+		slog.Error("restart traefik failed", "err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "restart traefik: " + err.Error()})
+		return
+	}
+
+	slog.Info("traefik restarted successfully")
+	c.JSON(http.StatusOK, gin.H{"message": "traefik restarted"})
 }
 
 func (h *SettingsHandler) refreshAppConfig(ctx context.Context) {
@@ -188,3 +252,4 @@ func (h *SettingsHandler) refreshAppConfig(ctx context.Context) {
 
 	_ = h.fileProvider.WriteAppConfig(appDomain, appTLS, certResolver, backendURL)
 }
+

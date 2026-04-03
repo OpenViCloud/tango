@@ -24,6 +24,11 @@ graph TD
 
 ```mermaid
 graph TD
+    CLI[CLI Binary\nDaemon + Service Mgmt]
+    CLI --> ORC[Orchestrator\nDriver Interface]
+    ORC --> CD[Compose Driver]
+    CD --> DC[Docker Compose CLI]
+
     H[HTTP Handlers\nREST + WebSocket]
     H --> AS[Application Services\nCommands + Queries]
     AS --> DS[Domain\nEntities + Repository Interfaces]
@@ -57,6 +62,24 @@ The backend follows a pragmatic DDD/CQRS split:
   HTTP handlers, request DTOs, response DTOs, error mapping
 - `cmd/api/main.go`
   Composition root: instantiate repositories/services/handlers and register routes
+
+## Orchestrator Layer
+
+The CLI uses a pluggable `Driver` interface in `internal/orchestrator/` that abstracts the orchestration backend. This is separate from `internal/infrastructure/docker/`, which is the raw Docker Engine client used by the API.
+
+```text
+internal/orchestrator/
+├── driver.go              ← Driver interface + ServiceStatus types
+├── config.go              ← DaemonConfig, file paths, load/save
+├── compose/
+│   └── driver.go          ← Docker Compose driver (shells out to `docker compose`)
+└── daemon/
+    ├── daemon.go          ← Health check loop, retry logic
+    ├── status.go          ← Status file read/write
+    └── install.go         ← launchd/systemd service generators
+```
+
+Currently only the Compose driver is implemented. Future drivers (k3s, swarm, nomad) implement the same `Driver` interface without changing CLI commands. See [CLI docs](cli.md) for details.
 
 ## Go Package Structure
 

@@ -331,7 +331,3 @@ else
   echo "                  (set domain in Settings UI)"
 fi
 echo "=================================="
-
-# Usage:
-# chmod +x install.sh
-# ./install.sh --email admin@example.com --domain app.example.com --https

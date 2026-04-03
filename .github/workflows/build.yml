@@ -3,6 +3,9 @@ permissions:
 
 name: Build
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     tags:
@@ -27,7 +30,7 @@ jobs:
     if: github.event.inputs.build_runner == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -55,7 +58,7 @@ jobs:
       github.event.inputs.build_app == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Resolve version tag
         id: version
         run: |
@@ -94,15 +97,15 @@ jobs:
       matrix:
         arch: [amd64, arm64]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.26'
       - name: Build CLI
         run: |
           mkdir -p dist
           GOOS=linux GOARCH=${{ matrix.arch }} go build -o dist/tango-linux-${{ matrix.arch }} ./cmd/cli
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: tango-cli-${{ matrix.arch }}
           path: dist/tango-linux-${{ matrix.arch }}
@@ -112,7 +115,7 @@ jobs:
     needs: build-cli
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: tango-cli-*
           merge-multiple: true

@@ -134,10 +134,10 @@ func main() {
 		fatal(logger, "seed demo data failed", err)
 	}
 
-	if cfg.LLMConfigEncryptionKey == "" {
-		fatal(logger, "LLM_CONFIG_ENCRYPTION_KEY is required", nil)
+	if cfg.DataEncryptionKey == "" {
+		fatal(logger, "DATA_ENCRYPTION_KEY is required", nil)
 	}
-	cipherService, err := infraservices.NewAESSecretCipher(cfg.LLMConfigEncryptionKey)
+	cipherService, err := infraservices.NewAESSecretCipher(cfg.DataEncryptionKey)
 	if err != nil {
 		fatal(logger, "init cipher failed", err)
 	}

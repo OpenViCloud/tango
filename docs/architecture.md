@@ -169,7 +169,7 @@ When adding a new DB-backed module, follow this order:
 
 ## Design Notes
 
-**Encrypted secrets:** environment variables marked `is_secret=true` and all channel/source credentials are AES-encrypted before DB storage. The encryption key (`LLM_CONFIG_ENCRYPTION_KEY`) must be exactly 32 characters.
+**Encrypted secrets:** environment variables marked `is_secret=true` and all channel/source credentials are AES-encrypted before DB storage. The encryption key (`DATA_ENCRYPTION_KEY`) must be exactly 32 characters.
 
 **Docker isolation:** each resource maps to a single Docker container. Port conflicts are validated before start — no two resources in the same environment may expose the same host port.
 

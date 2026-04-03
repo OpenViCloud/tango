@@ -19,7 +19,7 @@ func TestSaveFileAndLoadEncryptedFields(t *testing.T) {
 		BaseURL:                "http://localhost:8080",
 		ChatChannel:            "discord",
 		ChatModel:              "gpt-4.1-mini",
-		LLMConfigEncryptionKey: "12345678901234567890123456789012",
+		DataEncryptionKey: "12345678901234567890123456789012",
 	})
 	if err != nil {
 		t.Fatalf("SaveFile() error = %v", err)
@@ -50,20 +50,20 @@ func TestSaveFileAndLoadEncryptedFields(t *testing.T) {
 	if cfg.ChatChannel != "discord" {
 		t.Fatalf("ChatChannel = %q", cfg.ChatChannel)
 	}
-	if cfg.LLMConfigEncryptionKey != "12345678901234567890123456789012" {
-		t.Fatalf("LLMConfigEncryptionKey = %q", cfg.LLMConfigEncryptionKey)
+	if cfg.DataEncryptionKey != "12345678901234567890123456789012" {
+		t.Fatalf("DataEncryptionKey = %q", cfg.DataEncryptionKey)
 	}
 }
 
-func TestSaveFilePreservesExistingLLMKey(t *testing.T) {
+func TestSaveFilePreservesExistingDataEncryptionKey(t *testing.T) {
 	tempHome := t.TempDir()
 	t.Setenv("HOME", tempHome)
 	t.Setenv(configEncryptionEnv, "")
 
 	_, err := SaveFile(&Config{
-		DBDriver:               "sqlite",
-		DBUrl:                  "file:tango.db?_foreign_keys=on",
-		LLMConfigEncryptionKey: "12345678901234567890123456789012",
+		DBDriver:          "sqlite",
+		DBUrl:             "file:tango.db?_foreign_keys=on",
+		DataEncryptionKey: "12345678901234567890123456789012",
 	})
 	if err != nil {
 		t.Fatalf("SaveFile() initial error = %v", err)
@@ -78,8 +78,8 @@ func TestSaveFilePreservesExistingLLMKey(t *testing.T) {
 	}
 
 	cfg := Load()
-	if cfg.LLMConfigEncryptionKey != "12345678901234567890123456789012" {
-		t.Fatalf("LLMConfigEncryptionKey = %q", cfg.LLMConfigEncryptionKey)
+	if cfg.DataEncryptionKey != "12345678901234567890123456789012" {
+		t.Fatalf("DataEncryptionKey = %q", cfg.DataEncryptionKey)
 	}
 }
 

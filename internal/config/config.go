@@ -64,7 +64,7 @@ type Config struct {
 	OrchestrationEngine string
 	WorkflowEngine      string
 
-	LLMConfigEncryptionKey string
+	DataEncryptionKey string
 
 	DiscordToken                      string
 	DiscordRequireMention             bool
@@ -111,7 +111,7 @@ type fileConfig struct {
 	ChatModel              string `json:"chat_model,omitempty"`
 	OrchestrationEngine    string `json:"orchestration_engine,omitempty"`
 	WorkflowEngine         string `json:"workflow_engine,omitempty"`
-	LLMConfigEncryptionKey string `json:"llm_config_encryption_key,omitempty"`
+	DataEncryptionKey string `json:"data_encryption_key,omitempty"`
 }
 
 func Load() *Config {
@@ -133,7 +133,7 @@ func Load() *Config {
 		LogCompress:                       true,
 		OrchestrationEngine:               defaultExecutionEngine,
 		WorkflowEngine:                    defaultExecutionEngine,
-		LLMConfigEncryptionKey:            getEnv("LLM_CONFIG_ENCRYPTION_KEY", ""),
+		DataEncryptionKey:                 getEnv("DATA_ENCRYPTION_KEY", ""),
 		DiscordRequireMention:             defaultDiscordMention,
 		DiscordEnableTyping:               defaultDiscordTyping,
 		DiscordEnableMessageContentIntent: false,
@@ -163,7 +163,7 @@ func Load() *Config {
 	cfg.LogCompress = getEnvBool("LOG_COMPRESS", cfg.LogCompress)
 	cfg.OrchestrationEngine = normalizeExecutionEngine(getEnv("ORCHESTRATION_ENGINE", cfg.OrchestrationEngine))
 	cfg.WorkflowEngine = normalizeExecutionEngine(getEnv("WORKFLOW_ENGINE", cfg.WorkflowEngine))
-	cfg.LLMConfigEncryptionKey = getEnv("LLM_CONFIG_ENCRYPTION_KEY", cfg.LLMConfigEncryptionKey)
+	cfg.DataEncryptionKey = getEnv("DATA_ENCRYPTION_KEY", cfg.DataEncryptionKey)
 	cfg.DiscordToken = getEnv("DISCORD_BOT_TOKEN", "")
 	cfg.DiscordRequireMention = getEnvBool("DISCORD_REQUIRE_MENTION", cfg.DiscordRequireMention)
 	cfg.DiscordEnableTyping = getEnvBool("DISCORD_ENABLE_TYPING", cfg.DiscordEnableTyping)
@@ -266,20 +266,20 @@ func SaveFile(cfg *Config) (string, error) {
 	}
 
 	fileCfg := fileConfig{
-		Port:                   cfg.Port,
-		DBDriver:               cfg.DBDriver,
-		DBURL:                  cfg.DBUrl,
-		APIKey:                 cfg.APIKey,
-		BaseURL:                cfg.BaseURL,
-		ChatChannel:            cfg.ChatChannel,
-		ChatModel:              cfg.ChatModel,
-		OrchestrationEngine:    cfg.OrchestrationEngine,
-		WorkflowEngine:         cfg.WorkflowEngine,
-		LLMConfigEncryptionKey: cfg.LLMConfigEncryptionKey,
+		Port:                cfg.Port,
+		DBDriver:            cfg.DBDriver,
+		DBURL:               cfg.DBUrl,
+		APIKey:              cfg.APIKey,
+		BaseURL:             cfg.BaseURL,
+		ChatChannel:         cfg.ChatChannel,
+		ChatModel:           cfg.ChatModel,
+		OrchestrationEngine: cfg.OrchestrationEngine,
+		WorkflowEngine:      cfg.WorkflowEngine,
+		DataEncryptionKey:   cfg.DataEncryptionKey,
 	}
 
-	if existing, err := loadFileConfig(); err == nil && existing != nil && fileCfg.LLMConfigEncryptionKey == "" {
-		fileCfg.LLMConfigEncryptionKey = existing.LLMConfigEncryptionKey
+	if existing, err := loadFileConfig(); err == nil && existing != nil && fileCfg.DataEncryptionKey == "" {
+		fileCfg.DataEncryptionKey = existing.DataEncryptionKey
 	}
 
 	key := strings.TrimSpace(os.Getenv(configEncryptionEnv))
@@ -393,8 +393,8 @@ func applyFileConfig(dst *Config, src *fileConfig) {
 	if src.WorkflowEngine != "" {
 		dst.WorkflowEngine = normalizeExecutionEngine(src.WorkflowEngine)
 	}
-	if src.LLMConfigEncryptionKey != "" {
-		dst.LLMConfigEncryptionKey = src.LLMConfigEncryptionKey
+	if src.DataEncryptionKey != "" {
+		dst.DataEncryptionKey = src.DataEncryptionKey
 	}
 }
 

@@ -8,7 +8,7 @@ All configuration is via environment variables. The app reads them on startup.
 | -------- | ----------- | ------- |
 | `JWT_SECRET` | Secret key for JWT signing | `mysecretkey123` |
 | `DATABASE_URL` | Database connection string | `postgres://postgres:postgres@localhost:5432/tango?sslmode=disable` |
-| `LLM_CONFIG_ENCRYPTION_KEY` | 32-character encryption key | `12345678901234567890123456789012` |
+| `DATA_ENCRYPTION_KEY` | 32-character encryption key | `12345678901234567890123456789012` |
 
 ## Core
 

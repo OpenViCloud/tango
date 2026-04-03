@@ -21,7 +21,7 @@ type aesSecretCipher struct {
 func NewAESSecretCipher(key string) (appservices.SecretCipher, error) {
 	key = strings.TrimSpace(key)
 	if len(key) != 32 {
-		return nil, fmt.Errorf("LLM_CONFIG_ENCRYPTION_KEY must be exactly 32 characters")
+		return nil, fmt.Errorf("DATA_ENCRYPTION_KEY must be exactly 32 characters")
 	}
 
 	return &aesSecretCipher{key: []byte(key)}, nil

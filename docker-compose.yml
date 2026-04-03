@@ -78,11 +78,11 @@ services:
       start_period: 15s
     environment:
       PORT: "8080"
-      DATABASE_URL: "postgres://postgres:postgres@db:5432/tango?sslmode=disable"
-      JWT_SECRET: "mysecretkey123"
+      DATABASE_URL: "${DATABASE_URL}"
+      JWT_SECRET: "${JWT_SECRET}"
       BUILDKIT_HOST: "tcp://buildkitd:1234"
       BUILD_WORKSPACE_DIR: "/workspace/jobs"
-      LLM_CONFIG_ENCRYPTION_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      DATA_ENCRYPTION_KEY: "${DATA_ENCRYPTION_KEY}"
       DOCKER_HOST: "unix:///var/run/docker.sock"
       BACKUP_RUNNER_BASE_URL: "http://backup-runner:8081"
       BACKUP_RUNNER_TOKEN: "${BACKUP_RUNNER_TOKEN:-}"
@@ -141,7 +141,7 @@ services:
     environment:
       POSTGRES_DB: tango
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

@@ -20,7 +20,7 @@ COMPOSE_FILE="$BASE_DIR/docker-compose.yml"
 PROJECT_NAME="tango"
 HEALTH_URL="http://localhost:8080/api/status"
 CLI_RELEASE_TAG="${CLI_RELEASE_TAG:-cli-latest}"
-CLI_DOWNLOAD_BASE_URL="${CLI_DOWNLOAD_BASE_URL:-https://github.com/timegroups/tango-cloud/releases/download/$CLI_RELEASE_TAG}"
+CLI_DOWNLOAD_BASE_URL="${CLI_DOWNLOAD_BASE_URL:-https://github.com/time-groups/tango-cloud/releases/download/$CLI_RELEASE_TAG}"
 
 EMAIL=""
 DOMAIN=""
@@ -62,6 +62,19 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+generate_hex() {
+  local bytes="$1"
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -hex "$bytes"
+    return
+  fi
+  od -An -N"$bytes" -tx1 /dev/urandom | tr -d ' \n'
+}
+
+generate_alnum_32() {
+  tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32
+}
 
 # ── Docker install ────────────────────────────────────────────────────────────
 
@@ -205,7 +218,7 @@ if [ -f "$SCRIPT_DIR/docker-compose.yml" ] && [ "$SCRIPT_DIR" != "$BASE_DIR" ] &
   cp "$SCRIPT_DIR/docker-compose.yml" "$COMPOSE_FILE"
 elif [ ! -f "$COMPOSE_FILE" ]; then
   echo "Downloading docker-compose.yml from GitHub..."
-  curl -fsSL "https://raw.githubusercontent.com/timegroups/tango-cloud/main/docker-compose.yml" \
+  curl -fsSL "https://raw.githubusercontent.com/time-groups/tango-cloud/main/docker-compose.yml" \
     -o "$COMPOSE_FILE"
 else
   echo "Using existing $COMPOSE_FILE"
@@ -277,12 +290,20 @@ existing_domain=""
 existing_tls="false"
 existing_resource_mount_root=""
 existing_resource_mount_root_app=""
+existing_jwt_secret=""
+existing_data_encryption_key=""
+existing_postgres_password=""
+existing_database_url=""
 if [ -f "$ENV_FILE" ]; then
   existing_email=$(grep "^ACME_EMAIL=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
   existing_domain=$(grep "^APP_DOMAIN=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
   existing_tls=$(grep "^APP_TLS_ENABLED=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2 || echo "false")
   existing_resource_mount_root=$(grep "^RESOURCE_MOUNT_ROOT=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
   existing_resource_mount_root_app=$(grep "^RESOURCE_MOUNT_ROOT_APP=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
+  existing_jwt_secret=$(grep "^JWT_SECRET=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
+  existing_data_encryption_key=$(grep "^DATA_ENCRYPTION_KEY=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
+  existing_postgres_password=$(grep "^POSTGRES_PASSWORD=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
+  existing_database_url=$(grep "^DATABASE_URL=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
 fi
 
 # Resolve final values (args override existing)
@@ -291,6 +312,11 @@ final_domain="${DOMAIN:-$existing_domain}"
 final_tls="${TLS_ENABLED:-$existing_tls}"
 final_resource_mount_root="${existing_resource_mount_root:-$RESOURCE_MOUNT_ROOT}"
 final_resource_mount_root_app="${existing_resource_mount_root_app:-$RESOURCE_MOUNT_ROOT_APP}"
+final_jwt_secret="${existing_jwt_secret:-$(generate_hex 32)}"
+final_data_encryption_key="${existing_data_encryption_key:-$(generate_alnum_32)}"
+final_postgres_password="${existing_postgres_password:-$(generate_hex 24)}"
+default_database_url="postgres://postgres:${final_postgres_password}@db:5432/tango?sslmode=disable"
+final_database_url="${existing_database_url:-$default_database_url}"
 
 # --https requires --email (for Let's Encrypt)
 if [ "$final_tls" = "true" ] && [ -z "$final_email" ]; then
@@ -303,12 +329,23 @@ APP_DOMAIN=$final_domain
 APP_TLS_ENABLED=$final_tls
 RESOURCE_MOUNT_ROOT=$final_resource_mount_root
 RESOURCE_MOUNT_ROOT_APP=$final_resource_mount_root_app
+POSTGRES_PASSWORD=$final_postgres_password
+DATABASE_URL=$final_database_url
+JWT_SECRET=$final_jwt_secret
+DATA_ENCRYPTION_KEY=$final_data_encryption_key
 EOF
+
+sudo chown root:root "$ENV_FILE"
+sudo chmod 600 "$ENV_FILE"
 
 echo "Let's Encrypt : ${final_email:-DISABLED}"
 echo "App domain    : ${final_domain:-not set (configure in Settings)}"
 echo "App HTTPS     : $final_tls"
 echo "Mount root    : $final_resource_mount_root"
+echo "Database URL  : generated/preserved in $ENV_FILE"
+echo "DB password   : generated/preserved in $ENV_FILE"
+echo "JWT secret    : generated/preserved in $ENV_FILE"
+echo "Data key      : generated/preserved in $ENV_FILE"
 
 echo "=== TRAEFIK STATIC CONFIG ==="
 write_traefik_static_config "$final_email"

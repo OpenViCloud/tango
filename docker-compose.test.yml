@@ -82,7 +82,7 @@ services:
       JWT_SECRET: "mysecretkey123"
       BUILDKIT_HOST: "tcp://buildkitd:1234"
       BUILD_WORKSPACE_DIR: "/workspace/jobs"
-      LLM_CONFIG_ENCRYPTION_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      DATA_ENCRYPTION_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       DOCKER_HOST: "unix:///var/run/docker.sock"
       BACKUP_RUNNER_BASE_URL: "http://backup-runner:8081"
       BACKUP_RUNNER_TOKEN: "${BACKUP_RUNNER_TOKEN:-}"

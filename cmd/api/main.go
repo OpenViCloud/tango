@@ -165,10 +165,12 @@ func main() {
 	var dockerWSHandler *rest.DockerWSHandler
 	var resourceTerminalWSHandler *rest.ResourceTerminalWSHandler
 	var dockerRepo domain.DockerRepository
+	var swarmRepo domain.SwarmRepository
 	if dr, err := infradocker.NewRepository(); err != nil {
 		logger.Warn("docker unavailable, /docker endpoints disabled", "err", err)
 	} else {
 		dockerRepo = dr
+		swarmRepo = infradocker.NewSwarmRepository(dr)
 		defer func() { _ = dr.Close() }()
 		dockerWSHandler = rest.NewDockerWSHandler(dr)
 		dockerHandler = rest.NewDockerHandler(
@@ -303,15 +305,15 @@ func main() {
 		}
 	}
 
-	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, resourceDomainRepo, platformConfigRepo, traefikFileProvider, logger)
+	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, swarmRepo, resourceDomainRepo, platformConfigRepo, traefikFileProvider, logger)
 	var runtimeReconciler appservices.ResourceRuntimeReconciler
 	if dockerRepo != nil {
 		runtimeReconciler = infraservices.NewResourceRuntimeReconciler(resourceRepo, dockerRepo, logger)
 	}
 	buildSvc.SetResourceAutoStarter(resourceRunSvc)
 	createStartResourceRunHandler := command.NewCreateStartResourceRunHandler(resourceRepo, resourceRunRepo, resourceRunSvc)
-	stopResourceHandler := command.NewStopResourceHandler(resourceRepo, dockerRepo, traefikFileProvider)
-	deleteResourceHandler := command.NewDeleteResourceHandler(resourceRepo, dockerRepo, traefikFileProvider)
+	stopResourceHandler := command.NewStopResourceHandler(resourceRepo, dockerRepo, swarmRepo, traefikFileProvider)
+	deleteResourceHandler := command.NewDeleteResourceHandler(resourceRepo, dockerRepo, swarmRepo, traefikFileProvider)
 	setEnvVarsHandler := command.NewSetResourceEnvVarsHandler(resourceRepo)
 	listProjectsHandler := query.NewListProjectsHandler(projectRepo, environmentRepo)
 	getProjectHandler := query.NewGetProjectHandler(projectRepo, environmentRepo, resourceRepo)

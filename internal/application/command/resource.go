@@ -376,11 +376,12 @@ type StopResourceCommand struct {
 type StopResourceHandler struct {
 	resourceRepo domain.ResourceRepository
 	dockerRepo   domain.DockerRepository
+	swarmRepo    domain.SwarmRepository
 	fileProvider domain.TraefikFileProvider
 }
 
-func NewStopResourceHandler(resourceRepo domain.ResourceRepository, dockerRepo domain.DockerRepository, fileProvider domain.TraefikFileProvider) *StopResourceHandler {
-	return &StopResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo, fileProvider: fileProvider}
+func NewStopResourceHandler(resourceRepo domain.ResourceRepository, dockerRepo domain.DockerRepository, swarmRepo domain.SwarmRepository, fileProvider domain.TraefikFileProvider) *StopResourceHandler {
+	return &StopResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo, swarmRepo: swarmRepo, fileProvider: fileProvider}
 }
 
 func (h *StopResourceHandler) Handle(ctx context.Context, cmd StopResourceCommand) error {
@@ -389,13 +390,20 @@ func (h *StopResourceHandler) Handle(ctx context.Context, cmd StopResourceComman
 		return err
 	}
 	if resource.ContainerID == "" {
-		// Already stopped / never started — just ensure status is correct.
 		return h.resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusStopped, "")
 	}
-	if err := h.dockerRepo.StopContainer(ctx, resource.ContainerID); err != nil {
-		return fmt.Errorf("stop container: %w", err)
+
+	if h.swarmRepo != nil && h.swarmRepo.IsManager(ctx) {
+		if err := h.swarmRepo.RemoveService(ctx, resource.ContainerID); err != nil {
+			return fmt.Errorf("remove swarm service: %w", err)
+		}
+	} else {
+		if err := h.dockerRepo.StopContainer(ctx, resource.ContainerID); err != nil {
+			return fmt.Errorf("stop container: %w", err)
+		}
+		_ = h.dockerRepo.RemoveContainer(ctx, resource.ContainerID, false)
 	}
-	_ = h.dockerRepo.RemoveContainer(ctx, resource.ContainerID, false)
+
 	if h.fileProvider != nil {
 		_ = h.fileProvider.Delete(resource.ID)
 	}
@@ -411,11 +419,12 @@ type DeleteResourceCommand struct {
 type DeleteResourceHandler struct {
 	resourceRepo domain.ResourceRepository
 	dockerRepo   domain.DockerRepository
+	swarmRepo    domain.SwarmRepository
 	fileProvider domain.TraefikFileProvider
 }
 
-func NewDeleteResourceHandler(resourceRepo domain.ResourceRepository, dockerRepo domain.DockerRepository, fileProvider domain.TraefikFileProvider) *DeleteResourceHandler {
-	return &DeleteResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo, fileProvider: fileProvider}
+func NewDeleteResourceHandler(resourceRepo domain.ResourceRepository, dockerRepo domain.DockerRepository, swarmRepo domain.SwarmRepository, fileProvider domain.TraefikFileProvider) *DeleteResourceHandler {
+	return &DeleteResourceHandler{resourceRepo: resourceRepo, dockerRepo: dockerRepo, swarmRepo: swarmRepo, fileProvider: fileProvider}
 }
 
 func (h *DeleteResourceHandler) Handle(ctx context.Context, cmd DeleteResourceCommand) error {
@@ -424,8 +433,12 @@ func (h *DeleteResourceHandler) Handle(ctx context.Context, cmd DeleteResourceCo
 		return err
 	}
 	if resource.ContainerID != "" {
-		_ = h.dockerRepo.StopContainer(ctx, resource.ContainerID)
-		_ = h.dockerRepo.RemoveContainer(ctx, resource.ContainerID, true)
+		if h.swarmRepo != nil && h.swarmRepo.IsManager(ctx) {
+			_ = h.swarmRepo.RemoveService(ctx, resource.ContainerID)
+		} else {
+			_ = h.dockerRepo.StopContainer(ctx, resource.ContainerID)
+			_ = h.dockerRepo.RemoveContainer(ctx, resource.ContainerID, true)
+		}
 	}
 	if h.fileProvider != nil {
 		_ = h.fileProvider.Delete(resource.ID)

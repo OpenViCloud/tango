@@ -19,6 +19,7 @@ type ResourceRunService struct {
 	resourceRepo   domain.ResourceRepository
 	runRepo        domain.ResourceRunRepository
 	dockerRepo     domain.DockerRepository
+	swarmRepo      domain.SwarmRepository
 	domainRepo     domain.ResourceDomainRepository
 	platformConfig domain.PlatformConfigRepository
 	fileProvider   domain.TraefikFileProvider
@@ -30,6 +31,7 @@ func NewResourceRunService(
 	resourceRepo domain.ResourceRepository,
 	runRepo domain.ResourceRunRepository,
 	dockerRepo domain.DockerRepository,
+	swarmRepo domain.SwarmRepository,
 	domainRepo domain.ResourceDomainRepository,
 	platformConfig domain.PlatformConfigRepository,
 	fileProvider domain.TraefikFileProvider,
@@ -39,6 +41,7 @@ func NewResourceRunService(
 		resourceRepo:   resourceRepo,
 		runRepo:        runRepo,
 		dockerRepo:     dockerRepo,
+		swarmRepo:      swarmRepo,
 		domainRepo:     domainRepo,
 		platformConfig: platformConfig,
 		fileProvider:   fileProvider,
@@ -215,6 +218,12 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 		traefikNetwork = defaultTraefikNetwork
 	}
 
+	// ── Swarm mode ──────────────────────────────────────────────────────────────
+	if s.swarmRepo != nil && s.swarmRepo.IsManager(ctx) {
+		return s.runStartSwarm(ctx, run, resource, imageRef, traefikNetwork, b, logLine, fail, updateStatus)
+	}
+
+	// ── Single-node container mode (default) ─────────────────────────────────
 	// Determine the network(s) to join — always join tango_net so Traefik can reach
 	// the container via Docker DNS (container name resolution).
 	networks := []string{traefikNetwork}
@@ -307,6 +316,107 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 	run.ErrorMsg = ""
 	if _, err := s.runRepo.Update(ctx, run); err != nil {
 		s.logger.Error("update resource run on success", "run_id", run.ID, "err", err)
+		return err
+	}
+	return nil
+}
+
+// runStartSwarm handles resource start in Docker Swarm mode.
+// It creates a swarm service instead of a plain container; Traefik reaches it
+// via the overlay network DNS using the service name.
+func (s *ResourceRunService) runStartSwarm(
+	ctx context.Context,
+	run *domain.ResourceRun,
+	resource *domain.Resource,
+	imageRef string,
+	overlayNetwork string,
+	b *LogBroadcaster,
+	logLine func(string),
+	fail func(string, error) error,
+	updateStatus func(domain.ResourceRunStatus),
+) error {
+	serviceID := resource.ContainerID // reuse field; stores swarm service ID in cluster mode
+	serviceName := normalizeContainerName(resource.Name)
+	if serviceName == "" {
+		serviceName = fmt.Sprintf("resource-%s", shortResourceID(resource.ID))
+	}
+
+	if serviceID == "" {
+		updateStatus(domain.ResourceRunStatusCreating)
+		logLine("[swarm] creating service")
+
+		mountRoot := config.DefaultResourceMountRootHost
+		if s.platformConfig != nil {
+			if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigResourceMountRoot); err == nil {
+				if value := strings.TrimSpace(cfg.Value); value != "" {
+					mountRoot = value
+				}
+			}
+		}
+		mounts, err := domain.ResolveResourceMounts(resource.Config, mountRoot)
+		if err != nil {
+			return fail("validate resource volumes", err)
+		}
+		for _, hostPath := range mounts.HostPaths {
+			if err := os.MkdirAll(hostPath, 0o755); err != nil {
+				return fail(fmt.Sprintf("prepare resource volume %s", hostPath), err)
+			}
+		}
+
+		nodeID := ""
+		if resource.NodeID != nil {
+			nodeID = *resource.NodeID
+		}
+
+		svc, err := s.swarmRepo.CreateService(ctx, domain.CreateServiceInput{
+			Name:     serviceName,
+			Image:    imageRef,
+			Cmd:      buildResourceCmd(resource.Config),
+			Env:      buildResourceEnv(resource.EnvVars),
+			Volumes:  mounts.Binds,
+			Networks: []string{overlayNetwork},
+			NodeID:   nodeID,
+		})
+		if err != nil {
+			return fail("create swarm service", err)
+		}
+		serviceID = svc.ID
+		logLine(fmt.Sprintf("[swarm] service created: %s (id=%s)", serviceName, serviceID))
+	} else {
+		logLine(fmt.Sprintf("[swarm] reusing service: %s", serviceID))
+	}
+
+	updateStatus(domain.ResourceRunStatusStarting)
+
+	// Write Traefik routing — service name resolves via overlay DNS.
+	certResolver := ""
+	if s.platformConfig != nil {
+		if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigCertResolver); err == nil {
+			certResolver = cfg.Value
+		}
+	}
+	if s.fileProvider != nil && s.domainRepo != nil {
+		if domains, err := s.domainRepo.ListByResource(ctx, resource.ID); err == nil && len(domains) > 0 {
+			if err := s.fileProvider.Write(resource.ID, domains, serviceName, certResolver); err != nil {
+				s.logger.Warn("write traefik file config (swarm)", "resource_id", resource.ID, "err", err)
+			} else {
+				logLine("[traefik] routing config written")
+			}
+		}
+	}
+
+	if err := s.resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusRunning, serviceID); err != nil {
+		return fail("update resource status", err)
+	}
+
+	logLine("[done] resource is running (swarm)")
+	done := time.Now().UTC()
+	run.Status = domain.ResourceRunStatusDone
+	run.FinishedAt = &done
+	run.Logs = b.Snapshot()
+	run.ErrorMsg = ""
+	if _, err := s.runRepo.Update(ctx, run); err != nil {
+		s.logger.Error("update resource run on success (swarm)", "run_id", run.ID, "err", err)
 		return err
 	}
 	return nil

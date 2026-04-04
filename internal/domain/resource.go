@@ -70,10 +70,12 @@ type Resource struct {
 	GitToken     string // encrypted access token for private repos
 	ImageTag     string // target registry image tag for builds
 	ConnectionID string // source connection ID for private repos
-	Ports        []ResourcePort
-	EnvVars      []ResourceEnvVar
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	// Cluster fields
+	NodeID *string // swarm node ID for placement constraint; nil = any node
+	Ports   []ResourcePort
+	EnvVars []ResourceEnvVar
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type CreateResourceInput struct {
@@ -94,6 +96,7 @@ type CreateResourceInput struct {
 	GitToken      string
 	ImageTag      string
 	ConnectionID  string
+	NodeID        *string // swarm placement constraint
 	Ports         []ResourcePort
 	EnvVars       []ResourceEnvVar
 }

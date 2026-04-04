@@ -175,6 +175,7 @@ type createResourceRequest struct {
 	Image   string                        `json:"image"`
 	Tag     string                        `json:"tag"`
 	Config  map[string]any                `json:"config"`
+	NodeID  *string                       `json:"node_id"`
 	Ports   []createResourcePortRequest   `json:"ports"`
 	EnvVars []createResourceEnvVarRequest `json:"env_vars"`
 }
@@ -226,6 +227,7 @@ type resourceResponse struct {
 	ContainerID   string         `json:"container_id"`
 	Config        map[string]any `json:"config"`
 	EnvironmentID string         `json:"environment_id"`
+	NodeID        *string        `json:"node_id,omitempty"`
 	SourceType    string         `json:"source_type,omitempty"`
 	GitURL        string         `json:"git_url,omitempty"`
 	BuildJobID    string         `json:"build_job_id,omitempty"`
@@ -562,6 +564,7 @@ func (h *ProjectHandler) CreateResource(c *gin.Context) {
 		Image:         req.Image,
 		Tag:           req.Tag,
 		Config:        req.Config,
+		NodeID:        req.NodeID,
 		EnvironmentID: c.Param("envId"),
 		CreatedBy:     userID,
 		Ports:         ports,
@@ -841,6 +844,7 @@ func toResourceResponse(r *domain.Resource) resourceResponse {
 		ContainerID:   r.ContainerID,
 		Config:        r.Config,
 		EnvironmentID: r.EnvironmentID,
+		NodeID:        r.NodeID,
 		SourceType:    r.SourceType,
 		GitURL:        r.GitURL,
 		BuildJobID:    r.BuildJobID,

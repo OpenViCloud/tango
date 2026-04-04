@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"tango/internal/domain"
@@ -58,14 +59,14 @@ func (s *SwarmRepository) EnsureOverlayNetwork(ctx context.Context, name string)
 func (s *SwarmRepository) CreateService(ctx context.Context, input domain.CreateServiceInput) (domain.SwarmService, error) {
 	envSlice := envMapToSlice(input.Env)
 
-	var mounts []swarm.Mount
+	var mounts []mount.Mount
 	for _, bind := range input.Volumes {
 		parts := strings.SplitN(bind, ":", 2)
 		if len(parts) != 2 {
 			continue
 		}
-		mounts = append(mounts, swarm.Mount{
-			Type:   swarm.MountTypeBind,
+		mounts = append(mounts, mount.Mount{
+			Type:   mount.TypeBind,
 			Source: parts[0],
 			Target: parts[1],
 		})

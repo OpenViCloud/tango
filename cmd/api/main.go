@@ -461,6 +461,7 @@ func main() {
 			sourceConnectionHandler.RegisterProtected(protected)
 			settingsHandler.RegisterRoutes(protected)
 			baseDomainHandler.RegisterRoutes(protected)
+			rest.NewSwarmHandler(swarmRepo).RegisterRoutes(protected)
 			if dockerHandler != nil {
 				dockerHandler.Register(protected)
 				dockerWSHandler.Register(protected)

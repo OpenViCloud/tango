@@ -33,6 +33,7 @@ import {
   useGetSourceList,
   useGetSourceRepos,
 } from "@/hooks/api/use-source"
+import { useSwarmNodes, useSwarmStatus } from "@/hooks/api/use-swarm"
 import type { ResourceTemplateModel } from "@/@types/models"
 import { useNavigate } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
@@ -269,6 +270,12 @@ export function ResourceCreationPage({
   const [selectedPreset, setSelectedPreset] = useState<ResourcePreset | null>(
     null
   )
+
+  // ── Swarm ─────────────────────────────────────────────────────────────────
+  const { data: swarmStatus } = useSwarmStatus()
+  const isSwarmManager = swarmStatus?.is_manager ?? false
+  const { data: swarmNodes = [] } = useSwarmNodes(isSwarmManager)
+  const [nodeId, setNodeId] = useState<string>("")
 
   // ── Docker / preset form ──────────────────────────────────────────────────
   const [name, setName] = useState("")
@@ -519,6 +526,7 @@ export function ResourceCreationPage({
           image,
           tag,
           config: Object.keys(presetConfig).length ? presetConfig : undefined,
+          node_id: nodeId.trim() || null,
           ports: portList,
           env_vars: envVars,
         },
@@ -1141,6 +1149,33 @@ export function ResourceCreationPage({
               <p className="text-xs text-destructive">{nameError}</p>
             )}
           </div>
+
+          {/* Node selector — only visible in swarm mode */}
+          {isSwarmManager && swarmNodes.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Deploy on node</Label>
+              <Select
+                value={nodeId || "__any__"}
+                onValueChange={(v) => setNodeId(v === "__any__" ? "" : v)}
+                disabled={busy}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Any node (auto)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__any__">Any node (auto)</SelectItem>
+                  {swarmNodes.map((node) => (
+                    <SelectItem key={node.id} value={node.id}>
+                      {node.hostname}
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {node.role} · {node.state}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <PortList ports={ports} onChange={setPorts} disabled={busy} />
           <EnvList

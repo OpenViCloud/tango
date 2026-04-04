@@ -21,6 +21,7 @@ export const resourceSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   ports: z.array(resourcePortSchema),
+  node_id: z.string().nullable().optional(),
   source_type: z.string().optional(),
   git_url: z.string().optional(),
   build_job_id: z.string().optional(),
@@ -124,6 +125,7 @@ export const createResourceSchema = z.object({
   image: z.string().min(1, "validation.required"),
   tag: z.string().default("latest"),
   config: z.record(z.string(), z.unknown()).optional(),
+  node_id: z.string().nullable().optional(),
   ports: z
     .array(
       z.object({

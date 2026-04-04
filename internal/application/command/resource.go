@@ -65,6 +65,7 @@ type CreateResourceCommand struct {
 	EnvironmentID string
 	CreatedBy     string
 	TLSEnabled    bool
+	NodeID        *string
 	Ports         []ResourcePortInput
 	EnvVars       []ResourceEnvVarInput
 }
@@ -135,6 +136,7 @@ func (h *CreateResourceHandler) Handle(ctx context.Context, cmd CreateResourceCo
 		EnvironmentID: cmd.EnvironmentID,
 		CreatedBy:     cmd.CreatedBy,
 		TLSEnabled:    cmd.TLSEnabled,
+		NodeID:        cmd.NodeID,
 		Ports:         ports,
 		EnvVars:       envVars,
 	})

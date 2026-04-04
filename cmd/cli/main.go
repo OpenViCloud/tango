@@ -152,7 +152,7 @@ func init() {
 // ── main ──────────────────────────────────────────
 
 func main() {
-	rootCmd.AddCommand(versionCmd, statusCmd, daemonCmd, serviceCmd, uninstallCmd)
+	rootCmd.AddCommand(versionCmd, statusCmd, daemonCmd, serviceCmd, uninstallCmd, swarmCmd)
 	rootCmd.Long = renderRootScreen(rootCmd)
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 

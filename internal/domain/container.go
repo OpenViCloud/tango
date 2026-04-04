@@ -121,7 +121,6 @@ type ContainerExecSession interface {
 	Resize(ctx context.Context, cols, rows uint) error
 }
 
-// DockerRepository abstracts all Docker Engine operations.
 // ContainerInfo holds runtime details about a container returned by InspectContainer.
 type ContainerInfo struct {
 	ID       string
@@ -129,6 +128,48 @@ type ContainerInfo struct {
 	Networks map[string]string // network name → IP address
 }
 
+// SwarmNode represents a node in a Docker Swarm cluster.
+type SwarmNode struct {
+	ID           string
+	Hostname     string
+	Role         string // "manager" | "worker"
+	State        string // "ready" | "down" | ...
+	Availability string // "active" | "pause" | "drain"
+	ManagerAddr  string // non-empty for manager nodes
+}
+
+// CreateServiceInput is the input for creating a Docker Swarm service.
+type CreateServiceInput struct {
+	Name     string
+	Image    string
+	Cmd      []string
+	Env      map[string]string
+	Volumes  []string // host:container bind mounts
+	Networks []string // overlay network names
+	NodeID   string   // placement constraint — empty means any node
+}
+
+// SwarmService represents a running Docker Swarm service.
+type SwarmService struct {
+	ID   string
+	Name string
+}
+
+// SwarmRepository manages Docker Swarm services and cluster state.
+type SwarmRepository interface {
+	// IsManager reports whether the local Docker daemon is an active swarm manager.
+	IsManager(ctx context.Context) bool
+	// CreateService creates and starts a swarm service.
+	CreateService(ctx context.Context, input CreateServiceInput) (SwarmService, error)
+	// RemoveService removes a swarm service (stops all its tasks).
+	RemoveService(ctx context.Context, serviceID string) error
+	// EnsureOverlayNetwork creates an overlay network if it does not already exist.
+	EnsureOverlayNetwork(ctx context.Context, name string) error
+	// ListNodes returns all nodes in the swarm cluster.
+	ListNodes(ctx context.Context) ([]SwarmNode, error)
+}
+
+// DockerRepository abstracts all Docker Engine operations.
 type DockerRepository interface {
 	ListImages(ctx context.Context) ([]Image, error)
 	PullImage(ctx context.Context, input PullImageInput) error

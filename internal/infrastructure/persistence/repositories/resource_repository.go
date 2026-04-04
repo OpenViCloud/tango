@@ -57,6 +57,7 @@ func (r *ResourceRepository) Create(ctx context.Context, input domain.CreateReso
 		GitToken:      input.GitToken,
 		ImageTag:      input.ImageTag,
 		ConnectionID:  input.ConnectionID,
+		NodeID:        input.NodeID,
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
@@ -364,6 +365,7 @@ func toDomainResource(record models.ResourceRecord, portRecords []models.Resourc
 		GitToken:      record.GitToken,
 		ImageTag:      record.ImageTag,
 		ConnectionID:  record.ConnectionID,
+		NodeID:        record.NodeID,
 		Ports:         ports,
 		EnvVars:       envVars,
 		CreatedAt:     record.CreatedAt,

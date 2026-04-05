@@ -66,6 +66,7 @@ type CreateResourceCommand struct {
 	CreatedBy     string
 	TLSEnabled    bool
 	NodeID        *string
+	Replicas      int // swarm replica count; 0/1 treated as single instance
 	Ports         []ResourcePortInput
 	EnvVars       []ResourceEnvVarInput
 }
@@ -137,6 +138,7 @@ func (h *CreateResourceHandler) Handle(ctx context.Context, cmd CreateResourceCo
 		CreatedBy:     cmd.CreatedBy,
 		TLSEnabled:    cmd.TLSEnabled,
 		NodeID:        cmd.NodeID,
+		Replicas:      cmd.Replicas,
 		Ports:         ports,
 		EnvVars:       envVars,
 	})
@@ -157,6 +159,7 @@ type UpdateResourceCommand struct {
 	ID         string
 	Name       string
 	TLSEnabled bool
+	Replicas   int // swarm replica count; 0/1 treated as single instance
 	Ports      []ResourcePortInput
 	Config     map[string]any
 }
@@ -207,6 +210,7 @@ func (h *UpdateResourceHandler) Handle(ctx context.Context, cmd UpdateResourceCo
 	return h.resourceRepo.Update(ctx, cmd.ID, domain.UpdateResourceInput{
 		Name:       cmd.Name,
 		TLSEnabled: cmd.TLSEnabled,
+		Replicas:   cmd.Replicas,
 		Ports:      ports,
 		Config:     configToSave,
 	})
@@ -446,6 +450,51 @@ func (h *DeleteResourceHandler) Handle(ctx context.Context, cmd DeleteResourceCo
 		_ = h.fileProvider.Delete(resource.ID)
 	}
 	return h.resourceRepo.Delete(ctx, resource.ID)
+}
+
+// ── Scale Resource (Swarm replicas) ──────────────────────────────────────────
+
+type ScaleResourceCommand struct {
+	ID       string
+	Replicas int
+}
+
+type ScaleResourceHandler struct {
+	resourceRepo domain.ResourceRepository
+	swarmRepo    domain.SwarmRepository
+}
+
+func NewScaleResourceHandler(resourceRepo domain.ResourceRepository, swarmRepo domain.SwarmRepository) *ScaleResourceHandler {
+	return &ScaleResourceHandler{resourceRepo: resourceRepo, swarmRepo: swarmRepo}
+}
+
+func (h *ScaleResourceHandler) Handle(ctx context.Context, cmd ScaleResourceCommand) error {
+	if cmd.Replicas < 1 {
+		cmd.Replicas = 1
+	}
+	resource, err := h.resourceRepo.GetByID(ctx, cmd.ID)
+	if err != nil {
+		return err
+	}
+
+	// Persist the new replica count.
+	if _, err := h.resourceRepo.Update(ctx, resource.ID, domain.UpdateResourceInput{
+		Name:       resource.Name,
+		TLSEnabled: resource.TLSEnabled,
+		Replicas:   cmd.Replicas,
+		Ports:      resource.Ports,
+		Config:     resource.Config,
+	}); err != nil {
+		return fmt.Errorf("update resource replicas: %w", err)
+	}
+
+	// Apply to the running swarm service when applicable.
+	if h.swarmRepo != nil && h.swarmRepo.IsManager(ctx) && resource.ContainerID != "" {
+		if err := h.swarmRepo.ScaleService(ctx, resource.ContainerID, uint64(cmd.Replicas)); err != nil {
+			return fmt.Errorf("scale swarm service: %w", err)
+		}
+	}
+	return nil
 }
 
 // ── Set Resource Env Vars ─────────────────────────────────────────────────────

@@ -38,6 +38,11 @@ export const appSidebarSections: SidebarSection[] = [
         url: "/containers",
         icon: appIcons.docker,
       },
+      {
+        titleKey: "sidebar.swarm",
+        url: "/swarm",
+        icon: appIcons.swarm,
+      },
     ],
   },
   {

@@ -184,6 +184,17 @@ export const useStopResource = () => {
   })
 }
 
+export const useScaleResource = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ resourceId, replicas }: { resourceId: string; replicas: number }) =>
+      projectService.scaleResource(resourceId, replicas),
+    onSuccess: (_data, { resourceId }) => {
+      queryClient.invalidateQueries({ queryKey: PROJECT_QUERY_KEYS.resource(resourceId) })
+    },
+  })
+}
+
 export const useReconcileResources = () => {
   const queryClient = useQueryClient()
   return useMutation({

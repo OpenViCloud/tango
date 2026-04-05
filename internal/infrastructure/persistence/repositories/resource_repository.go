@@ -58,6 +58,7 @@ func (r *ResourceRepository) Create(ctx context.Context, input domain.CreateReso
 		ImageTag:      input.ImageTag,
 		ConnectionID:  input.ConnectionID,
 		NodeID:        input.NodeID,
+		Replicas:      input.Replicas,
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
@@ -183,6 +184,7 @@ func (r *ResourceRepository) Update(ctx context.Context, id string, input domain
 		result := tx.Model(&models.ResourceRecord{}).Where("id = ?", id).Updates(map[string]any{
 			"name":       input.Name,
 			"config":     configJSON,
+			"replicas":   input.Replicas,
 			"updated_at": time.Now().UTC(),
 		})
 		if result.Error != nil {
@@ -366,6 +368,7 @@ func toDomainResource(record models.ResourceRecord, portRecords []models.Resourc
 		ImageTag:      record.ImageTag,
 		ConnectionID:  record.ConnectionID,
 		NodeID:        record.NodeID,
+		Replicas:      record.Replicas,
 		Ports:         ports,
 		EnvVars:       envVars,
 		CreatedAt:     record.CreatedAt,

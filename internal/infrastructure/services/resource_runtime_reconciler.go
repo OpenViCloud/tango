@@ -12,17 +12,20 @@ import (
 type ResourceRuntimeReconciler struct {
 	resourceRepo domain.ResourceRepository
 	dockerRepo   domain.DockerRepository
+	swarmRepo    domain.SwarmRepository
 	logger       *slog.Logger
 }
 
 func NewResourceRuntimeReconciler(
 	resourceRepo domain.ResourceRepository,
 	dockerRepo domain.DockerRepository,
+	swarmRepo domain.SwarmRepository,
 	logger *slog.Logger,
 ) *ResourceRuntimeReconciler {
 	return &ResourceRuntimeReconciler{
 		resourceRepo: resourceRepo,
 		dockerRepo:   dockerRepo,
+		swarmRepo:    swarmRepo,
 		logger:       logger,
 	}
 }
@@ -49,6 +52,8 @@ func (r *ResourceRuntimeReconciler) reconcile(ctx context.Context, resources []*
 		return summary, nil
 	}
 
+	isSwarmManager := r.swarmRepo != nil && r.swarmRepo.IsManager(ctx)
+
 	containers, err := r.dockerRepo.ListContainers(ctx, true)
 	if err != nil {
 		return nil, err
@@ -73,12 +78,29 @@ func (r *ResourceRuntimeReconciler) reconcile(ctx context.Context, resources []*
 			if resource.Status == domain.ResourceStatusRunning {
 				nextStatus = domain.ResourceStatusStopped
 			}
-		} else if container, ok := containerByID[resource.ContainerID]; !ok {
+		} else if container, ok := containerByID[resource.ContainerID]; ok {
+			// Found as a regular container.
+			nextStatus = mapContainerStateToResourceStatus(container.State)
+		} else if isSwarmManager {
+			// ContainerID holds a swarm service ID — check service state.
+			running, err := r.swarmRepo.ServiceRunning(ctx, resource.ContainerID)
+			if err != nil {
+				r.logger.Warn("check swarm service running failed", "resource_id", resource.ID, "service_id", resource.ContainerID, "err", err)
+				// Keep current status on transient errors.
+				continue
+			}
+			if running {
+				nextStatus = domain.ResourceStatusRunning
+			} else {
+				nextStatus = domain.ResourceStatusStopped
+				nextContainerID = ""
+				summary.MissingContainers++
+			}
+		} else {
+			// Container not found in single-node mode.
 			nextStatus = domain.ResourceStatusStopped
 			nextContainerID = ""
 			summary.MissingContainers++
-		} else {
-			nextStatus = mapContainerStateToResourceStatus(container.State)
 		}
 
 		switch nextStatus {

@@ -274,8 +274,9 @@ export function ResourceCreationPage({
   // ── Swarm ─────────────────────────────────────────────────────────────────
   const { data: swarmStatus } = useSwarmStatus()
   const isSwarmManager = swarmStatus?.is_manager ?? false
-  const { data: swarmNodes = [] } = useSwarmNodes(isSwarmManager)
+  const { data: swarmNodes = [] } = useSwarmNodes()
   const [nodeId, setNodeId] = useState<string>("")
+  const [replicas, setReplicas] = useState(1)
 
   // ── Docker / preset form ──────────────────────────────────────────────────
   const [name, setName] = useState("")
@@ -527,6 +528,7 @@ export function ResourceCreationPage({
           tag,
           config: Object.keys(presetConfig).length ? presetConfig : undefined,
           node_id: nodeId.trim() || null,
+          replicas: isSwarmManager ? Math.max(1, replicas) : 1,
           ports: portList,
           env_vars: envVars,
         },
@@ -1150,30 +1152,54 @@ export function ResourceCreationPage({
             )}
           </div>
 
-          {/* Node selector — only visible in swarm mode */}
-          {isSwarmManager && swarmNodes.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <Label>Deploy on node</Label>
-              <Select
-                value={nodeId || "__any__"}
-                onValueChange={(v) => setNodeId(v === "__any__" ? "" : v)}
-                disabled={busy}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any node (auto)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__any__">Any node (auto)</SelectItem>
-                  {swarmNodes.map((node) => (
-                    <SelectItem key={node.id} value={node.id}>
-                      {node.hostname}
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {node.role} · {node.state}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Swarm controls — visible whenever this node is a swarm manager */}
+          {isSwarmManager && (
+            <div className="grid gap-5 sm:grid-cols-2">
+              {/* Node selector — only when nodes are loaded */}
+              {swarmNodes.length > 0 ? (
+                <div className="flex flex-col gap-1.5">
+                  <Label>Deploy on node</Label>
+                  <Select
+                    value={nodeId || "__any__"}
+                    onValueChange={(v) => setNodeId(v === "__any__" ? "" : v)}
+                    disabled={busy}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Any node (auto)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__any__">Any node (auto)</SelectItem>
+                      {swarmNodes.map((node) => (
+                        <SelectItem key={node.id} value={node.id}>
+                          {node.hostname}
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {node.role} · {node.state}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div /> /* empty cell to keep replicas in second column */
+              )}
+              <div className="flex flex-col gap-1.5">
+                <Label>
+                  Replicas{" "}
+                  <span className="text-xs text-muted-foreground">
+                    (swarm tasks)
+                  </span>
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={replicas}
+                  onChange={(e) =>
+                    setReplicas(Math.max(1, parseInt(e.target.value, 10) || 1))
+                  }
+                  disabled={busy}
+                />
+              </div>
             </div>
           )}
 

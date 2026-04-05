@@ -23,7 +23,8 @@ type ResourceRecord struct {
 	GitToken     string  `gorm:"column:git_token;type:text"`     // stored encrypted
 	ImageTag     string  `gorm:"column:image_tag;type:text"`     // target registry image tag
 	ConnectionID string  `gorm:"column:connection_id;type:text"` // source connection ID
-	NodeID       *string `gorm:"column:node_id;type:text"`       // swarm placement constraint
+	NodeID       *string `gorm:"column:node_id;type:text"`        // swarm placement constraint
+	Replicas     int     `gorm:"column:replicas;not null;default:1"` // swarm replica count
 	CreatedAt    time.Time              `gorm:"column:created_at;not null"`
 	UpdatedAt  time.Time              `gorm:"column:updated_at;not null"`
 	Ports      []ResourcePortRecord   `gorm:"foreignKey:ResourceID;references:ID;constraint:OnDelete:CASCADE"`

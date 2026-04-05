@@ -27,10 +27,20 @@ func (f *fakeSwarmRepository) CreateService(_ context.Context, _ domain.CreateSe
 
 func (f *fakeSwarmRepository) RemoveService(_ context.Context, _ string) error { return nil }
 
+func (f *fakeSwarmRepository) ScaleService(_ context.Context, _ string, _ uint64) error { return nil }
+
 func (f *fakeSwarmRepository) EnsureOverlayNetwork(_ context.Context, _ string) error { return nil }
 
 func (f *fakeSwarmRepository) ListNodes(_ context.Context) ([]domain.SwarmNode, error) {
 	return f.nodes, f.nodesErr
+}
+
+func (f *fakeSwarmRepository) ServiceRunning(_ context.Context, _ string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeSwarmRepository) GetServiceLogs(_ context.Context, _ string, _ string) ([]string, error) {
+	return nil, nil
 }
 
 var _ domain.SwarmRepository = (*fakeSwarmRepository)(nil)

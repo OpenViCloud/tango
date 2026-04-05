@@ -71,8 +71,9 @@ type Resource struct {
 	ImageTag     string // target registry image tag for builds
 	ConnectionID string // source connection ID for private repos
 	// Cluster fields
-	NodeID *string // swarm node ID for placement constraint; nil = any node
-	Ports   []ResourcePort
+	NodeID   *string // swarm node ID for placement constraint; nil = any node
+	Replicas int     // number of swarm service replicas; 0/1 = single instance
+	Ports    []ResourcePort
 	EnvVars []ResourceEnvVar
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -97,6 +98,7 @@ type CreateResourceInput struct {
 	ImageTag      string
 	ConnectionID  string
 	NodeID        *string // swarm placement constraint
+	Replicas      int     // number of swarm replicas; 0/1 = single instance
 	Ports         []ResourcePort
 	EnvVars       []ResourceEnvVar
 }
@@ -106,6 +108,7 @@ type UpdateResourceInput struct {
 	Ports      []ResourcePort
 	TLSEnabled bool
 	Config     map[string]any
+	Replicas   int // swarm replica count; 0/1 = single instance
 }
 
 type ResourceRepository interface {

@@ -686,6 +686,7 @@
     "builds": "Builds",
     "buildList": "Build Jobs",
     "containers": "Docker",
+    "swarm": "Swarm",
     "containerList": "Docker",
     "databases": "Databases",
     "databaseList": "Databases",

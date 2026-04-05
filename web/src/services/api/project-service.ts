@@ -123,6 +123,9 @@ export const projectService = {
 
   stopResource: (resourceId: string) => api.post(`/resources/${resourceId}/stop`),
 
+  scaleResource: (resourceId: string, replicas: number) =>
+    api.post(`/resources/${resourceId}/scale`, { replicas }),
+
   reconcileResources: () =>
     api
       .post<ApiResponse<ResourceRuntimeReconcileResponse>>(`/resources/reconcile`)

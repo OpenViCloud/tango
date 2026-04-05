@@ -18,7 +18,9 @@ import {
   useUpdateResource,
   useStartResource,
   useStopResource,
+  useScaleResource,
 } from "@/hooks/api/use-project"
+import { useSwarmStatus } from "@/hooks/api/use-swarm"
 import { useGetBuildJob } from "@/hooks/api/use-build"
 import { useBuildLogs } from "@/hooks/api/use-build-logs"
 import { useResourceRunLogs } from "@/hooks/api/use-resource-run-logs"
@@ -59,6 +61,9 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
   const updateResourceMutation = useUpdateResource(resourceId)
   const startMutation = useStartResource()
   const stopMutation = useStopResource()
+  const scaleMutation = useScaleResource()
+  const { data: swarmStatus } = useSwarmStatus()
+  const isSwarmManager = swarmStatus?.is_manager ?? false
   const buildMutation = useBuildResource(resourceId)
   const [activeRun, setActiveRun] = useState<ResourceRunModel | null>(null)
   const [activeBuildJobId, setActiveBuildJobId] = useState<string | null>(null)
@@ -85,6 +90,7 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
       await Promise.all([
         updateResourceMutation.mutateAsync({
           name: name.trim() || resource!.name,
+          replicas: resource?.replicas ?? 1,
           config: {
             ...(resource?.config ?? {}),
             volumes: volumes
@@ -146,6 +152,21 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
     })
   }
 
+  const handleScale = (replicas: number) => {
+    scaleMutation.mutate(
+      { resourceId, replicas },
+      {
+        onSuccess: () => {
+          toast.success(`Scaled to ${replicas} replica${replicas !== 1 ? "s" : ""}`)
+          queryClient.invalidateQueries({ queryKey: PROJECT_QUERY_KEYS.resource(resourceId) })
+        },
+        onError: () => {
+          toast.error("Failed to scale resource")
+        },
+      }
+    )
+  }
+
   if (isLoadingResource) {
     return (
       <div className="flex flex-col gap-3">
@@ -173,6 +194,9 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
         onStart={handleStart}
         onStop={handleStop}
         onBuild={handleBuild}
+        onScale={handleScale}
+        isSwarmManager={isSwarmManager}
+        scalePending={scaleMutation.isPending}
         pending={setEnvVarsMutation.isPending || updateResourceMutation.isPending}
         actionPending={
           startMutation.isPending || stopMutation.isPending || buildMutation.isPending || activeRun !== null

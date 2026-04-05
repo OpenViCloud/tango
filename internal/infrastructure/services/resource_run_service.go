@@ -153,26 +153,31 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 	logLine("[check] loading resource metadata")
 	logLine(fmt.Sprintf("[check] image reference: %s", imageRef))
 
-	// Check for host-port conflicts with other running resources.
-	for _, p := range resource.Ports {
-		if p.HostPort <= 0 {
-			continue
-		}
-		owner, err := s.resourceRepo.FindRunningByHostPort(ctx, p.HostPort)
-		if err != nil {
-			return fail("check port availability", err)
-		}
-		if owner != nil && owner.ID != resource.ID {
-			return fail("port conflict", &domain.ErrHostPortConflict{
-				Port:           p.HostPort,
-				OccupiedByID:   owner.ID,
-				OccupiedByName: owner.Name,
-			})
-		}
-	}
-
 	if s.dockerRepo == nil {
 		return fail("docker is unavailable", nil)
+	}
+
+	isSwarmMode := s.swarmRepo != nil && s.swarmRepo.IsManager(ctx)
+
+	// Check for host-port conflicts only in single-node mode.
+	// In swarm mode, services use overlay networking so no host ports are bound.
+	if !isSwarmMode {
+		for _, p := range resource.Ports {
+			if p.HostPort <= 0 {
+				continue
+			}
+			owner, err := s.resourceRepo.FindRunningByHostPort(ctx, p.HostPort)
+			if err != nil {
+				return fail("check port availability", err)
+			}
+			if owner != nil && owner.ID != resource.ID {
+				return fail("port conflict", &domain.ErrHostPortConflict{
+					Port:           p.HostPort,
+					OccupiedByID:   owner.ID,
+					OccupiedByName: owner.Name,
+				})
+			}
+		}
 	}
 
 	images, err := s.dockerRepo.ListImages(ctx)
@@ -219,7 +224,7 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 	}
 
 	// ── Swarm mode ──────────────────────────────────────────────────────────────
-	if s.swarmRepo != nil && s.swarmRepo.IsManager(ctx) {
+	if isSwarmMode {
 		return s.runStartSwarm(ctx, run, resource, imageRef, traefikNetwork, b, logLine, fail, updateStatus)
 	}
 
@@ -368,6 +373,10 @@ func (s *ResourceRunService) runStartSwarm(
 			nodeID = *resource.NodeID
 		}
 
+		replicas := uint64(resource.Replicas)
+		if replicas == 0 {
+			replicas = 1
+		}
 		svc, err := s.swarmRepo.CreateService(ctx, domain.CreateServiceInput{
 			Name:     serviceName,
 			Image:    imageRef,
@@ -376,6 +385,7 @@ func (s *ResourceRunService) runStartSwarm(
 			Volumes:  mounts.Binds,
 			Networks: []string{overlayNetwork},
 			NodeID:   nodeID,
+			Replicas: replicas,
 		})
 		if err != nil {
 			return fail("create swarm service", err)

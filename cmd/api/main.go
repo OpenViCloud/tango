@@ -308,12 +308,13 @@ func main() {
 	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, swarmRepo, resourceDomainRepo, platformConfigRepo, traefikFileProvider, logger)
 	var runtimeReconciler appservices.ResourceRuntimeReconciler
 	if dockerRepo != nil {
-		runtimeReconciler = infraservices.NewResourceRuntimeReconciler(resourceRepo, dockerRepo, logger)
+		runtimeReconciler = infraservices.NewResourceRuntimeReconciler(resourceRepo, dockerRepo, swarmRepo, logger)
 	}
 	buildSvc.SetResourceAutoStarter(resourceRunSvc)
 	createStartResourceRunHandler := command.NewCreateStartResourceRunHandler(resourceRepo, resourceRunRepo, resourceRunSvc)
 	stopResourceHandler := command.NewStopResourceHandler(resourceRepo, dockerRepo, swarmRepo, traefikFileProvider)
 	deleteResourceHandler := command.NewDeleteResourceHandler(resourceRepo, dockerRepo, swarmRepo, traefikFileProvider)
+	scaleResourceHandler := command.NewScaleResourceHandler(resourceRepo, swarmRepo)
 	setEnvVarsHandler := command.NewSetResourceEnvVarsHandler(resourceRepo)
 	listProjectsHandler := query.NewListProjectsHandler(projectRepo, environmentRepo)
 	getProjectHandler := query.NewGetProjectHandler(projectRepo, environmentRepo, resourceRepo)
@@ -405,6 +406,7 @@ func main() {
 		createStartResourceRunHandler,
 		stopResourceHandler,
 		deleteResourceHandler,
+		scaleResourceHandler,
 		setEnvVarsHandler,
 		listProjectsHandler,
 		getProjectHandler,
@@ -413,6 +415,7 @@ func main() {
 		getResourceHandler,
 		runtimeReconciler,
 		dockerRepo,
+		swarmRepo,
 		resourceDomainRepo,
 		platformConfigRepo,
 		traefikFileProvider,

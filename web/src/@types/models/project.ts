@@ -22,6 +22,7 @@ export const resourceSchema = z.object({
   updated_at: z.string(),
   ports: z.array(resourcePortSchema),
   node_id: z.string().nullable().optional(),
+  replicas: z.number().default(1),
   source_type: z.string().optional(),
   git_url: z.string().optional(),
   build_job_id: z.string().optional(),
@@ -126,6 +127,7 @@ export const createResourceSchema = z.object({
   tag: z.string().default("latest"),
   config: z.record(z.string(), z.unknown()).optional(),
   node_id: z.string().nullable().optional(),
+  replicas: z.number().min(1).default(1),
   ports: z
     .array(
       z.object({
@@ -154,6 +156,7 @@ export const updateProjectSchema = z.object({
 
 export const updateResourceSchema = z.object({
   name: z.string().min(1, "validation.required"),
+  replicas: z.number().min(1).default(1),
   config: z.record(z.string(), z.unknown()).optional(),
   ports: z
     .array(

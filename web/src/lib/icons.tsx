@@ -15,6 +15,7 @@ import {
   ArrowLeftIcon,
   CopyIcon,
   FilterIcon,
+  NetworkIcon,
   PlayIcon,
   PlusIcon,
   RefreshCwIcon,
@@ -51,6 +52,7 @@ export const appIcons = {
   channels: createSolarIcon(ChatRoundDots),
   users: createSolarIcon(UsersGroupRounded),
   roles: createSolarIcon(ShieldCheck),
+  swarm: NetworkIcon,
 } as const
 
 export const actionIcons = {

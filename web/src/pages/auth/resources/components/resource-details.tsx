@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { ChevronRight, Hammer, Menu, Play, Square, X } from "lucide-react"
+import { ChevronRight, Hammer, Menu, Play, Square, X, ChevronsUpDown } from "lucide-react"
+import { Input } from "@/components/ui/input"
 import { useNavigate } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 
@@ -27,6 +28,9 @@ type ResourceDetailsProps = {
   onStart: () => void
   onStop: () => void
   onBuild?: () => void
+  onScale?: (replicas: number) => void
+  isSwarmManager?: boolean
+  scalePending?: boolean
   pending: boolean
   actionPending: boolean
   isLoadingEnvVars: boolean
@@ -40,6 +44,9 @@ export default function ResourceDetails({
   onStart,
   onStop,
   onBuild,
+  onScale,
+  isSwarmManager = false,
+  scalePending = false,
   pending,
   actionPending,
   isLoadingEnvVars,
@@ -84,6 +91,10 @@ export default function ResourceDetails({
       : [{ source: "", target: "", mode: "rw" }]
   })
 
+  const [scaleReplicas, setScaleReplicas] = useState(
+    Math.max(1, resource.replicas ?? 1)
+  )
+
   const statusDotClass =
     resource.status === "running" ? "bg-green-500" : "bg-destructive"
   const statusTextClass =
@@ -119,6 +130,11 @@ export default function ResourceDetails({
             <span className="flex items-center gap-1.5">
               <span className={`inline-block h-2.5 w-2.5 rounded-full ${statusDotClass}`} />
               <span className={statusTextClass}>{resource.status}</span>
+              {isSwarmManager && (resource.replicas ?? 1) > 0 && (
+                <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                  {resource.replicas ?? 1}×
+                </span>
+              )}
             </span>
           </div>
         </div>
@@ -152,6 +168,33 @@ export default function ResourceDetails({
                 <Hammer className="h-4 w-4" />
                 {resource.status === "building" ? "Building…" : "Build"}
               </Button>
+            )}
+            {/* Scale control — only visible in swarm mode */}
+            {isSwarmManager && isRunning && onScale && (
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  min={1}
+                  className="h-8 w-16 px-2 text-center text-sm"
+                  value={scaleReplicas}
+                  onChange={(e) =>
+                    setScaleReplicas(Math.max(1, parseInt(e.target.value, 10) || 1))
+                  }
+                  disabled={scalePending}
+                  title="Replicas"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={scalePending || scaleReplicas === (resource.replicas ?? 1)}
+                  onClick={() => onScale(scaleReplicas)}
+                  className="gap-1 border border-border bg-transparent text-foreground hover:bg-secondary"
+                  title="Scale replicas"
+                >
+                  <ChevronsUpDown className="h-4 w-4" />
+                  {scalePending ? "…" : "Scale"}
+                </Button>
+              </div>
             )}
             {isRunning ? (
               <Button

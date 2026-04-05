@@ -1,10 +1,13 @@
 package docker
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
@@ -81,6 +84,11 @@ func (s *SwarmRepository) CreateService(ctx context.Context, input domain.Create
 		netAttachments = append(netAttachments, swarm.NetworkAttachmentConfig{Target: netName})
 	}
 
+	replicas := input.Replicas
+	if replicas == 0 {
+		replicas = 1
+	}
+
 	spec := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{Name: input.Name},
 		TaskTemplate: swarm.TaskSpec{
@@ -91,6 +99,9 @@ func (s *SwarmRepository) CreateService(ctx context.Context, input domain.Create
 			},
 		},
 		Networks: netAttachments,
+		Mode: swarm.ServiceMode{
+			Replicated: &swarm.ReplicatedService{Replicas: &replicas},
+		},
 	}
 
 	if len(input.Cmd) > 0 {
@@ -113,6 +124,25 @@ func (s *SwarmRepository) CreateService(ctx context.Context, input domain.Create
 		ID:   resp.ID,
 		Name: input.Name,
 	}, nil
+}
+
+// ScaleService updates the replica count of an existing swarm service.
+func (s *SwarmRepository) ScaleService(ctx context.Context, serviceID string, replicas uint64) error {
+	svc, _, err := s.client.client.ServiceInspectWithRaw(ctx, serviceID, swarm.ServiceInspectOptions{})
+	if err != nil {
+		return fmt.Errorf("inspect swarm service %s: %w", serviceID, err)
+	}
+	if replicas == 0 {
+		replicas = 1
+	}
+	svc.Spec.Mode = swarm.ServiceMode{
+		Replicated: &swarm.ReplicatedService{Replicas: &replicas},
+	}
+	_, err = s.client.client.ServiceUpdate(ctx, serviceID, svc.Version, svc.Spec, swarm.ServiceUpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("scale swarm service %s to %d: %w", serviceID, replicas, err)
+	}
+	return nil
 }
 
 // RemoveService removes a swarm service and all its tasks.
@@ -147,6 +177,85 @@ func (s *SwarmRepository) ListNodes(ctx context.Context) ([]domain.SwarmNode, er
 		})
 	}
 	return result, nil
+}
+
+// ServiceRunning reports whether the service exists and has at least one running task.
+// Returns false (not an error) when the service is not found.
+func (s *SwarmRepository) ServiceRunning(ctx context.Context, serviceID string) (bool, error) {
+	if strings.TrimSpace(serviceID) == "" {
+		return false, nil
+	}
+	_, _, err := s.client.client.ServiceInspectWithRaw(ctx, serviceID, swarm.ServiceInspectOptions{})
+	if err != nil {
+		if isNotFoundError(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("inspect swarm service %s: %w", serviceID, err)
+	}
+	// Check if at least one task is running.
+	tasks, err := s.client.client.TaskList(ctx, swarm.TaskListOptions{
+		Filters: filters.NewArgs(
+			filters.Arg("service", serviceID),
+			filters.Arg("desired-state", "running"),
+		),
+	})
+	if err != nil {
+		return false, fmt.Errorf("list tasks for service %s: %w", serviceID, err)
+	}
+	for _, t := range tasks {
+		if t.Status.State == swarm.TaskStateRunning {
+			return true, nil
+		}
+	}
+	// Service exists but no running task yet (e.g. still starting).
+	return true, nil
+}
+
+// GetServiceLogs returns the most recent log lines for a swarm service.
+func (s *SwarmRepository) GetServiceLogs(ctx context.Context, serviceID string, tail string) ([]string, error) {
+	if tail == "" {
+		tail = "200"
+	}
+	reader, err := s.client.client.ServiceLogs(ctx, serviceID, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Timestamps: false,
+		Tail:       tail,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get service logs %s: %w", serviceID, err)
+	}
+	defer reader.Close()
+
+	// Swarm service logs use the same multiplexed stream format as container logs.
+	var out []string
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		line := scanner.Text()
+		// Strip the 8-byte docker stream header if present.
+		if len(line) > 8 {
+			line = line[8:]
+		}
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("read service logs %s: %w", serviceID, err)
+	}
+	if out == nil {
+		return []string{}, nil
+	}
+	return out, nil
+}
+
+// isNotFoundError returns true when the Docker API signals a 404 / "no such" error.
+func isNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "no such") || strings.Contains(msg, "not found") || strings.Contains(msg, "404")
 }
 
 var _ domain.SwarmRepository = (*SwarmRepository)(nil)

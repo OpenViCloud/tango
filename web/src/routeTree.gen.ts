@@ -17,6 +17,7 @@ import { Route as AuthSettingsRouteImport } from './routes/_auth/settings'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
 import { Route as AuthAccountRouteImport } from './routes/_auth/account'
 import { Route as AuthUsersIndexRouteImport } from './routes/_auth/users/index'
+import { Route as AuthSwarmIndexRouteImport } from './routes/_auth/swarm/index'
 import { Route as AuthSourcesIndexRouteImport } from './routes/_auth/sources/index'
 import { Route as AuthRolesIndexRouteImport } from './routes/_auth/roles/index'
 import { Route as AuthProjectsIndexRouteImport } from './routes/_auth/projects/index'
@@ -69,6 +70,11 @@ const AuthAccountRoute = AuthAccountRouteImport.update({
 const AuthUsersIndexRoute = AuthUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthSwarmIndexRoute = AuthSwarmIndexRouteImport.update({
+  id: '/swarm/',
+  path: '/swarm/',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthSourcesIndexRoute = AuthSourcesIndexRouteImport.update({
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/projects/': typeof AuthProjectsIndexRoute
   '/roles/': typeof AuthRolesIndexRoute
   '/sources/': typeof AuthSourcesIndexRoute
+  '/swarm/': typeof AuthSwarmIndexRoute
   '/users/': typeof AuthUsersIndexRoute
   '/channels/$channelId/edit': typeof AuthChannelsChannelIdEditRoute
   '/users/$userId/edit': typeof AuthUsersUserIdEditRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/projects': typeof AuthProjectsIndexRoute
   '/roles': typeof AuthRolesIndexRoute
   '/sources': typeof AuthSourcesIndexRoute
+  '/swarm': typeof AuthSwarmIndexRoute
   '/users': typeof AuthUsersIndexRoute
   '/channels/$channelId/edit': typeof AuthChannelsChannelIdEditRoute
   '/users/$userId/edit': typeof AuthUsersUserIdEditRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/_auth/projects/': typeof AuthProjectsIndexRoute
   '/_auth/roles/': typeof AuthRolesIndexRoute
   '/_auth/sources/': typeof AuthSourcesIndexRoute
+  '/_auth/swarm/': typeof AuthSwarmIndexRoute
   '/_auth/users/': typeof AuthUsersIndexRoute
   '/_auth/channels/$channelId/edit': typeof AuthChannelsChannelIdEditRoute
   '/_auth/users/$userId/edit': typeof AuthUsersUserIdEditRoute
@@ -241,6 +250,7 @@ export interface FileRouteTypes {
     | '/projects/'
     | '/roles/'
     | '/sources/'
+    | '/swarm/'
     | '/users/'
     | '/channels/$channelId/edit'
     | '/users/$userId/edit'
@@ -264,6 +274,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/roles'
     | '/sources'
+    | '/swarm'
     | '/users'
     | '/channels/$channelId/edit'
     | '/users/$userId/edit'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '/_auth/projects/'
     | '/_auth/roles/'
     | '/_auth/sources/'
+    | '/_auth/swarm/'
     | '/_auth/users/'
     | '/_auth/channels/$channelId/edit'
     | '/_auth/users/$userId/edit'
@@ -357,6 +369,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users/'
       preLoaderRoute: typeof AuthUsersIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/swarm/': {
+      id: '/_auth/swarm/'
+      path: '/swarm'
+      fullPath: '/swarm/'
+      preLoaderRoute: typeof AuthSwarmIndexRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/sources/': {
@@ -483,6 +502,7 @@ interface AuthRouteChildren {
   AuthProjectsIndexRoute: typeof AuthProjectsIndexRoute
   AuthRolesIndexRoute: typeof AuthRolesIndexRoute
   AuthSourcesIndexRoute: typeof AuthSourcesIndexRoute
+  AuthSwarmIndexRoute: typeof AuthSwarmIndexRoute
   AuthUsersIndexRoute: typeof AuthUsersIndexRoute
   AuthChannelsChannelIdEditRoute: typeof AuthChannelsChannelIdEditRoute
   AuthUsersUserIdEditRoute: typeof AuthUsersUserIdEditRoute
@@ -505,6 +525,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthProjectsIndexRoute: AuthProjectsIndexRoute,
   AuthRolesIndexRoute: AuthRolesIndexRoute,
   AuthSourcesIndexRoute: AuthSourcesIndexRoute,
+  AuthSwarmIndexRoute: AuthSwarmIndexRoute,
   AuthUsersIndexRoute: AuthUsersIndexRoute,
   AuthChannelsChannelIdEditRoute: AuthChannelsChannelIdEditRoute,
   AuthUsersUserIdEditRoute: AuthUsersUserIdEditRoute,

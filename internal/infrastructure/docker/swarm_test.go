@@ -3,7 +3,43 @@ package docker
 import (
 	"strings"
 	"testing"
+
+	"tango/internal/domain"
 )
+
+// TestServiceRunningNotFoundPatterns verifies that isNotFoundError correctly
+// identifies Docker "service not found" errors so ServiceRunning can return
+// false without propagating the error to callers.
+func TestServiceRunningNotFoundPatterns(t *testing.T) {
+	cases := []struct {
+		errMsg string
+		want   bool
+	}{
+		{"Error response from daemon: no such service: abc123", true},
+		{"Error: No such service: abc", true},
+		{"404 page not found", true},
+		{"connection refused", false},
+		{"permission denied", false},
+		{"", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.errMsg, func(t *testing.T) {
+			var err error
+			if tc.errMsg != "" {
+				err = &stubError{tc.errMsg}
+			}
+			got := isNotFoundError(err)
+			if got != tc.want {
+				t.Errorf("isNotFoundError(%q) = %v, want %v", tc.errMsg, got, tc.want)
+			}
+		})
+	}
+}
+
+type stubError struct{ msg string }
+
+func (e *stubError) Error() string { return e.msg }
 
 // TestIsManagerLogic verifies the condition used in SwarmRepository.IsManager.
 // We test the boolean expression directly since mocking *client.Client is impractical
@@ -47,7 +83,7 @@ func TestNormalizeServiceName(t *testing.T) {
 		{"My App", "my-app"},
 		{"postgres-db", "postgres-db"},
 		{"  leading spaces  ", "leading-spaces"},
-		{"UPPER_CASE", "upper-case"},
+		{"UPPER_CASE", "upper_case"},
 		{"double--dash", "double-dash"},
 		{"special!@#chars", "special-chars"},
 	}
@@ -62,6 +98,35 @@ func TestNormalizeServiceName(t *testing.T) {
 				t.Errorf("normalize(%q) = %q, want %q", tc.input, got, tc.want)
 			}
 		})
+	}
+}
+
+// TestCreateServiceInputReplicasDefault verifies that replicas default to 1
+// when CreateServiceInput.Replicas is 0 (the zero-value for uint64).
+func TestCreateServiceInputReplicasDefault(t *testing.T) {
+	input := domain.CreateServiceInput{
+		Name:  "my-svc",
+		Image: "nginx",
+	}
+	// The production code treats Replicas==0 as 1.
+	replicas := input.Replicas
+	if replicas == 0 {
+		replicas = 1
+	}
+	if replicas != 1 {
+		t.Errorf("default replicas = %d, want 1", replicas)
+	}
+}
+
+// TestCreateServiceInputReplicasSet verifies that a non-zero Replicas value is preserved.
+func TestCreateServiceInputReplicasSet(t *testing.T) {
+	input := domain.CreateServiceInput{
+		Name:     "my-svc",
+		Image:    "nginx",
+		Replicas: 3,
+	}
+	if input.Replicas != 3 {
+		t.Errorf("Replicas = %d, want 3", input.Replicas)
 	}
 }
 

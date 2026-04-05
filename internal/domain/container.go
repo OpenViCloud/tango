@@ -147,6 +147,7 @@ type CreateServiceInput struct {
 	Volumes  []string // host:container bind mounts
 	Networks []string // overlay network names
 	NodeID   string   // placement constraint — empty means any node
+	Replicas uint64   // desired replica count; 0 treated as 1
 }
 
 // SwarmService represents a running Docker Swarm service.
@@ -163,10 +164,17 @@ type SwarmRepository interface {
 	CreateService(ctx context.Context, input CreateServiceInput) (SwarmService, error)
 	// RemoveService removes a swarm service (stops all its tasks).
 	RemoveService(ctx context.Context, serviceID string) error
+	// ScaleService updates the replica count of an existing swarm service.
+	ScaleService(ctx context.Context, serviceID string, replicas uint64) error
 	// EnsureOverlayNetwork creates an overlay network if it does not already exist.
 	EnsureOverlayNetwork(ctx context.Context, name string) error
 	// ListNodes returns all nodes in the swarm cluster.
 	ListNodes(ctx context.Context) ([]SwarmNode, error)
+	// ServiceRunning reports whether the given service exists and has running tasks.
+	// Returns false (not an error) when the service does not exist.
+	ServiceRunning(ctx context.Context, serviceID string) (bool, error)
+	// GetServiceLogs returns the most recent log lines for a swarm service.
+	GetServiceLogs(ctx context.Context, serviceID string, tail string) ([]string, error)
 }
 
 // DockerRepository abstracts all Docker Engine operations.

@@ -84,12 +84,48 @@ func (f *fakeDockerRepository) Close() error {
 
 type noopContainerExecSession struct{}
 
-func (noopContainerExecSession) Read([]byte) (int, error)  { return 0, io.EOF }
-func (noopContainerExecSession) Write(p []byte) (int, error) { return len(p), nil }
-func (noopContainerExecSession) Close() error              { return nil }
+func (noopContainerExecSession) Read([]byte) (int, error)              { return 0, io.EOF }
+func (noopContainerExecSession) Write(p []byte) (int, error)           { return len(p), nil }
+func (noopContainerExecSession) Close() error                          { return nil }
 func (noopContainerExecSession) Resize(context.Context, uint, uint) error {
 	return nil
 }
+
+// fakeSwarmRepository is a test double for domain.SwarmRepository.
+type fakeSwarmRepository struct {
+	manager        bool
+	serviceRunning map[string]bool
+	serviceErr     error
+}
+
+func (f *fakeSwarmRepository) IsManager(context.Context) bool { return f.manager }
+
+func (f *fakeSwarmRepository) CreateService(context.Context, domain.CreateServiceInput) (domain.SwarmService, error) {
+	return domain.SwarmService{}, nil
+}
+
+func (f *fakeSwarmRepository) RemoveService(context.Context, string) error { return nil }
+
+func (f *fakeSwarmRepository) ScaleService(_ context.Context, _ string, _ uint64) error { return nil }
+
+func (f *fakeSwarmRepository) EnsureOverlayNetwork(context.Context, string) error { return nil }
+
+func (f *fakeSwarmRepository) ListNodes(context.Context) ([]domain.SwarmNode, error) {
+	return nil, nil
+}
+
+func (f *fakeSwarmRepository) ServiceRunning(_ context.Context, serviceID string) (bool, error) {
+	if f.serviceErr != nil {
+		return false, f.serviceErr
+	}
+	return f.serviceRunning[serviceID], nil
+}
+
+func (f *fakeSwarmRepository) GetServiceLogs(context.Context, string, string) ([]string, error) {
+	return nil, nil
+}
+
+// ── Container-mode tests ──────────────────────────────────────────────────────
 
 func TestResourceRuntimeReconcilerMarksMissingRunningContainerStopped(t *testing.T) {
 	db := openResourceReconcileTestDB(t)
@@ -115,6 +151,7 @@ func TestResourceRuntimeReconcilerMarksMissingRunningContainerStopped(t *testing
 	reconciler := NewResourceRuntimeReconciler(
 		resourceRepo,
 		&fakeDockerRepository{containers: []domain.Container{}},
+		nil, // no swarm
 		slog.Default(),
 	)
 
@@ -164,6 +201,7 @@ func TestResourceRuntimeReconcilerMarksExistingContainerRunning(t *testing.T) {
 		&fakeDockerRepository{containers: []domain.Container{
 			{ID: "ctr_running", State: "running"},
 		}},
+		nil, // no swarm
 		slog.Default(),
 	)
 
@@ -184,6 +222,162 @@ func TestResourceRuntimeReconcilerMarksExistingContainerRunning(t *testing.T) {
 	}
 	if saved.ContainerID != "ctr_running" {
 		t.Fatalf("container_id = %q, want ctr_running", saved.ContainerID)
+	}
+}
+
+// ── Swarm-mode tests ──────────────────────────────────────────────────────────
+
+func TestResourceRuntimeReconcilerSwarmRunningService(t *testing.T) {
+	db := openResourceReconcileTestDB(t)
+	resourceRepo := persistrepo.NewResourceRepository(db)
+	ctx := context.Background()
+
+	resource, err := resourceRepo.Create(ctx, domain.CreateResourceInput{
+		ID:            "res_swarm_1",
+		Name:          "svc-running",
+		Type:          domain.ResourceTypeApp,
+		Image:         "nginx",
+		Tag:           "latest",
+		EnvironmentID: "env_1",
+		CreatedBy:     "user_1",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	// Simulate resource in swarm mode: ContainerID holds a service ID.
+	if err := resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusStopped, "svc_abc123"); err != nil {
+		t.Fatalf("UpdateStatus() error = %v", err)
+	}
+
+	swarm := &fakeSwarmRepository{
+		manager:        true,
+		serviceRunning: map[string]bool{"svc_abc123": true},
+	}
+	reconciler := NewResourceRuntimeReconciler(
+		resourceRepo,
+		&fakeDockerRepository{containers: []domain.Container{}}, // no containers
+		swarm,
+		slog.Default(),
+	)
+
+	summary, err := reconciler.ReconcileAll(ctx)
+	if err != nil {
+		t.Fatalf("ReconcileAll() error = %v", err)
+	}
+	if summary.Checked != 1 || summary.Updated != 1 || summary.Running != 1 {
+		t.Fatalf("unexpected summary: %+v", summary)
+	}
+
+	saved, err := resourceRepo.GetByID(ctx, resource.ID)
+	if err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+	if saved.Status != domain.ResourceStatusRunning {
+		t.Fatalf("status = %s, want running", saved.Status)
+	}
+	if saved.ContainerID != "svc_abc123" {
+		t.Fatalf("container_id = %q, want svc_abc123", saved.ContainerID)
+	}
+}
+
+func TestResourceRuntimeReconcilerSwarmMissingServiceMarkedStopped(t *testing.T) {
+	db := openResourceReconcileTestDB(t)
+	resourceRepo := persistrepo.NewResourceRepository(db)
+	ctx := context.Background()
+
+	resource, err := resourceRepo.Create(ctx, domain.CreateResourceInput{
+		ID:            "res_swarm_2",
+		Name:          "svc-gone",
+		Type:          domain.ResourceTypeApp,
+		Image:         "nginx",
+		Tag:           "latest",
+		EnvironmentID: "env_1",
+		CreatedBy:     "user_1",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if err := resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusRunning, "svc_gone"); err != nil {
+		t.Fatalf("UpdateStatus() error = %v", err)
+	}
+
+	swarm := &fakeSwarmRepository{
+		manager:        true,
+		serviceRunning: map[string]bool{}, // service doesn't exist
+	}
+	reconciler := NewResourceRuntimeReconciler(
+		resourceRepo,
+		&fakeDockerRepository{containers: []domain.Container{}},
+		swarm,
+		slog.Default(),
+	)
+
+	summary, err := reconciler.ReconcileAll(ctx)
+	if err != nil {
+		t.Fatalf("ReconcileAll() error = %v", err)
+	}
+	if summary.Checked != 1 || summary.Updated != 1 || summary.MissingContainers != 1 {
+		t.Fatalf("unexpected summary: %+v", summary)
+	}
+
+	saved, err := resourceRepo.GetByID(ctx, resource.ID)
+	if err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+	if saved.Status != domain.ResourceStatusStopped {
+		t.Fatalf("status = %s, want stopped", saved.Status)
+	}
+	if saved.ContainerID != "" {
+		t.Fatalf("container_id = %q, want empty", saved.ContainerID)
+	}
+}
+
+func TestResourceRuntimeReconcilerSwarmNotManagerFallsBackToContainers(t *testing.T) {
+	db := openResourceReconcileTestDB(t)
+	resourceRepo := persistrepo.NewResourceRepository(db)
+	ctx := context.Background()
+
+	resource, err := resourceRepo.Create(ctx, domain.CreateResourceInput{
+		ID:            "res_swarm_3",
+		Name:          "fallback",
+		Type:          domain.ResourceTypeApp,
+		Image:         "nginx",
+		Tag:           "latest",
+		EnvironmentID: "env_1",
+		CreatedBy:     "user_1",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if err := resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusStopped, "ctr_123"); err != nil {
+		t.Fatalf("UpdateStatus() error = %v", err)
+	}
+
+	// Swarm repo present but NOT a manager → container mode.
+	swarmRepo := &fakeSwarmRepository{manager: false}
+	reconciler := NewResourceRuntimeReconciler(
+		resourceRepo,
+		&fakeDockerRepository{containers: []domain.Container{
+			{ID: "ctr_123", State: "running"},
+		}},
+		swarmRepo,
+		slog.Default(),
+	)
+
+	summary, err := reconciler.ReconcileAll(ctx)
+	if err != nil {
+		t.Fatalf("ReconcileAll() error = %v", err)
+	}
+	if summary.Running != 1 {
+		t.Fatalf("unexpected summary: %+v", summary)
+	}
+
+	saved, err := resourceRepo.GetByID(ctx, resource.ID)
+	if err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+	if saved.Status != domain.ResourceStatusRunning {
+		t.Fatalf("status = %s, want running", saved.Status)
 	}
 }
 

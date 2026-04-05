@@ -34,6 +34,7 @@ type ProjectHandler struct {
 	startResourceRun      *command.CreateStartResourceRunHandler
 	stopResource          *command.StopResourceHandler
 	deleteResource        *command.DeleteResourceHandler
+	scaleResource         *command.ScaleResourceHandler
 	setEnvVars            *command.SetResourceEnvVarsHandler
 	listProjects          *query.ListProjectsHandler
 	getProject            *query.GetProjectHandler
@@ -42,6 +43,7 @@ type ProjectHandler struct {
 	getResource           *query.GetResourceHandler
 	runtimeReconciler     appservices.ResourceRuntimeReconciler
 	dockerRepo            domain.DockerRepository
+	swarmRepo             domain.SwarmRepository
 	domainRepo            domain.ResourceDomainRepository
 	platformConfigRepo    domain.PlatformConfigRepository
 	fileProvider          domain.TraefikFileProvider
@@ -62,6 +64,7 @@ func NewProjectHandler(
 	startResourceRun *command.CreateStartResourceRunHandler,
 	stopResource *command.StopResourceHandler,
 	deleteResource *command.DeleteResourceHandler,
+	scaleResource *command.ScaleResourceHandler,
 	setEnvVars *command.SetResourceEnvVarsHandler,
 	listProjects *query.ListProjectsHandler,
 	getProject *query.GetProjectHandler,
@@ -70,6 +73,7 @@ func NewProjectHandler(
 	getResource *query.GetResourceHandler,
 	runtimeReconciler appservices.ResourceRuntimeReconciler,
 	dockerRepo domain.DockerRepository,
+	swarmRepo domain.SwarmRepository,
 	domainRepo domain.ResourceDomainRepository,
 	platformConfigRepo domain.PlatformConfigRepository,
 	fileProvider domain.TraefikFileProvider,
@@ -89,6 +93,7 @@ func NewProjectHandler(
 		startResourceRun:      startResourceRun,
 		stopResource:          stopResource,
 		deleteResource:        deleteResource,
+		scaleResource:         scaleResource,
 		setEnvVars:            setEnvVars,
 		listProjects:          listProjects,
 		getProject:            getProject,
@@ -97,6 +102,7 @@ func NewProjectHandler(
 		getResource:           getResource,
 		runtimeReconciler:     runtimeReconciler,
 		dockerRepo:            dockerRepo,
+		swarmRepo:             swarmRepo,
 		domainRepo:            domainRepo,
 		platformConfigRepo:    platformConfigRepo,
 		fileProvider:          fileProvider,
@@ -126,6 +132,7 @@ func (h *ProjectHandler) Register(rg *gin.RouterGroup) {
 	rg.DELETE("/resources/:resourceId", h.DeleteResource)
 	rg.POST("/resources/:resourceId/start", h.StartResource)
 	rg.POST("/resources/:resourceId/stop", h.StopResource)
+	rg.POST("/resources/:resourceId/scale", h.ScaleResource)
 	rg.GET("/resources/:resourceId/logs", h.GetResourceLogs)
 	rg.GET("/resources/:resourceId/env-vars", h.GetEnvVars)
 	rg.PUT("/resources/:resourceId/env-vars", h.SetEnvVars)
@@ -170,14 +177,15 @@ type createResourceEnvVarRequest struct {
 }
 
 type createResourceRequest struct {
-	Name    string                        `json:"name"`
-	Type    string                        `json:"type"`
-	Image   string                        `json:"image"`
-	Tag     string                        `json:"tag"`
-	Config  map[string]any                `json:"config"`
-	NodeID  *string                       `json:"node_id"`
-	Ports   []createResourcePortRequest   `json:"ports"`
-	EnvVars []createResourceEnvVarRequest `json:"env_vars"`
+	Name     string                        `json:"name"`
+	Type     string                        `json:"type"`
+	Image    string                        `json:"image"`
+	Tag      string                        `json:"tag"`
+	Config   map[string]any                `json:"config"`
+	NodeID   *string                       `json:"node_id"`
+	Replicas int                           `json:"replicas"`
+	Ports    []createResourcePortRequest   `json:"ports"`
+	EnvVars  []createResourceEnvVarRequest `json:"env_vars"`
 }
 
 type createResourceFromGitRequest struct {
@@ -193,9 +201,14 @@ type createResourceFromGitRequest struct {
 }
 
 type updateResourceRequest struct {
-	Name   string                      `json:"name"`
-	Ports  []createResourcePortRequest `json:"ports"`
-	Config map[string]any              `json:"config"`
+	Name     string                      `json:"name"`
+	Replicas int                         `json:"replicas"`
+	Ports    []createResourcePortRequest `json:"ports"`
+	Config   map[string]any              `json:"config"`
+}
+
+type scaleResourceRequest struct {
+	Replicas int `json:"replicas" binding:"required,min=1"`
 }
 
 type setEnvVarsRequest struct {
@@ -228,6 +241,7 @@ type resourceResponse struct {
 	Config        map[string]any `json:"config"`
 	EnvironmentID string         `json:"environment_id"`
 	NodeID        *string        `json:"node_id,omitempty"`
+	Replicas      int            `json:"replicas"`
 	SourceType    string         `json:"source_type,omitempty"`
 	GitURL        string         `json:"git_url,omitempty"`
 	BuildJobID    string         `json:"build_job_id,omitempty"`
@@ -565,6 +579,7 @@ func (h *ProjectHandler) CreateResource(c *gin.Context) {
 		Tag:           req.Tag,
 		Config:        req.Config,
 		NodeID:        req.NodeID,
+		Replicas:      req.Replicas,
 		EnvironmentID: c.Param("envId"),
 		CreatedBy:     userID,
 		Ports:         ports,
@@ -657,10 +672,11 @@ func (h *ProjectHandler) UpdateResource(c *gin.Context) {
 		})
 	}
 	resource, err := h.updateResource.Handle(c.Request.Context(), command.UpdateResourceCommand{
-		ID:     c.Param("resourceId"),
-		Name:   req.Name,
-		Ports:  ports,
-		Config: req.Config,
+		ID:       c.Param("resourceId"),
+		Name:     req.Name,
+		Replicas: req.Replicas,
+		Ports:    ports,
+		Config:   req.Config,
 	})
 	if err != nil {
 		writeProjectError(c, err)
@@ -719,6 +735,23 @@ func (h *ProjectHandler) StopResource(c *gin.Context) {
 	response.NoContent(c)
 }
 
+func (h *ProjectHandler) ScaleResource(c *gin.Context) {
+	var req scaleResourceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(response.Validation(nil, err.Error()))
+		return
+	}
+	resourceID := c.Param("resourceId")
+	if err := h.scaleResource.Handle(c.Request.Context(), command.ScaleResourceCommand{
+		ID:       resourceID,
+		Replicas: req.Replicas,
+	}); err != nil {
+		writeProjectError(c, err)
+		return
+	}
+	response.NoContent(c)
+}
+
 func (h *ProjectHandler) GetResourceLogs(c *gin.Context) {
 	resource, err := h.getResource.Handle(c.Request.Context(), query.GetResourceQuery{ID: c.Param("resourceId")})
 	if err != nil {
@@ -737,13 +770,27 @@ func (h *ProjectHandler) GetResourceLogs(c *gin.Context) {
 		response.OK(c, resp)
 		return
 	}
-	if h.dockerRepo == nil {
+
+	tail := c.DefaultQuery("tail", "200")
+	ctx := c.Request.Context()
+
+	// In swarm mode the ContainerID field stores a service ID — fetch service logs.
+	if h.swarmRepo != nil && h.swarmRepo.IsManager(ctx) {
+		lines, err := h.swarmRepo.GetServiceLogs(ctx, resource.ContainerID, tail)
+		if err != nil {
+			writeProjectError(c, err)
+			return
+		}
+		resp.Lines = lines
 		response.OK(c, resp)
 		return
 	}
 
-	tail := c.DefaultQuery("tail", "200")
-	lines, err := h.dockerRepo.GetContainerLogs(c.Request.Context(), resource.ContainerID, domain.GetContainerLogsInput{
+	if h.dockerRepo == nil {
+		response.OK(c, resp)
+		return
+	}
+	lines, err := h.dockerRepo.GetContainerLogs(ctx, resource.ContainerID, domain.GetContainerLogsInput{
 		Tail: tail,
 	})
 	if err != nil {
@@ -834,6 +881,10 @@ func toResourceResponse(r *domain.Resource) resourceResponse {
 			Label:        p.Label,
 		})
 	}
+	replicas := r.Replicas
+	if replicas < 1 {
+		replicas = 1
+	}
 	return resourceResponse{
 		ID:            r.ID,
 		Name:          r.Name,
@@ -845,6 +896,7 @@ func toResourceResponse(r *domain.Resource) resourceResponse {
 		Config:        r.Config,
 		EnvironmentID: r.EnvironmentID,
 		NodeID:        r.NodeID,
+		Replicas:      replicas,
 		SourceType:    r.SourceType,
 		GitURL:        r.GitURL,
 		BuildJobID:    r.BuildJobID,

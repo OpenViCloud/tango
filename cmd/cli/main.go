@@ -85,18 +85,17 @@ var uninstallCmd = &cobra.Command{
 		fmt.Printf("   • Binary:  %s\n", binaryPath)
 		fmt.Printf("   • Config:  %s/\n", configDir)
 		fmt.Println("   • Daemon:  system service (systemd/launchd)")
-		if uninstallPurge && runtimeDir != "" {
-			fmt.Printf("   • Runtime: %s/\n", runtimeDir)
-		}
+		fmt.Println("   • Docker:  all Tango containers (volumes kept)")
 		if uninstallPurge {
-			fmt.Println("   • Docker:  all containers, volumes, and images (--purge)")
+			if runtimeDir != "" {
+				fmt.Printf("   • Runtime: %s/\n", runtimeDir)
+			}
+			fmt.Println("   • Docker:  volumes and images removed (--purge)")
 		} else {
-			fmt.Println()
 			if runtimeDir != "" {
 				fmt.Printf("   Runtime directory will NOT be removed: %s/\n", runtimeDir)
 			}
-			fmt.Println("   Docker containers and volumes will NOT be removed.")
-			fmt.Println("   Use --purge to remove them and the runtime directory as well.")
+			fmt.Println("   Use --purge to also remove volumes, images, and the runtime directory.")
 		}
 		fmt.Println()
 		fmt.Print("Type 'yes' to confirm: ")
@@ -109,12 +108,16 @@ var uninstallCmd = &cobra.Command{
 			return
 		}
 
-		// 1. Purge Docker resources if requested
-		if uninstallPurge {
-			fmt.Print("Stopping containers and removing volumes/images... ")
+		// 1. Stop Tango containers (always). With --purge also remove volumes and images.
+		{
+			msg := "Stopping containers... "
+			if uninstallPurge {
+				msg = "Stopping containers and removing volumes/images... "
+			}
+			fmt.Print(msg)
 			driver := compose.New(daemonCfg.ComposeFile, daemonCfg.ProjectName)
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			if err := driver.Down(ctx, true); err != nil {
+			if err := driver.Down(ctx, uninstallPurge); err != nil {
 				fmt.Printf("failed (%v)\n", err)
 			} else {
 				fmt.Println("done")

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"tango/internal/orchestrator"
@@ -77,17 +78,25 @@ var uninstallCmd = &cobra.Command{
 		binaryPath, _ := os.Executable()
 		binaryPath, _ = filepath.EvalSymlinks(binaryPath)
 		configDir := orchestrator.ConfigDir()
+		daemonCfg := orchestrator.LoadConfig()
+		runtimeDir := runtimeDirFromComposeFile(daemonCfg.ComposeFile)
 
 		fmt.Println("⚠️  This will remove:")
 		fmt.Printf("   • Binary:  %s\n", binaryPath)
 		fmt.Printf("   • Config:  %s/\n", configDir)
 		fmt.Println("   • Daemon:  system service (systemd/launchd)")
+		if uninstallPurge && runtimeDir != "" {
+			fmt.Printf("   • Runtime: %s/\n", runtimeDir)
+		}
 		if uninstallPurge {
 			fmt.Println("   • Docker:  all containers, volumes, and images (--purge)")
 		} else {
 			fmt.Println()
+			if runtimeDir != "" {
+				fmt.Printf("   Runtime directory will NOT be removed: %s/\n", runtimeDir)
+			}
 			fmt.Println("   Docker containers and volumes will NOT be removed.")
-			fmt.Println("   Use --purge to remove them as well.")
+			fmt.Println("   Use --purge to remove them and the runtime directory as well.")
 		}
 		fmt.Println()
 		fmt.Print("Type 'yes' to confirm: ")
@@ -103,7 +112,6 @@ var uninstallCmd = &cobra.Command{
 		// 1. Purge Docker resources if requested
 		if uninstallPurge {
 			fmt.Print("Stopping containers and removing volumes/images... ")
-			daemonCfg := orchestrator.LoadConfig()
 			driver := compose.New(daemonCfg.ComposeFile, daemonCfg.ProjectName)
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			if err := driver.Down(ctx, true); err != nil {
@@ -131,7 +139,17 @@ var uninstallCmd = &cobra.Command{
 			fmt.Println("done")
 		}
 
-		// 4. Remove binary (self-delete)
+		// 4. Remove runtime directory after purge tears down the stack.
+		if uninstallPurge && runtimeDir != "" {
+			fmt.Print("Removing runtime files... ")
+			if err := os.RemoveAll(runtimeDir); err != nil {
+				fmt.Printf("failed (%v)\n", err)
+			} else {
+				fmt.Println("done")
+			}
+		}
+
+		// 5. Remove binary (self-delete)
 		fmt.Print("Removing binary... ")
 		if err := os.Remove(binaryPath); err != nil {
 			fmt.Printf("failed (%v)\n", err)
@@ -147,6 +165,25 @@ var uninstallCmd = &cobra.Command{
 
 func init() {
 	uninstallCmd.Flags().BoolVar(&uninstallPurge, "purge", false, "Also remove all Docker containers, volumes, and images")
+}
+
+func runtimeDirFromComposeFile(composeFile string) string {
+	if composeFile == "" {
+		return ""
+	}
+
+	clean := filepath.Clean(composeFile)
+	dir := filepath.Dir(clean)
+	if dir == "." || dir == "/" {
+		return ""
+	}
+
+	// Only remove known Tango runtime directories, not arbitrary compose parents.
+	if dir == "/opt/tango" || strings.HasPrefix(dir, "/opt/tango/") {
+		return dir
+	}
+
+	return ""
 }
 
 // ── main ──────────────────────────────────────────

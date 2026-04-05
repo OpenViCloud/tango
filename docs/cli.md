@@ -222,7 +222,7 @@ tango status         # check API / stack status endpoint
 ```bash
 tango version        # show CLI version
 tango uninstall      # remove CLI, daemon service, and local config
-tango uninstall --purge
+tango uninstall --purge   # also remove Docker resources and /opt/tango runtime files
 ```
 
 ## Configuration

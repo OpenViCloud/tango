@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -1233,8 +1234,17 @@ func (h *ProjectHandler) refreshTraefikConfig(ctx context.Context, resourceID st
 		return
 	}
 
-	info, err := h.dockerRepo.InspectContainer(ctx, resource.ContainerID)
-	if err != nil {
+	// Resolve the backend name for Traefik routing.
+	// In single-node mode ContainerID is a real container ID → use Docker inspect.
+	// In swarm mode ContainerID is a service ID → InspectContainer fails, so fall
+	// back to the deterministic service name derived from the resource name.
+	backendName := ""
+	if info, err := h.dockerRepo.InspectContainer(ctx, resource.ContainerID); err == nil {
+		backendName = info.Name
+	} else if h.swarmRepo != nil {
+		backendName = swarmServiceName(resource.Name, resource.ID)
+	}
+	if backendName == "" {
 		return
 	}
 
@@ -1251,5 +1261,25 @@ func (h *ProjectHandler) refreshTraefikConfig(ctx context.Context, resourceID st
 		}
 	}
 
-	_ = h.fileProvider.Write(resourceID, domains, info.Name, certResolver)
+	_ = h.fileProvider.Write(resourceID, domains, backendName, certResolver)
+}
+
+// swarmServiceName returns the deterministic service name used for DNS resolution
+// inside the overlay network. Must match the logic in resource_run_service.go.
+func swarmServiceName(name, id string) string {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	normalized = strings.ReplaceAll(normalized, " ", "-")
+	normalized = regexp.MustCompile(`[^a-z0-9._-]+`).ReplaceAllString(normalized, "-")
+	normalized = strings.Trim(normalized, "-.")
+	for strings.Contains(normalized, "--") {
+		normalized = strings.ReplaceAll(normalized, "--", "-")
+	}
+	if normalized == "" {
+		clean := strings.TrimSpace(id)
+		if len(clean) > 8 {
+			clean = clean[:8]
+		}
+		return "resource-" + clean
+	}
+	return normalized
 }

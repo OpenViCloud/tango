@@ -211,6 +211,62 @@ buildkitd            running      none         moby/buildki...
 backup-runner        running      none         timegroups/t... 0.0.0.0:8081->8081/tcp
 ```
 
+### Swarm
+
+Multi-node cluster management using Docker Swarm mode. Run these commands on each physical host — they talk directly to the local Docker daemon.
+
+**On the manager node:**
+
+```bash
+# Initialize this machine as a swarm manager
+tango swarm init
+tango swarm init --advertise-addr 1.2.3.4   # specify public IP if needed
+
+# Get the join command to hand to worker nodes
+tango swarm token worker
+
+# List all nodes in the cluster
+tango swarm nodes
+```
+
+`tango swarm nodes` output:
+
+```
+ID            HOSTNAME   ROLE     STATUS  AVAILABILITY
+a1b2c3d4e5f6  manager-1  manager  ready   active
+b2c3d4e5f6a1  worker-1   worker   ready   active
+c3d4e5f6a1b2  worker-2   worker   ready   active
+```
+
+**On each worker node:**
+
+```bash
+# Join an existing swarm (token and manager address come from 'tango swarm token worker')
+tango swarm join --token <token> <manager-ip>:2377
+```
+
+**Leave the swarm:**
+
+```bash
+tango swarm leave               # worker node leaves
+tango swarm leave --force       # force leave (use on last manager only)
+```
+
+**Typical multi-node setup flow:**
+
+```bash
+# 1. On manager node
+tango swarm init --advertise-addr <manager-public-ip>
+tango swarm token worker
+# → prints: tango swarm join --token SWMTKN-... <manager-ip>:2377
+
+# 2. On each worker node — paste the command from step 1
+tango swarm join --token SWMTKN-... <manager-ip>:2377
+
+# 3. Back on manager — verify all nodes joined
+tango swarm nodes
+```
+
 ### Status
 
 ```bash

@@ -274,6 +274,8 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 			Volumes:      mounts.Binds,
 			Cmd:          buildResourceCmd(resource.Config),
 			Networks:     networks,
+			MemoryLimit:  resource.MemoryLimit,
+			CPULimit:     resource.CPULimit,
 		})
 		if err != nil {
 			return fail("create container", err)
@@ -378,14 +380,16 @@ func (s *ResourceRunService) runStartSwarm(
 			replicas = 1
 		}
 		svc, err := s.swarmRepo.CreateService(ctx, domain.CreateServiceInput{
-			Name:     serviceName,
-			Image:    imageRef,
-			Cmd:      buildResourceCmd(resource.Config),
-			Env:      buildResourceEnv(resource.EnvVars),
-			Volumes:  mounts.Binds,
-			Networks: []string{overlayNetwork},
-			NodeID:   nodeID,
-			Replicas: replicas,
+			Name:        serviceName,
+			Image:       imageRef,
+			Cmd:         buildResourceCmd(resource.Config),
+			Env:         buildResourceEnv(resource.EnvVars),
+			Volumes:     mounts.Binds,
+			Networks:    []string{overlayNetwork},
+			NodeID:      nodeID,
+			Replicas:    replicas,
+			MemoryLimit: resource.MemoryLimit,
+			CPULimit:    resource.CPULimit,
 		})
 		if err != nil {
 			return fail("create swarm service", err)

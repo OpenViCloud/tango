@@ -23,6 +23,8 @@ export const resourceSchema = z.object({
   ports: z.array(resourcePortSchema),
   node_id: z.string().nullable().optional(),
   replicas: z.number().default(1),
+  memory_limit: z.number().default(0),
+  cpu_limit: z.number().default(0),
   source_type: z.string().optional(),
   git_url: z.string().optional(),
   build_job_id: z.string().optional(),
@@ -157,6 +159,8 @@ export const updateProjectSchema = z.object({
 export const updateResourceSchema = z.object({
   name: z.string().min(1, "validation.required"),
   replicas: z.number().min(1).default(1),
+  memory_limit: z.number().min(0).default(0),
+  cpu_limit: z.number().min(0).default(0),
   config: z.record(z.string(), z.unknown()).optional(),
   ports: z
     .array(

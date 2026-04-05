@@ -104,6 +104,8 @@ type CreateContainerInput struct {
 	Labels       map[string]string // container labels, e.g. Traefik routing rules
 	Networks     []string          // Docker networks to join, e.g. ["traefik-net"]
 	AutoRemove   bool
+	MemoryLimit  int64 // hard memory limit in bytes; 0 = unlimited
+	CPULimit     int64 // CPU limit in nanoCPUs (1e9 = 1 core); 0 = unlimited
 }
 
 type GetContainerLogsInput struct {
@@ -140,14 +142,16 @@ type SwarmNode struct {
 
 // CreateServiceInput is the input for creating a Docker Swarm service.
 type CreateServiceInput struct {
-	Name     string
-	Image    string
-	Cmd      []string
-	Env      map[string]string
-	Volumes  []string // host:container bind mounts
-	Networks []string // overlay network names
-	NodeID   string   // placement constraint — empty means any node
-	Replicas uint64   // desired replica count; 0 treated as 1
+	Name        string
+	Image       string
+	Cmd         []string
+	Env         map[string]string
+	Volumes     []string // host:container bind mounts
+	Networks    []string // overlay network names
+	NodeID      string   // placement constraint — empty means any node
+	Replicas    uint64   // desired replica count; 0 treated as 1
+	MemoryLimit int64    // hard memory limit in bytes; 0 = unlimited
+	CPULimit    int64    // CPU limit in nanoCPUs (1e9 = 1 core); 0 = unlimited
 }
 
 // SwarmService represents a running Docker Swarm service.

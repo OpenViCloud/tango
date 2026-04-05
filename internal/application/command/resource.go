@@ -156,12 +156,14 @@ func (h *CreateResourceHandler) Handle(ctx context.Context, cmd CreateResourceCo
 // ── Update Resource ───────────────────────────────────────────────────────────
 
 type UpdateResourceCommand struct {
-	ID         string
-	Name       string
-	TLSEnabled bool
-	Replicas   int // swarm replica count; 0/1 treated as single instance
-	Ports      []ResourcePortInput
-	Config     map[string]any
+	ID          string
+	Name        string
+	TLSEnabled  bool
+	Replicas    int   // swarm replica count; 0/1 treated as single instance
+	MemoryLimit int64 // bytes; 0 = unlimited
+	CPULimit    int64 // nanoCPUs; 0 = unlimited
+	Ports       []ResourcePortInput
+	Config      map[string]any
 }
 
 type UpdateResourceHandler struct {
@@ -208,11 +210,13 @@ func (h *UpdateResourceHandler) Handle(ctx context.Context, cmd UpdateResourceCo
 		})
 	}
 	return h.resourceRepo.Update(ctx, cmd.ID, domain.UpdateResourceInput{
-		Name:       cmd.Name,
-		TLSEnabled: cmd.TLSEnabled,
-		Replicas:   cmd.Replicas,
-		Ports:      ports,
-		Config:     configToSave,
+		Name:        cmd.Name,
+		TLSEnabled:  cmd.TLSEnabled,
+		Replicas:    cmd.Replicas,
+		MemoryLimit: cmd.MemoryLimit,
+		CPULimit:    cmd.CPULimit,
+		Ports:       ports,
+		Config:      configToSave,
 	})
 }
 
@@ -328,6 +332,8 @@ func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceComm
 			Volumes:      mounts.Binds,
 			Cmd:          cmd,
 			Networks:     networks,
+			MemoryLimit:  resource.MemoryLimit,
+			CPULimit:     resource.CPULimit,
 		})
 		if err != nil {
 			return fmt.Errorf("create container: %w", err)

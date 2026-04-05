@@ -72,6 +72,9 @@ func (s *SwarmRepository) CreateService(ctx context.Context, input domain.Create
 			Type:   mount.TypeBind,
 			Source: parts[0],
 			Target: parts[1],
+			BindOptions: &mount.BindOptions{
+				CreateMountpoint: true,
+			},
 		})
 	}
 
@@ -106,6 +109,18 @@ func (s *SwarmRepository) CreateService(ctx context.Context, input domain.Create
 
 	if len(input.Cmd) > 0 {
 		spec.TaskTemplate.ContainerSpec.Command = input.Cmd
+	}
+
+	// Resource limits: apply when non-zero.
+	if input.MemoryLimit > 0 || input.CPULimit > 0 {
+		res := &swarm.ResourceRequirements{}
+		if input.MemoryLimit > 0 || input.CPULimit > 0 {
+			res.Limits = &swarm.Limit{
+				MemoryBytes: input.MemoryLimit,
+				NanoCPUs:    input.CPULimit,
+			}
+		}
+		spec.TaskTemplate.Resources = res
 	}
 
 	// Placement constraint: pin to a specific node when NodeID is set.

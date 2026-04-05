@@ -201,10 +201,12 @@ type createResourceFromGitRequest struct {
 }
 
 type updateResourceRequest struct {
-	Name     string                      `json:"name"`
-	Replicas int                         `json:"replicas"`
-	Ports    []createResourcePortRequest `json:"ports"`
-	Config   map[string]any              `json:"config"`
+	Name        string                      `json:"name"`
+	Replicas    int                         `json:"replicas"`
+	Ports       []createResourcePortRequest `json:"ports"`
+	Config      map[string]any              `json:"config"`
+	MemoryLimit int64                       `json:"memory_limit"`
+	CPULimit    int64                       `json:"cpu_limit"`
 }
 
 type scaleResourceRequest struct {
@@ -242,6 +244,8 @@ type resourceResponse struct {
 	EnvironmentID string         `json:"environment_id"`
 	NodeID        *string        `json:"node_id,omitempty"`
 	Replicas      int            `json:"replicas"`
+	MemoryLimit   int64          `json:"memory_limit"`
+	CPULimit      int64          `json:"cpu_limit"`
 	SourceType    string         `json:"source_type,omitempty"`
 	GitURL        string         `json:"git_url,omitempty"`
 	BuildJobID    string         `json:"build_job_id,omitempty"`
@@ -672,11 +676,13 @@ func (h *ProjectHandler) UpdateResource(c *gin.Context) {
 		})
 	}
 	resource, err := h.updateResource.Handle(c.Request.Context(), command.UpdateResourceCommand{
-		ID:       c.Param("resourceId"),
-		Name:     req.Name,
-		Replicas: req.Replicas,
-		Ports:    ports,
-		Config:   req.Config,
+		ID:          c.Param("resourceId"),
+		Name:        req.Name,
+		Replicas:    req.Replicas,
+		Ports:       ports,
+		Config:      req.Config,
+		MemoryLimit: req.MemoryLimit,
+		CPULimit:    req.CPULimit,
 	})
 	if err != nil {
 		writeProjectError(c, err)
@@ -897,6 +903,8 @@ func toResourceResponse(r *domain.Resource) resourceResponse {
 		EnvironmentID: r.EnvironmentID,
 		NodeID:        r.NodeID,
 		Replicas:      replicas,
+		MemoryLimit:   r.MemoryLimit,
+		CPULimit:      r.CPULimit,
 		SourceType:    r.SourceType,
 		GitURL:        r.GitURL,
 		BuildJobID:    r.BuildJobID,

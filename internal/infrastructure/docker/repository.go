@@ -378,6 +378,10 @@ func (r *Repository) CreateContainer(ctx context.Context, input domain.CreateCon
 		PortBindings: portMap,
 		Binds:        input.Volumes,
 		ExtraHosts:   []string{"host.docker.internal:host-gateway"},
+		Resources: container.Resources{
+			Memory:   input.MemoryLimit,
+			NanoCPUs: input.CPULimit,
+		},
 	}
 
 	resp, err := r.client.ContainerCreate(ctx, cfg, hostCfg, nil, nil, input.Name)

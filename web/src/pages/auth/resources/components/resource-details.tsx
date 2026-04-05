@@ -23,7 +23,9 @@ type ResourceDetailsProps = {
     entries: EnvEntry[],
     name: string,
     ports: PortEntry[],
-    volumes: VolumeEntry[]
+    volumes: VolumeEntry[],
+    memoryLimit: number,
+    cpuLimit: number
   ) => void
   onStart: () => void
   onStop: () => void
@@ -94,6 +96,8 @@ export default function ResourceDetails({
   const [scaleReplicas, setScaleReplicas] = useState(
     Math.max(1, resource.replicas ?? 1)
   )
+  const [memoryLimit, setMemoryLimit] = useState(resource.memory_limit ?? 0)
+  const [cpuLimit, setCpuLimit] = useState(resource.cpu_limit ?? 0)
 
   const statusDotClass =
     resource.status === "running" ? "bg-green-500" : "bg-destructive"
@@ -244,8 +248,12 @@ export default function ResourceDetails({
                 setEnvEntries={setEnvEntries}
                 volumeEntries={volumeEntries}
                 setVolumeEntries={setVolumeEntries}
+                memoryLimit={memoryLimit}
+                onMemoryLimitChange={setMemoryLimit}
+                cpuLimit={cpuLimit}
+                onCPULimitChange={setCpuLimit}
                 onSave={() =>
-                  onSave(envEntries, resourceName, portEntries, volumeEntries)
+                  onSave(envEntries, resourceName, portEntries, volumeEntries, memoryLimit, cpuLimit)
                 }
                 pending={pending}
                 isLoadingEnvVars={isLoadingEnvVars}

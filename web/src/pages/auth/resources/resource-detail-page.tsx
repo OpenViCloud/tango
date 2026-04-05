@@ -84,13 +84,17 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
     entries: EnvEntry[],
     name: string,
     ports: PortEntry[],
-    volumes: VolumeEntry[]
+    volumes: VolumeEntry[],
+    memoryLimit: number,
+    cpuLimit: number
   ) => {
     try {
       await Promise.all([
         updateResourceMutation.mutateAsync({
           name: name.trim() || resource!.name,
           replicas: resource?.replicas ?? 1,
+          memory_limit: memoryLimit,
+          cpu_limit: cpuLimit,
           config: {
             ...(resource?.config ?? {}),
             volumes: volumes

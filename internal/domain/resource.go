@@ -71,8 +71,10 @@ type Resource struct {
 	ImageTag     string // target registry image tag for builds
 	ConnectionID string // source connection ID for private repos
 	// Cluster fields
-	NodeID   *string // swarm node ID for placement constraint; nil = any node
-	Replicas int     // number of swarm service replicas; 0/1 = single instance
+	NodeID      *string // swarm node ID for placement constraint; nil = any node
+	Replicas    int     // number of swarm service replicas; 0/1 = single instance
+	MemoryLimit int64   // memory hard limit in bytes; 0 = unlimited
+	CPULimit    int64   // CPU limit in nanoCPUs (1e9 = 1 core); 0 = unlimited
 	Ports    []ResourcePort
 	EnvVars []ResourceEnvVar
 	CreatedAt time.Time
@@ -99,16 +101,20 @@ type CreateResourceInput struct {
 	ConnectionID  string
 	NodeID        *string // swarm placement constraint
 	Replicas      int     // number of swarm replicas; 0/1 = single instance
+	MemoryLimit   int64   // bytes; 0 = unlimited
+	CPULimit      int64   // nanoCPUs; 0 = unlimited
 	Ports         []ResourcePort
 	EnvVars       []ResourceEnvVar
 }
 
 type UpdateResourceInput struct {
-	Name       string
-	Ports      []ResourcePort
-	TLSEnabled bool
-	Config     map[string]any
-	Replicas   int // swarm replica count; 0/1 = single instance
+	Name        string
+	Ports       []ResourcePort
+	TLSEnabled  bool
+	Config      map[string]any
+	Replicas    int   // swarm replica count; 0/1 = single instance
+	MemoryLimit int64 // bytes; 0 = unlimited
+	CPULimit    int64 // nanoCPUs; 0 = unlimited
 }
 
 type ResourceRepository interface {

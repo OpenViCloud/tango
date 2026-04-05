@@ -3,6 +3,7 @@ import type { ResourceModel } from "@/@types/models"
 import { ConfigSidebar } from "@/pages/auth/projects/components/ConfigSidebar"
 import { ConfigGeneralForm, type EnvEntry, type PortEntry } from "@/pages/auth/resources/components/ConfigGeneralForm"
 import { PersistentStorageForm, type VolumeEntry } from "@/pages/auth/resources/components/PersistentStorageForm"
+import { ResourceLimitsForm } from "@/pages/auth/resources/components/ResourceLimitsForm"
 
 type ResourceConfigurationTabProps = {
   resource: ResourceModel
@@ -16,6 +17,10 @@ type ResourceConfigurationTabProps = {
   setEnvEntries: (entries: EnvEntry[]) => void
   volumeEntries: VolumeEntry[]
   setVolumeEntries: (entries: VolumeEntry[]) => void
+  memoryLimit: number
+  onMemoryLimitChange: (bytes: number) => void
+  cpuLimit: number
+  onCPULimitChange: (nano: number) => void
   onSave: () => void
   pending: boolean
   isLoadingEnvVars: boolean
@@ -36,6 +41,10 @@ export function ResourceConfigurationTab({
   setEnvEntries,
   volumeEntries,
   setVolumeEntries,
+  memoryLimit,
+  onMemoryLimitChange,
+  cpuLimit,
+  onCPULimitChange,
   onSave,
   pending,
   isLoadingEnvVars,
@@ -69,6 +78,15 @@ export function ResourceConfigurationTab({
           <PersistentStorageForm
             entries={volumeEntries}
             setEntries={setVolumeEntries}
+            onSave={onSave}
+            pending={pending}
+          />
+        ) : activeSection === "Resource Limits" ? (
+          <ResourceLimitsForm
+            memoryLimit={memoryLimit}
+            cpuLimit={cpuLimit}
+            onMemoryLimitChange={onMemoryLimitChange}
+            onCPULimitChange={onCPULimitChange}
             onSave={onSave}
             pending={pending}
           />

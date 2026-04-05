@@ -59,6 +59,8 @@ func (r *ResourceRepository) Create(ctx context.Context, input domain.CreateReso
 		ConnectionID:  input.ConnectionID,
 		NodeID:        input.NodeID,
 		Replicas:      input.Replicas,
+		MemoryLimit:   input.MemoryLimit,
+		CPULimit:      input.CPULimit,
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
@@ -182,10 +184,12 @@ func (r *ResourceRepository) Update(ctx context.Context, id string, input domain
 
 	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&models.ResourceRecord{}).Where("id = ?", id).Updates(map[string]any{
-			"name":       input.Name,
-			"config":     configJSON,
-			"replicas":   input.Replicas,
-			"updated_at": time.Now().UTC(),
+			"name":         input.Name,
+			"config":       configJSON,
+			"replicas":     input.Replicas,
+			"memory_limit": input.MemoryLimit,
+			"cpu_limit":    input.CPULimit,
+			"updated_at":   time.Now().UTC(),
 		})
 		if result.Error != nil {
 			return fmt.Errorf("update resource: %w", result.Error)
@@ -369,6 +373,8 @@ func toDomainResource(record models.ResourceRecord, portRecords []models.Resourc
 		ConnectionID:  record.ConnectionID,
 		NodeID:        record.NodeID,
 		Replicas:      record.Replicas,
+		MemoryLimit:   record.MemoryLimit,
+		CPULimit:      record.CPULimit,
 		Ports:         ports,
 		EnvVars:       envVars,
 		CreatedAt:     record.CreatedAt,

@@ -8,7 +8,7 @@ VPS_DIR  ?= /opt/tango
 
 TTL_IMAGE ?= ttl.sh/tango-cloud:24h
 
-.PHONY: dev web-dev test build build-api build-cli build-cli-linux-amd64 build-cli-linux-arm64 build-cli-release build-full sync-static clean-static docker up down infra infra-down push-ttl deploy-test
+.PHONY: dev web-dev test build build-api build-cli build-cli-linux-amd64 build-cli-linux-arm64 build-cli-release build-release build-full sync-static clean-static docker up down infra infra-down push-ttl deploy-test deploy-test-full deploy-only deploy-agent deploy-agent-full vps-bootstrap vps-install
 
 # Start local dev infra (traefik, postgres, buildkitd, backup-runner) — no app container
 infra:
@@ -25,8 +25,13 @@ infra:
 infra-down:
 	docker compose -f docker-compose.dev.yml down
 
-# Run API locally against dev infra (loads .env.dev)
+# Run API locally against dev infra (loads .env.dev, auto-creates if missing)
 dev:
+	@if [ ! -f .env.dev ]; then \
+		KEY=$$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c32); \
+		printf '# Local dev environment — loaded by `make dev`\n# Do NOT commit this file\n\nPORT=8080\nAPI_BASE_URL=http://localhost:8080\nFRONTEND_BASE_URL=http://localhost:5173\n\nDB_DRIVER=postgres\nDATABASE_URL=postgres://postgres:postgres@localhost:5432/tango?sslmode=disable\n\nDATA_ENCRYPTION_KEY=%s\n\nBUILDKIT_HOST=tcp://localhost:1234\n\nBACKUP_RUNNER_BASE_URL=http://localhost:8081\nBACKUP_RUNNER_TOKEN=\n\nTRAEFIK_CONFIG_DIR=./traefik/config\nTRAEFIK_DOCKER_NETWORK=tango_net\n\nLOG_FORMAT=text\nLOG_OUTPUT=stdout\n' "$$KEY" > .env.dev; \
+		echo "created .env.dev (DATA_ENCRYPTION_KEY auto-generated)"; \
+	fi
 	@set -a && . ./.env.dev && set +a && go run ./cmd/api
 
 # Run frontend dev server
@@ -94,15 +99,98 @@ push-ttl:
 		-t $(TTL_IMAGE) \
 		--push .
 
-# Build, push to ttl.sh, then SSH to VPS and restart app with new image
-# Usage: make deploy-test VPS_HOST=root@1.2.3.4 VPS_DIR=/opt/tango
-deploy-test: push-ttl deploy-only
+# Check if install.dev.sh has been run on VPS — if not, run it first
+# Sentinel: /opt/tango/.env (created by install.dev.sh)
+# Usage: make vps-bootstrap VPS_HOST=root@1.2.3.4
+vps-bootstrap:
+	@echo "→ Checking install state on $(VPS_HOST)..."
+	@ssh $(VPS_HOST) "test -f $(VPS_DIR)/.env" 2>/dev/null \
+		&& echo "  ✓ Already installed — skipping install.dev.sh" \
+		|| $(MAKE) vps-install VPS_HOST=$(VPS_HOST) VPS_DIR=$(VPS_DIR) TTL_IMAGE=$(TTL_IMAGE) VPS_ARCH=$(VPS_ARCH)
 
-# SSH to VPS and restart app — skips build, assumes image already pushed
+# Run install.dev.sh on a fresh VPS
+# Usage: make vps-install VPS_HOST=root@1.2.3.4
+vps-install:
+	@echo "→ Fresh VPS detected — running install.dev.sh on $(VPS_HOST)..."
+	ssh $(VPS_HOST) "mkdir -p $(VPS_DIR)/bin"
+	scp docker-compose.test.yml $(VPS_HOST):$(VPS_DIR)/docker-compose.test.yml
+	scp bin/tango-linux-$(VPS_ARCH) $(VPS_HOST):$(VPS_DIR)/bin/tango-linux-$(VPS_ARCH)
+	scp install.dev.sh $(VPS_HOST):$(VPS_DIR)/install.dev.sh
+	ssh $(VPS_HOST) " \
+		chmod +x $(VPS_DIR)/install.dev.sh && \
+		TTL_IMAGE=$(TTL_IMAGE) TANGO_DIR=$(VPS_DIR) bash $(VPS_DIR)/install.dev.sh \
+	"
+	@echo "→ install.dev.sh complete on $(VPS_HOST)"
+
+# Detect VPS arch and pick the right CLI binary to copy
+VPS_ARCH ?= amd64   # override with VPS_ARCH=arm64 if needed
+
+# ── Build targets ──────────────────────────────────────────────────────────
+
+# Build everything needed for deployment (image + CLI for both archs)
+# Run this ONCE before deploying to multiple VPS
+build-release: push-ttl build-cli-linux-amd64 build-cli-linux-arm64
+	@echo "✅ Release artifacts ready"
+	@echo "   Image : $(TTL_IMAGE)"
+	@echo "   CLI   : bin/tango-linux-amd64 bin/tango-linux-arm64"
+
+# ── Deploy targets (NO build — use existing artifacts) ─────────────────────
+
+# Deploy control plane to VPS — assumes build-release already ran
+# Usage: make deploy-test VPS_HOST=root@1.2.3.4
+deploy-test: vps-bootstrap deploy-only
+
+# Deploy worker agent to VPS — assumes build-release already ran
+# Usage: make deploy-agent VPS_HOST=root@<worker-ip>
+deploy-agent: vps-bootstrap
+	ssh $(VPS_HOST) "command -v wg >/dev/null 2>&1 || (apt-get update && apt-get install -y wireguard-tools)"
+	ssh $(VPS_HOST) "rm -f /usr/local/bin/tango"
+	scp bin/tango-linux-$(VPS_ARCH) $(VPS_HOST):/usr/local/bin/tango
+	ssh $(VPS_HOST) "chmod +x /usr/local/bin/tango"
+	@echo ""
+	@echo "✅ Agent deployed to $(VPS_HOST)"
+	@echo "   CLI : $$(ssh $(VPS_HOST) tango version)"
+	@echo ""
+	@echo "   Next steps:"
+	@echo "   1. On control plane: make token  VPS_HOST=root@<VPS1_IP>"
+	@echo "   2. On this node:     ssh $(VPS_HOST) tango node join --server http://<VPS1_IP>:8080 --token <TOKEN>"
+
+# SSH to VPS and restart app — no build, uses existing image + binary
 deploy-only:
 	ssh $(VPS_HOST) "mkdir -p $(VPS_DIR)"
 	scp docker-compose.test.yml $(VPS_HOST):$(VPS_DIR)/docker-compose.test.yml
-	ssh $(VPS_HOST) "cd $(VPS_DIR) && docker network create tango_net 2>/dev/null || true && docker compose -f docker-compose.test.yml pull app && docker compose -f docker-compose.test.yml up -d --no-deps app"
+	ssh $(VPS_HOST) "rm -f /usr/local/bin/tango"
+	scp bin/tango-linux-$(VPS_ARCH) $(VPS_HOST):/usr/local/bin/tango
+	ssh $(VPS_HOST) "chmod +x /usr/local/bin/tango"
+	ssh $(VPS_HOST) " \
+		cd $(VPS_DIR) && \
+		docker network create tango_net 2>/dev/null || true && \
+		mkdir -p ~/.config/tango && \
+		printf '%s\n' \
+		  '{' \
+		  '  \"driver\": \"compose\",' \
+		  '  \"check_interval\": \"30s\",' \
+		  '  \"max_retries\": 3,' \
+		  '  \"retry_backoff\": \"10s\",' \
+		  '  \"retry_cooldown\": \"5m\",' \
+		  '  \"compose_file\": \"$(VPS_DIR)/docker-compose.test.yml\",' \
+		  '  \"project_name\": \"tango\",' \
+		  '  \"health_url\": \"http://localhost:8080/api/status\",' \
+		  '  \"services\": [\"app\", \"traefik\", \"db\", \"buildkitd\", \"backup-runner\"]' \
+		  '}' > ~/.config/tango/daemon.json && \
+		docker compose --env-file $(VPS_DIR)/.env -f docker-compose.test.yml pull && \
+		docker compose --env-file $(VPS_DIR)/.env -f docker-compose.test.yml up -d \
+	"
 	@echo ""
-	@echo "Deployed $(TTL_IMAGE) to $(VPS_HOST):$(VPS_DIR)"
-	@echo "Note: image expires in 24h — for production use 'make docker' + push to registry"
+	@echo "✅ Deployed $(TTL_IMAGE) → $(VPS_HOST):$(VPS_DIR)"
+	@echo "   CLI : $$(ssh $(VPS_HOST) tango version)"
+
+# ── Convenience: build + deploy in one command ─────────────────────────────
+
+# Build everything then deploy control plane
+# Usage: make deploy-test-full VPS_HOST=root@1.2.3.4
+deploy-test-full: build-release vps-bootstrap deploy-only
+
+# Build CLI then deploy worker agent
+# Usage: make deploy-agent-full VPS_HOST=root@<worker-ip>
+deploy-agent-full: build-cli-linux-$(VPS_ARCH) deploy-agent

@@ -1,0 +1,445 @@
+#!/bin/bash
+
+set -e
+
+APP_NAME="tango-dev"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="${TANGO_DIR:-/opt/tango}"
+LETSENCRYPT_DIR="$BASE_DIR/letsencrypt"
+ACME_FILE="$LETSENCRYPT_DIR/acme.json"
+TRAEFIK_DIR="$BASE_DIR/traefik"
+TRAEFIK_CONFIG_DIR="$TRAEFIK_DIR/config"
+TRAEFIK_STATIC_CONFIG="$TRAEFIK_DIR/traefik.yml"
+RESOURCE_MOUNT_ROOT="$BASE_DIR/data/resource-volumes"
+RESOURCE_MOUNT_ROOT_APP="/platform/resource-volumes"
+ENV_FILE="$BASE_DIR/.env"
+CLI_CONFIG_DIR="$HOME/.config/tango"
+CLI_CONFIG_FILE="$CLI_CONFIG_DIR/daemon.json"
+CLI_BINARY_TARGET="/usr/local/bin/tango"
+COMPOSE_FILE="$BASE_DIR/docker-compose.test.yml"   # ← dev: dùng test compose
+TTL_IMAGE="${TTL_IMAGE:-ttl.sh/tango-cloud:24h}"   # ← dev: image từ ttl.sh
+PROJECT_NAME="tango"
+HEALTH_URL="http://localhost:8080/api/status"
+CLI_RELEASE_TAG="${CLI_RELEASE_TAG:-cli-latest}"
+CLI_DOWNLOAD_BASE_URL="${CLI_DOWNLOAD_BASE_URL:-https://github.com/time-groups/tango-cloud/releases/download/$CLI_RELEASE_TAG}"
+
+EMAIL=""
+DOMAIN=""
+TLS_ENABLED="false"
+
+# ── Parse args ────────────────────────────────────────────────────────────────
+
+usage() {
+  echo "Usage: ./install-dev.sh [--email your@email.com] [--domain app.example.com] [--https]"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --email)
+      if [ -n "$2" ] && [[ ! "$2" =~ ^-- ]]; then
+        EMAIL="$2"
+        shift 2
+      else
+        echo "Error: --email requires a value"
+        usage; exit 1
+      fi
+      ;;
+    --domain)
+      if [ -n "$2" ] && [[ ! "$2" =~ ^-- ]]; then
+        DOMAIN="$2"
+        shift 2
+      else
+        echo "Error: --domain requires a value"
+        usage; exit 1
+      fi
+      ;;
+    --https)
+      TLS_ENABLED="true"
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1"
+      usage; exit 1
+      ;;
+  esac
+done
+
+generate_hex() {
+  local bytes="$1"
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -hex "$bytes"
+    return
+  fi
+  od -An -N"$bytes" -tx1 /dev/urandom | tr -d ' \n'
+}
+
+generate_alnum_32() {
+  tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32
+}
+
+# ── Docker install ────────────────────────────────────────────────────────────
+
+install_docker() {
+  echo "=== DOCKER NOT FOUND. INSTALLING DOCKER ==="
+
+  sudo apt-get update
+  sudo apt-get install -y ca-certificates curl gnupg
+
+  sudo install -m 0755 -d /etc/apt/keyrings
+  if [ -f /etc/apt/keyrings/docker.gpg ]; then
+    sudo rm -f /etc/apt/keyrings/docker.gpg
+  fi
+
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+    sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+  echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+    https://download.docker.com/linux/ubuntu \
+    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+  sudo apt-get update
+  sudo apt-get install -y \
+    docker-ce \
+    docker-ce-cli \
+    containerd.io \
+    docker-buildx-plugin \
+    docker-compose-plugin
+
+  sudo systemctl enable docker
+  sudo systemctl start docker
+  sudo usermod -aG docker "$USER" || true
+  sudo docker run --rm hello-world
+
+  echo "Docker installed successfully!"
+  echo "Docker version:"; sudo docker version
+  echo "Docker Compose version:"; docker compose version || sudo docker compose version
+  echo ""
+  echo "NOTE: Run 'newgrp docker' or re-login to use Docker without sudo."
+}
+
+detect_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64)
+      echo "amd64"
+      ;;
+    aarch64|arm64)
+      echo "arm64"
+      ;;
+    *)
+      echo "unsupported"
+      ;;
+  esac
+}
+
+install_cli() {
+  local arch cli_source cli_download_url
+  arch="$(detect_arch)"
+  if [ "$arch" = "unsupported" ]; then
+    echo "Unsupported architecture: $(uname -m)"
+    exit 1
+  fi
+
+  echo "=== INSTALL CLI ==="
+
+  if [ -x "$CLI_BINARY_TARGET" ]; then
+    echo "Using existing CLI binary: $CLI_BINARY_TARGET"
+    return
+  fi
+
+  cli_source="$BASE_DIR/bin/tango-linux-$arch"
+  cli_download_url="$CLI_DOWNLOAD_BASE_URL/tango-linux-$arch"
+
+  mkdir -p "$BASE_DIR/bin"
+
+  if [ -f "$cli_source" ]; then
+    echo "Installing prebuilt CLI binary: $cli_source"
+    sudo install -m 0755 "$cli_source" "$CLI_BINARY_TARGET"
+    return
+  fi
+
+  echo "Downloading prebuilt CLI binary for linux/$arch"
+  echo "CLI download URL: $cli_download_url"
+  if curl -fsSL "$cli_download_url" -o "$cli_source"; then
+    chmod +x "$cli_source"
+    sudo install -m 0755 "$cli_source" "$CLI_BINARY_TARGET"
+    return
+  fi
+
+  rm -f "$cli_source"
+  echo "Prebuilt CLI download failed from: $cli_download_url"
+  echo "If the release asset does not exist yet, run GitHub Actions -> Build -> Run workflow -> enable 'Build CLI'."
+  echo "Expected release tag: $CLI_RELEASE_TAG"
+
+  if command -v go >/dev/null 2>&1; then
+    echo "Prebuilt binary not found. Building CLI from source for linux/$arch"
+    GOOS=linux GOARCH="$arch" go build -o /tmp/tango-install ./cmd/cli
+    sudo install -m 0755 /tmp/tango-install "$CLI_BINARY_TARGET"
+    rm -f /tmp/tango-install
+    return
+  fi
+
+  echo "Error: CLI binary download failed and Go is not installed."
+  echo "Publish the CLI release asset first or install Go on the target machine."
+  exit 1
+}
+
+write_cli_config() {
+  echo "=== WRITE CLI CONFIG ==="
+  mkdir -p "$CLI_CONFIG_DIR"
+  cat > "$CLI_CONFIG_FILE" <<EOF
+{
+  "driver": "compose",
+  "check_interval": "30s",
+  "max_retries": 3,
+  "retry_backoff": "10s",
+  "retry_cooldown": "5m",
+  "compose_file": "$COMPOSE_FILE",
+  "project_name": "$PROJECT_NAME",
+  "health_url": "$HEALTH_URL",
+  "services": ["app", "traefik", "db", "buildkitd", "backup-runner"]
+}
+EOF
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+echo "=== SETUP: $APP_NAME ==="
+echo "Install directory: $BASE_DIR"
+
+echo "=== SETUP BASE DIR ==="
+mkdir -p "$BASE_DIR"
+
+# Dev: copy docker-compose.test.yml from repo (scp'd by Makefile before this runs)
+# or download from GitHub main branch.
+if [ -f "$SCRIPT_DIR/docker-compose.test.yml" ] && [ "$SCRIPT_DIR" != "$BASE_DIR" ] && [ -d "$SCRIPT_DIR/.git" ]; then
+  echo "Copying docker-compose.test.yml from repo: $SCRIPT_DIR"
+  cp "$SCRIPT_DIR/docker-compose.test.yml" "$COMPOSE_FILE"
+elif [ ! -f "$COMPOSE_FILE" ]; then
+  echo "Downloading docker-compose.test.yml from GitHub..."
+  curl -fsSL "https://raw.githubusercontent.com/time-groups/tango-cloud/main/docker-compose.test.yml" \
+    -o "$COMPOSE_FILE"
+else
+  echo "Using existing $COMPOSE_FILE"
+fi
+
+echo "=== CHECK DOCKER ==="
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  echo "Docker already installed"
+else
+  install_docker
+fi
+
+echo "=== CHECK WIREGUARD ==="
+if command -v wg >/dev/null 2>&1; then
+  echo "WireGuard already installed"
+else
+  echo "Installing wireguard-tools..."
+  apt-get install -y -qq wireguard-tools
+  echo "  ✓ WireGuard installed: $(wg --version)"
+fi
+
+echo "=== LETSENCRYPT SETUP ==="
+mkdir -p "$LETSENCRYPT_DIR"
+if [ ! -f "$ACME_FILE" ]; then
+  touch "$ACME_FILE"
+fi
+chmod 600 "$ACME_FILE"
+
+echo "=== TRAEFIK CONFIG DIR ==="
+mkdir -p "$TRAEFIK_CONFIG_DIR"
+
+write_traefik_static_config() {
+  local email="$1"
+  cat > "$TRAEFIK_STATIC_CONFIG" <<TRAEFIK_EOF
+api:
+  dashboard: true
+  insecure: false
+providers:
+  docker:
+    exposedByDefault: false
+  file:
+    directory: /traefik/config
+    watch: true
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+ping: {}
+TRAEFIK_EOF
+
+  if [ -n "$email" ]; then
+    cat >> "$TRAEFIK_STATIC_CONFIG" <<ACME_EOF
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: $email
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+ACME_EOF
+  fi
+}
+
+echo "=== RESOURCE MOUNT ROOT ==="
+mkdir -p "$RESOURCE_MOUNT_ROOT"
+
+echo "=== DOCKER NETWORK ==="
+if ! docker network inspect tango_net >/dev/null 2>&1; then
+  docker network create tango_net
+fi
+
+echo "=== NETWORK CONFIGURATION ==="
+
+detect_private_ip() {
+  ip route get 8.8.8.8 2>/dev/null | awk '/src/{for(i=1;i<=NF;i++) if($i=="src") print $(i+1); exit}'
+}
+
+detect_public_ip() {
+  curl -s --max-time 5 https://api.ipify.org 2>/dev/null || echo ""
+}
+
+DETECTED_PUBLIC_IP=$(detect_public_ip)
+DETECTED_PRIVATE_IP=$(detect_private_ip)
+DETECTED_WG_ADVERTISE_IP="$DETECTED_PUBLIC_IP"
+
+if [ -n "$DETECTED_PRIVATE_IP" ] && [ -n "$DETECTED_PUBLIC_IP" ] && [ "$DETECTED_PRIVATE_IP" != "$DETECTED_PUBLIC_IP" ]; then
+  echo "  Public IP  : $DETECTED_PUBLIC_IP"
+  echo "  Private IP : $DETECTED_PRIVATE_IP"
+  echo ""
+  echo "  ⚠️  NAT detected. WireGuard will advertise: $DETECTED_PRIVATE_IP"
+  printf "  Confirm? [Y/n]: "
+  read -r nat_confirm
+  if [ -z "$nat_confirm" ] || [ "$nat_confirm" = "y" ] || [ "$nat_confirm" = "Y" ]; then
+    DETECTED_WG_ADVERTISE_IP="$DETECTED_PRIVATE_IP"
+    echo "  ✓ Using private IP: $DETECTED_WG_ADVERTISE_IP"
+  else
+    echo "  ✓ Using public IP: $DETECTED_WG_ADVERTISE_IP"
+  fi
+else
+  echo "  Public IP  : ${DETECTED_PUBLIC_IP:-unknown}"
+  echo "  No NAT detected"
+fi
+
+echo "=== WRITE .env ==="
+
+# Load existing .env values if file exists
+existing_email=""
+existing_domain=""
+existing_tls="false"
+existing_resource_mount_root=""
+existing_resource_mount_root_app=""
+existing_jwt_secret=""
+existing_data_encryption_key=""
+existing_postgres_password=""
+existing_database_url=""
+existing_wg_advertise_ip=""
+existing_node_join_secret=""
+if [ -f "$ENV_FILE" ]; then
+  existing_email=$(grep "^ACME_EMAIL=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
+  existing_domain=$(grep "^APP_DOMAIN=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
+  existing_tls=$(grep "^APP_TLS_ENABLED=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2 || echo "false")
+  existing_resource_mount_root=$(grep "^RESOURCE_MOUNT_ROOT=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
+  existing_resource_mount_root_app=$(grep "^RESOURCE_MOUNT_ROOT_APP=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
+  existing_jwt_secret=$(grep "^JWT_SECRET=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
+  existing_data_encryption_key=$(grep "^DATA_ENCRYPTION_KEY=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
+  existing_postgres_password=$(grep "^POSTGRES_PASSWORD=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
+  existing_database_url=$(grep "^DATABASE_URL=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
+  existing_wg_advertise_ip=$(grep "^WG_ADVERTISE_IP=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
+  existing_node_join_secret=$(grep "^NODE_JOIN_SECRET=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
+fi
+
+# Resolve final values (args override existing)
+final_email="${EMAIL:-$existing_email}"
+final_domain="${DOMAIN:-$existing_domain}"
+final_tls="${TLS_ENABLED:-$existing_tls}"
+final_resource_mount_root="${existing_resource_mount_root:-$RESOURCE_MOUNT_ROOT}"
+final_resource_mount_root_app="${existing_resource_mount_root_app:-$RESOURCE_MOUNT_ROOT_APP}"
+final_jwt_secret="${existing_jwt_secret:-$(generate_hex 32)}"
+final_data_encryption_key="${existing_data_encryption_key:-$(generate_alnum_32)}"
+final_postgres_password="${existing_postgres_password:-$(generate_hex 24)}"
+default_database_url="postgres://postgres:${final_postgres_password}@db:5432/tango?sslmode=disable"
+final_database_url="${existing_database_url:-$default_database_url}"
+# Preserve existing WG_ADVERTISE_IP; only use detected if not previously set
+final_wg_advertise_ip="${existing_wg_advertise_ip:-$DETECTED_WG_ADVERTISE_IP}"
+# NODE_JOIN_SECRET: generate once, never overwrite
+final_node_join_secret="${existing_node_join_secret:-$(generate_hex 32)}"
+
+# --https requires --email (for Let's Encrypt)
+if [ "$final_tls" = "true" ] && [ -z "$final_email" ]; then
+  echo "Warning: --https requires --email for Let's Encrypt. HTTPS disabled."
+  final_tls="false"
+fi
+
+cat > "$ENV_FILE" <<EOF
+APP_DOMAIN=$final_domain
+APP_TLS_ENABLED=$final_tls
+RESOURCE_MOUNT_ROOT=$final_resource_mount_root
+RESOURCE_MOUNT_ROOT_APP=$final_resource_mount_root_app
+POSTGRES_PASSWORD=$final_postgres_password
+DATABASE_URL=$final_database_url
+JWT_SECRET=$final_jwt_secret
+DATA_ENCRYPTION_KEY=$final_data_encryption_key
+WG_ADVERTISE_IP=$final_wg_advertise_ip
+NODE_JOIN_SECRET=$final_node_join_secret
+EOF
+
+sudo chown root:root "$ENV_FILE"
+sudo chmod 600 "$ENV_FILE"
+
+echo "Let's Encrypt : ${final_email:-DISABLED}"
+echo "App domain    : ${final_domain:-not set (configure in Settings)}"
+echo "App HTTPS     : $final_tls"
+echo "Mount root    : $final_resource_mount_root"
+echo "Database URL  : generated/preserved in $ENV_FILE"
+echo "DB password   : generated/preserved in $ENV_FILE"
+echo "JWT secret    : generated/preserved in $ENV_FILE"
+echo "Data key      : generated/preserved in $ENV_FILE"
+echo "WG advertise  : $final_wg_advertise_ip"
+echo "Join secret   : generated/preserved in $ENV_FILE"
+
+echo "=== TRAEFIK STATIC CONFIG ==="
+write_traefik_static_config "$final_email"
+echo "Traefik static config : $TRAEFIK_STATIC_CONFIG (acme=${final_email:-disabled})"
+
+install_cli
+write_cli_config
+
+echo "=== PULL IMAGES ==="
+# Dev: pull ttl.sh image for app, rest pulled normally
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" pull
+
+echo "=== START SERVICES ==="
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d
+echo "Services started."
+
+echo "=== WAIT FOR API HEALTH ==="
+attempt=0
+max=20
+until curl -sf "$HEALTH_URL" >/dev/null 2>&1 || [ $attempt -ge $max ]; do
+  attempt=$((attempt+1))
+  echo "  waiting... ($attempt/$max)"
+  sleep 3
+done
+if curl -sf "$HEALTH_URL" >/dev/null 2>&1; then
+  echo "  ✓ API is healthy"
+else
+  echo "  ⚠ API did not respond after ${max} attempts — check: docker compose -f $COMPOSE_FILE logs app"
+fi
+
+echo ""
+echo "=================================="
+echo " $APP_NAME (dev) is installed!"
+echo " Compose file   : $COMPOSE_FILE"
+echo " CLI binary     : $CLI_BINARY_TARGET"
+echo " ENV file       : $ENV_FILE"
+echo " Resource root  : $final_resource_mount_root"
+echo " App URL        : http://<server-ip>:8080"
+echo ""
+echo " Next steps:"
+echo "   Generate join token : curl -s -c /tmp/c.txt http://localhost:8080/api/auth/login -d '{...}' && curl -b /tmp/c.txt http://localhost:8080/api/nodes/token"
+echo "   Worker join         : tango node join --server http://<this-ip>:8080 --token <TOKEN>"
+echo "=================================="

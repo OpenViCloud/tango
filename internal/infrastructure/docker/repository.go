@@ -384,6 +384,11 @@ func (r *Repository) CreateContainer(ctx context.Context, input domain.CreateCon
 		},
 	}
 
+	// Apply restart policy unless AutoRemove is set (Docker disallows both).
+	if !input.AutoRemove {
+		hostCfg.RestartPolicy = container.RestartPolicy{Name: "unless-stopped"}
+	}
+
 	resp, err := r.client.ContainerCreate(ctx, cfg, hostCfg, nil, nil, input.Name)
 	if err != nil {
 		return domain.Container{}, classifyDockerError("create container", err)

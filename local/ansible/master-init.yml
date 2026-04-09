@@ -7,9 +7,8 @@
       ansible.builtin.shell: |
         kubeadm init \
           --apiserver-advertise-address={{ node_ip }} \
-          --apiserver-cert-extra-sans={{ ansible_host }} \
           --node-name={{ inventory_hostname }} \
-          --pod-network-cidr={{ pod_cidr | default('192.168.0.0/16') }}
+          --pod-network-cidr=192.168.0.0/16
       args:
         creates: /etc/kubernetes/admin.conf
 
@@ -42,15 +41,3 @@
         content: |
           {{ join_command.stdout }} --node-name {{ groups['workers'][0] }}
         mode: "0755"
-
-    - name: Patch kubeconfig server to use public IP
-      ansible.builtin.replace:
-        path: /etc/kubernetes/admin.conf
-        regexp: 'https://[0-9.]+:6443'
-        replace: 'https://{{ ansible_host }}:6443'
-
-    - name: Fetch kubeconfig to controller
-      ansible.builtin.fetch:
-        src: /etc/kubernetes/admin.conf
-        dest: "{{ kubeconfig_dest | default('/tmp/tango-kubeconfig.yaml') }}"
-        flat: yes

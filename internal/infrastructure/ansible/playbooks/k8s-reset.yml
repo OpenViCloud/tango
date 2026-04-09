@@ -1,0 +1,52 @@
+---
+- name: Reset Kubernetes on all nodes
+  hosts: k8s
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Reset kubeadm
+      command: kubeadm reset -f
+      ignore_errors: true
+
+    - name: Stop kubelet
+      systemd:
+        name: kubelet
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove CNI network config
+      file:
+        path: /etc/cni/net.d
+        state: absent
+      ignore_errors: true
+
+    - name: Remove Kubernetes config dir
+      file:
+        path: /etc/kubernetes
+        state: absent
+      ignore_errors: true
+
+    - name: Remove .kube dir (root)
+      file:
+        path: /root/.kube
+        state: absent
+      ignore_errors: true
+
+    - name: Remove CNI binaries
+      file:
+        path: /opt/cni
+        state: absent
+      ignore_errors: true
+
+    - name: Flush iptables rules
+      shell: |
+        iptables -F
+        iptables -t nat -F
+        iptables -t mangle -F
+        iptables -X
+      ignore_errors: true
+
+    - name: Remove IP-in-IP tunnel interfaces
+      shell: ip link delete tunl0 2>/dev/null; ip link delete flannel.1 2>/dev/null; ip link delete cni0 2>/dev/null; true
+      ignore_errors: true

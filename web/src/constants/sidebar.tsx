@@ -43,6 +43,16 @@ export const appSidebarSections: SidebarSection[] = [
         url: "/swarm",
         icon: appIcons.swarm,
       },
+      {
+        titleKey: "sidebar.servers",
+        url: "/servers",
+        icon: appIcons.servers,
+      },
+      {
+        titleKey: "sidebar.clusters",
+        url: "/clusters",
+        icon: appIcons.clusters,
+      },
     ],
   },
   {

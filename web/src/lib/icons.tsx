@@ -20,6 +20,7 @@ import {
   PlusIcon,
   RefreshCwIcon,
   SearchIcon,
+  ServerIcon,
   Settings2Icon,
   SquareIcon,
   SquarePenIcon,
@@ -53,6 +54,8 @@ export const appIcons = {
   users: createSolarIcon(UsersGroupRounded),
   roles: createSolarIcon(ShieldCheck),
   swarm: NetworkIcon,
+  servers: ServerIcon,
+  clusters: NetworkIcon,
 } as const
 
 export const actionIcons = {

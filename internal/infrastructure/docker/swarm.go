@@ -92,6 +92,7 @@ func (s *SwarmRepository) CreateService(ctx context.Context, input domain.Create
 		replicas = 1
 	}
 
+	restartCondition := swarm.RestartPolicyConditionAny
 	spec := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{Name: input.Name},
 		TaskTemplate: swarm.TaskSpec{
@@ -99,6 +100,9 @@ func (s *SwarmRepository) CreateService(ctx context.Context, input domain.Create
 				Image:  input.Image,
 				Env:    envSlice,
 				Mounts: mounts,
+			},
+			RestartPolicy: &swarm.RestartPolicy{
+				Condition: restartCondition,
 			},
 		},
 		Networks: netAttachments,

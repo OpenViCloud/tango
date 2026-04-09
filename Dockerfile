@@ -25,7 +25,9 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w
 FROM moby/buildkit:latest AS buildkit-bins
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates tzdata git
+RUN apk --no-cache add ca-certificates tzdata git openssh-client sshpass \
+    python3 py3-pip && \
+    pip install --no-cache-dir --break-system-packages ansible
 COPY --from=buildkit-bins /usr/bin/buildctl /usr/local/bin/buildctl
 WORKDIR /app
 COPY --from=go-builder /app/tango .

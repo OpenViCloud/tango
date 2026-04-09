@@ -116,14 +116,20 @@ func (r *ClusterRepository) ListAll(ctx context.Context) ([]*domain.Cluster, err
 }
 
 func (r *ClusterRepository) Delete(ctx context.Context, id string) error {
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.ClusterRecord{})
-	if result.Error != nil {
-		return fmt.Errorf("delete cluster: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return domain.ErrClusterNotFound
-	}
-	return nil
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Delete child nodes first to avoid FK constraint violation
+		if err := tx.Where("cluster_id = ?", id).Delete(&models.ClusterNodeRecord{}).Error; err != nil {
+			return fmt.Errorf("delete cluster nodes: %w", err)
+		}
+		result := tx.Delete(&models.ClusterRecord{ID: id})
+		if result.Error != nil {
+			return fmt.Errorf("delete cluster: %w", result.Error)
+		}
+		if result.RowsAffected == 0 {
+			return domain.ErrClusterNotFound
+		}
+		return nil
+	})
 }
 
 func toClusterRecord(c *domain.Cluster) models.ClusterRecord {

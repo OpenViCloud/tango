@@ -29,19 +29,37 @@ type Phase struct {
 
 // LogBroadcaster fans out log lines to multiple subscribers.
 type LogBroadcaster struct {
-	mu   sync.Mutex
-	subs map[string][]chan []byte
+	mu     sync.Mutex
+	subs   map[string][]chan []byte
+	active map[string]bool // clusters currently provisioning
 }
 
 func NewLogBroadcaster() *LogBroadcaster {
-	return &LogBroadcaster{subs: make(map[string][]chan []byte)}
+	return &LogBroadcaster{
+		subs:   make(map[string][]chan []byte),
+		active: make(map[string]bool),
+	}
+}
+
+// markActive marks a cluster as actively provisioning.
+func (b *LogBroadcaster) markActive(clusterID string) {
+	b.mu.Lock()
+	b.active[clusterID] = true
+	b.mu.Unlock()
 }
 
 // Subscribe returns a channel that receives log lines for a cluster ID.
+// If provisioning is already done, the returned channel is immediately closed.
 // The caller must call the returned unsubscribe func when done.
 func (b *LogBroadcaster) Subscribe(clusterID string) (<-chan []byte, func()) {
 	ch := make(chan []byte, 512)
 	b.mu.Lock()
+	if !b.active[clusterID] {
+		// Provisioning not active — close immediately so WS handler exits cleanly
+		close(ch)
+		b.mu.Unlock()
+		return ch, func() {}
+	}
 	b.subs[clusterID] = append(b.subs[clusterID], ch)
 	b.mu.Unlock()
 
@@ -80,6 +98,7 @@ func (b *LogBroadcaster) closeAll(clusterID string) {
 		close(ch)
 	}
 	delete(b.subs, clusterID)
+	delete(b.active, clusterID)
 }
 
 // inventoryData holds template input for inventory.ini.
@@ -141,6 +160,7 @@ func (r *Runner) ProvisionCluster(
 	clusterRepo domain.ClusterRepository,
 	onKubeconfig func(ctx context.Context, kubeconfigPath string),
 ) {
+	r.broadcaster.markActive(clusterID)
 	go func() {
 		ctx := context.Background()
 		defer r.broadcaster.closeAll(clusterID)
@@ -195,17 +215,22 @@ func (r *Runner) ProvisionCluster(
 			if port == 0 {
 				port = 22
 			}
-			entry := nodeEntry{
-				Name:   sanitizeName(s.Name),
-				IP:     s.PublicIP,
-				NodeIP: s.NodeIP(),
-				User:   user,
-				Port:   port,
-			}
 			if n.Role == domain.ClusterNodeRoleMaster {
-				masters = append(masters, entry)
+				masters = append(masters, nodeEntry{
+					Name:   fmt.Sprintf("k8s-master-%d", len(masters)+1),
+					IP:     s.PublicIP,
+					NodeIP: s.NodeIP(),
+					User:   user,
+					Port:   port,
+				})
 			} else {
-				workers = append(workers, entry)
+				workers = append(workers, nodeEntry{
+					Name:   fmt.Sprintf("k8s-worker-%d", len(workers)+1),
+					IP:     s.PublicIP,
+					NodeIP: s.NodeIP(),
+					User:   user,
+					Port:   port,
+				})
 			}
 		}
 
@@ -264,7 +289,32 @@ func (r *Runner) ProvisionCluster(
 	}()
 }
 
+// ansiblePlaybookBin returns the full path to ansible-playbook.
+func ansiblePlaybookBin() (string, error) {
+	if p, err := exec.LookPath("ansible-playbook"); err == nil {
+		return p, nil
+	}
+	// Common install locations not always in PATH (e.g. pip install --user, brew)
+	candidates := []string{
+		"/usr/local/bin/ansible-playbook",
+		"/usr/bin/ansible-playbook",
+		"/opt/homebrew/bin/ansible-playbook",
+		os.ExpandEnv("$HOME/.local/bin/ansible-playbook"),
+	}
+	for _, c := range candidates {
+		if _, err := os.Stat(c); err == nil {
+			return c, nil
+		}
+	}
+	return "", fmt.Errorf("ansible-playbook not found; install it with: pip install ansible")
+}
+
 func (r *Runner) runPlaybook(clusterID, workDir, invPath string, phase Phase) error {
+	bin, err := ansiblePlaybookBin()
+	if err != nil {
+		return err
+	}
+
 	args := []string{
 		"-i", invPath,
 		filepath.Join(workDir, phase.Playbook),
@@ -273,9 +323,16 @@ func (r *Runner) runPlaybook(clusterID, workDir, invPath string, phase Phase) er
 		args = append(args, "-e", fmt.Sprintf("%s=%s", k, v))
 	}
 
-	cmd := exec.Command("ansible-playbook", args...)
+	cmd := exec.Command(bin, args...)
 	cmd.Dir = workDir
-	cmd.Env = append(os.Environ(), "ANSIBLE_FORCE_COLOR=true")
+	// Inherit parent PATH so ansible can find python, ssh, etc.
+	env := os.Environ()
+	// Ensure PATH includes common pip/brew locations
+	env = append(env,
+		"ANSIBLE_FORCE_COLOR=true",
+		"PATH="+os.Getenv("PATH")+":/usr/local/bin:/opt/homebrew/bin:"+os.ExpandEnv("$HOME/.local/bin"),
+	)
+	cmd.Env = env
 
 	pr, pw := io.Pipe()
 	cmd.Stdout = pw
@@ -291,10 +348,10 @@ func (r *Runner) runPlaybook(clusterID, workDir, invPath string, phase Phase) er
 		}
 	}()
 
-	err := cmd.Run()
+	runErr := cmd.Run()
 	pw.Close()
 	wg.Wait()
-	return err
+	return runErr
 }
 
 func (r *Runner) log(clusterID, line string) {
@@ -347,6 +404,109 @@ func sanitizeName(name string) string {
 	return string(result)
 }
 
+// PurgeCluster runs k8s-reset.yml on all cluster nodes asynchronously (best-effort).
+// onDone is called with the error (nil on success) when the playbook completes.
+func (r *Runner) PurgeCluster(
+	clusterID string,
+	servers []*domain.Server,
+	nodes []domain.ClusterNode,
+	onDone func(err error),
+) {
+	go func() {
+		ctx := context.Background()
+
+		privPEM, err := r.sshManager.PrivateKeyPEM(ctx)
+		if err != nil {
+			if onDone != nil {
+				onDone(fmt.Errorf("get SSH key: %w", err))
+			}
+			return
+		}
+
+		workDir, err := os.MkdirTemp("", "tango-purge-"+clusterID+"-*")
+		if err != nil {
+			if onDone != nil {
+				onDone(fmt.Errorf("create workdir: %w", err))
+			}
+			return
+		}
+		defer os.RemoveAll(workDir)
+
+		sshKeyPath := filepath.Join(workDir, "id_ed25519")
+		if err := os.WriteFile(sshKeyPath, privPEM, 0600); err != nil {
+			if onDone != nil {
+				onDone(fmt.Errorf("write SSH key: %w", err))
+			}
+			return
+		}
+
+		if err := extractPlaybooks(workDir); err != nil {
+			if onDone != nil {
+				onDone(fmt.Errorf("extract playbooks: %w", err))
+			}
+			return
+		}
+
+		serverMap := make(map[string]*domain.Server, len(servers))
+		for _, s := range servers {
+			serverMap[s.ID] = s
+		}
+
+		var masters, workers []nodeEntry
+		for _, n := range nodes {
+			s, ok := serverMap[n.ServerID]
+			if !ok {
+				continue
+			}
+			user := s.SSHUser
+			if user == "" {
+				user = "root"
+			}
+			port := s.SSHPort
+			if port == 0 {
+				port = 22
+			}
+			if n.Role == domain.ClusterNodeRoleMaster {
+				masters = append(masters, nodeEntry{
+					Name:   fmt.Sprintf("k8s-master-%d", len(masters)+1),
+					IP:     s.PublicIP,
+					NodeIP: s.NodeIP(),
+					User:   user,
+					Port:   port,
+				})
+			} else {
+				workers = append(workers, nodeEntry{
+					Name:   fmt.Sprintf("k8s-worker-%d", len(workers)+1),
+					IP:     s.PublicIP,
+					NodeIP: s.NodeIP(),
+					User:   user,
+					Port:   port,
+				})
+			}
+		}
+
+		invPath := filepath.Join(workDir, "inventory.ini")
+		if err := renderInventory(inventoryData{
+			Masters: masters,
+			Workers: workers,
+			SSHKey:  sshKeyPath,
+		}, invPath); err != nil {
+			if onDone != nil {
+				onDone(fmt.Errorf("render inventory: %w", err))
+			}
+			return
+		}
+
+		err = r.runPlaybook(clusterID, workDir, invPath, Phase{
+			Name:     "Resetting Kubernetes",
+			Playbook: "k8s-reset.yml",
+		})
+		if onDone != nil {
+			onDone(err)
+		}
+	}()
+}
+
 // PreviewInventory returns the inventory.ini content for a given cluster config (for UI preview).
 func (r *Runner) PreviewInventory(servers []*domain.Server, nodes []domain.ClusterNode) (string, error) {
 	return RenderInventoryPreview(servers, nodes)
@@ -373,17 +533,22 @@ func RenderInventoryPreview(servers []*domain.Server, nodes []domain.ClusterNode
 		if port == 0 {
 			port = 22
 		}
-		entry := nodeEntry{
-			Name:   sanitizeName(s.Name),
-			IP:     s.PublicIP,
-			NodeIP: s.NodeIP(),
-			User:   user,
-			Port:   port,
-		}
 		if n.Role == domain.ClusterNodeRoleMaster {
-			masters = append(masters, entry)
+			masters = append(masters, nodeEntry{
+				Name:   fmt.Sprintf("k8s-master-%d", len(masters)+1),
+				IP:     s.PublicIP,
+				NodeIP: s.NodeIP(),
+				User:   user,
+				Port:   port,
+			})
 		} else {
-			workers = append(workers, entry)
+			workers = append(workers, nodeEntry{
+				Name:   fmt.Sprintf("k8s-worker-%d", len(workers)+1),
+				IP:     s.PublicIP,
+				NodeIP: s.NodeIP(),
+				User:   user,
+				Port:   port,
+			})
 		}
 	}
 

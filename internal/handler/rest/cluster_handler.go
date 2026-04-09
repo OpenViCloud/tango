@@ -23,6 +23,12 @@ type AnsibleRunner interface {
 		clusterRepo domain.ClusterRepository,
 		onKubeconfig func(ctx context.Context, kubeconfigPath string),
 	)
+	PurgeCluster(
+		clusterID string,
+		servers []*domain.Server,
+		nodes []domain.ClusterNode,
+		onDone func(err error),
+	)
 	PreviewInventory(servers []*domain.Server, nodes []domain.ClusterNode) (string, error)
 }
 
@@ -288,12 +294,39 @@ func (h *ClusterHandler) DownloadKubeconfig(c *gin.Context) {
 
 func (h *ClusterHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
+	purge := c.Query("purge") == "true"
+
+	if purge {
+		cluster, err := h.clusterRepo.GetByID(c.Request.Context(), id)
+		if err != nil {
+			if err == domain.ErrClusterNotFound {
+				_ = c.Error(response.NotFound("cluster not found"))
+				return
+			}
+			_ = c.Error(response.Internal("get cluster failed"))
+			return
+		}
+
+		// Collect servers for all nodes (skip missing ones — best effort)
+		servers := make([]*domain.Server, 0, len(cluster.Nodes))
+		for _, n := range cluster.Nodes {
+			srv, err := h.serverRepo.GetByID(c.Request.Context(), n.ServerID)
+			if err != nil {
+				continue
+			}
+			servers = append(servers, srv)
+		}
+
+		// Fire-and-forget: uninstall K8s on all nodes in background
+		h.runner.PurgeCluster(id, servers, cluster.Nodes, nil)
+	}
+
 	if err := h.clusterRepo.Delete(c.Request.Context(), id); err != nil {
 		if err == domain.ErrClusterNotFound {
 			_ = c.Error(response.NotFound("cluster not found"))
 			return
 		}
-		_ = c.Error(response.Internal("delete cluster failed"))
+		_ = c.Error(response.InternalCause(err, "delete cluster failed"))
 		return
 	}
 	response.NoContent(c)

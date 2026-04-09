@@ -19,16 +19,20 @@ import { Route as AuthAccountRouteImport } from './routes/_auth/account'
 import { Route as AuthUsersIndexRouteImport } from './routes/_auth/users/index'
 import { Route as AuthSwarmIndexRouteImport } from './routes/_auth/swarm/index'
 import { Route as AuthSourcesIndexRouteImport } from './routes/_auth/sources/index'
+import { Route as AuthServersIndexRouteImport } from './routes/_auth/servers/index'
 import { Route as AuthRolesIndexRouteImport } from './routes/_auth/roles/index'
 import { Route as AuthProjectsIndexRouteImport } from './routes/_auth/projects/index'
 import { Route as AuthDomainsIndexRouteImport } from './routes/_auth/domains/index'
 import { Route as AuthDatabasesIndexRouteImport } from './routes/_auth/databases/index'
 import { Route as AuthContainersIndexRouteImport } from './routes/_auth/containers/index'
+import { Route as AuthClustersIndexRouteImport } from './routes/_auth/clusters/index'
 import { Route as AuthChannelsIndexRouteImport } from './routes/_auth/channels/index'
 import { Route as AuthBuildsIndexRouteImport } from './routes/_auth/builds/index'
 import { Route as AuthUsersCreateRouteImport } from './routes/_auth/users/create'
 import { Route as AuthResourcesResourceIdRouteImport } from './routes/_auth/resources/$resourceId'
 import { Route as AuthProjectsProjectIdRouteImport } from './routes/_auth/projects/$projectId'
+import { Route as AuthClustersNewRouteImport } from './routes/_auth/clusters/new'
+import { Route as AuthClustersClusterIdRouteImport } from './routes/_auth/clusters/$clusterId'
 import { Route as AuthChannelsCreateRouteImport } from './routes/_auth/channels/create'
 import { Route as AuthUsersUserIdEditRouteImport } from './routes/_auth/users/$userId/edit'
 import { Route as AuthChannelsChannelIdEditRouteImport } from './routes/_auth/channels/$channelId/edit'
@@ -82,6 +86,11 @@ const AuthSourcesIndexRoute = AuthSourcesIndexRouteImport.update({
   path: '/sources/',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthServersIndexRoute = AuthServersIndexRouteImport.update({
+  id: '/servers/',
+  path: '/servers/',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthRolesIndexRoute = AuthRolesIndexRouteImport.update({
   id: '/roles/',
   path: '/roles/',
@@ -107,6 +116,11 @@ const AuthContainersIndexRoute = AuthContainersIndexRouteImport.update({
   path: '/containers/',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthClustersIndexRoute = AuthClustersIndexRouteImport.update({
+  id: '/clusters/',
+  path: '/clusters/',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthChannelsIndexRoute = AuthChannelsIndexRouteImport.update({
   id: '/channels/',
   path: '/channels/',
@@ -130,6 +144,16 @@ const AuthResourcesResourceIdRoute = AuthResourcesResourceIdRouteImport.update({
 const AuthProjectsProjectIdRoute = AuthProjectsProjectIdRouteImport.update({
   id: '/projects/$projectId',
   path: '/projects/$projectId',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthClustersNewRoute = AuthClustersNewRouteImport.update({
+  id: '/clusters/new',
+  path: '/clusters/new',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthClustersClusterIdRoute = AuthClustersClusterIdRouteImport.update({
+  id: '/clusters/$clusterId',
+  path: '/clusters/$clusterId',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthChannelsCreateRoute = AuthChannelsCreateRouteImport.update({
@@ -162,16 +186,20 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthSettingsRoute
   '/login': typeof GuestLoginRoute
   '/channels/create': typeof AuthChannelsCreateRoute
+  '/clusters/$clusterId': typeof AuthClustersClusterIdRoute
+  '/clusters/new': typeof AuthClustersNewRoute
   '/projects/$projectId': typeof AuthProjectsProjectIdRoute
   '/resources/$resourceId': typeof AuthResourcesResourceIdRoute
   '/users/create': typeof AuthUsersCreateRoute
   '/builds/': typeof AuthBuildsIndexRoute
   '/channels/': typeof AuthChannelsIndexRoute
+  '/clusters/': typeof AuthClustersIndexRoute
   '/containers/': typeof AuthContainersIndexRoute
   '/databases/': typeof AuthDatabasesIndexRoute
   '/domains/': typeof AuthDomainsIndexRoute
   '/projects/': typeof AuthProjectsIndexRoute
   '/roles/': typeof AuthRolesIndexRoute
+  '/servers/': typeof AuthServersIndexRoute
   '/sources/': typeof AuthSourcesIndexRoute
   '/swarm/': typeof AuthSwarmIndexRoute
   '/users/': typeof AuthUsersIndexRoute
@@ -186,16 +214,20 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthSettingsRoute
   '/login': typeof GuestLoginRoute
   '/channels/create': typeof AuthChannelsCreateRoute
+  '/clusters/$clusterId': typeof AuthClustersClusterIdRoute
+  '/clusters/new': typeof AuthClustersNewRoute
   '/projects/$projectId': typeof AuthProjectsProjectIdRoute
   '/resources/$resourceId': typeof AuthResourcesResourceIdRoute
   '/users/create': typeof AuthUsersCreateRoute
   '/builds': typeof AuthBuildsIndexRoute
   '/channels': typeof AuthChannelsIndexRoute
+  '/clusters': typeof AuthClustersIndexRoute
   '/containers': typeof AuthContainersIndexRoute
   '/databases': typeof AuthDatabasesIndexRoute
   '/domains': typeof AuthDomainsIndexRoute
   '/projects': typeof AuthProjectsIndexRoute
   '/roles': typeof AuthRolesIndexRoute
+  '/servers': typeof AuthServersIndexRoute
   '/sources': typeof AuthSourcesIndexRoute
   '/swarm': typeof AuthSwarmIndexRoute
   '/users': typeof AuthUsersIndexRoute
@@ -213,16 +245,20 @@ export interface FileRoutesById {
   '/_auth/settings': typeof AuthSettingsRoute
   '/_guest/login': typeof GuestLoginRoute
   '/_auth/channels/create': typeof AuthChannelsCreateRoute
+  '/_auth/clusters/$clusterId': typeof AuthClustersClusterIdRoute
+  '/_auth/clusters/new': typeof AuthClustersNewRoute
   '/_auth/projects/$projectId': typeof AuthProjectsProjectIdRoute
   '/_auth/resources/$resourceId': typeof AuthResourcesResourceIdRoute
   '/_auth/users/create': typeof AuthUsersCreateRoute
   '/_auth/builds/': typeof AuthBuildsIndexRoute
   '/_auth/channels/': typeof AuthChannelsIndexRoute
+  '/_auth/clusters/': typeof AuthClustersIndexRoute
   '/_auth/containers/': typeof AuthContainersIndexRoute
   '/_auth/databases/': typeof AuthDatabasesIndexRoute
   '/_auth/domains/': typeof AuthDomainsIndexRoute
   '/_auth/projects/': typeof AuthProjectsIndexRoute
   '/_auth/roles/': typeof AuthRolesIndexRoute
+  '/_auth/servers/': typeof AuthServersIndexRoute
   '/_auth/sources/': typeof AuthSourcesIndexRoute
   '/_auth/swarm/': typeof AuthSwarmIndexRoute
   '/_auth/users/': typeof AuthUsersIndexRoute
@@ -239,16 +275,20 @@ export interface FileRouteTypes {
     | '/settings'
     | '/login'
     | '/channels/create'
+    | '/clusters/$clusterId'
+    | '/clusters/new'
     | '/projects/$projectId'
     | '/resources/$resourceId'
     | '/users/create'
     | '/builds/'
     | '/channels/'
+    | '/clusters/'
     | '/containers/'
     | '/databases/'
     | '/domains/'
     | '/projects/'
     | '/roles/'
+    | '/servers/'
     | '/sources/'
     | '/swarm/'
     | '/users/'
@@ -263,16 +303,20 @@ export interface FileRouteTypes {
     | '/settings'
     | '/login'
     | '/channels/create'
+    | '/clusters/$clusterId'
+    | '/clusters/new'
     | '/projects/$projectId'
     | '/resources/$resourceId'
     | '/users/create'
     | '/builds'
     | '/channels'
+    | '/clusters'
     | '/containers'
     | '/databases'
     | '/domains'
     | '/projects'
     | '/roles'
+    | '/servers'
     | '/sources'
     | '/swarm'
     | '/users'
@@ -289,16 +333,20 @@ export interface FileRouteTypes {
     | '/_auth/settings'
     | '/_guest/login'
     | '/_auth/channels/create'
+    | '/_auth/clusters/$clusterId'
+    | '/_auth/clusters/new'
     | '/_auth/projects/$projectId'
     | '/_auth/resources/$resourceId'
     | '/_auth/users/create'
     | '/_auth/builds/'
     | '/_auth/channels/'
+    | '/_auth/clusters/'
     | '/_auth/containers/'
     | '/_auth/databases/'
     | '/_auth/domains/'
     | '/_auth/projects/'
     | '/_auth/roles/'
+    | '/_auth/servers/'
     | '/_auth/sources/'
     | '/_auth/swarm/'
     | '/_auth/users/'
@@ -385,6 +433,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSourcesIndexRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/servers/': {
+      id: '/_auth/servers/'
+      path: '/servers'
+      fullPath: '/servers/'
+      preLoaderRoute: typeof AuthServersIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/roles/': {
       id: '/_auth/roles/'
       path: '/roles'
@@ -420,6 +475,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthContainersIndexRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/clusters/': {
+      id: '/_auth/clusters/'
+      path: '/clusters'
+      fullPath: '/clusters/'
+      preLoaderRoute: typeof AuthClustersIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/channels/': {
       id: '/_auth/channels/'
       path: '/channels'
@@ -453,6 +515,20 @@ declare module '@tanstack/react-router' {
       path: '/projects/$projectId'
       fullPath: '/projects/$projectId'
       preLoaderRoute: typeof AuthProjectsProjectIdRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/clusters/new': {
+      id: '/_auth/clusters/new'
+      path: '/clusters/new'
+      fullPath: '/clusters/new'
+      preLoaderRoute: typeof AuthClustersNewRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/clusters/$clusterId': {
+      id: '/_auth/clusters/$clusterId'
+      path: '/clusters/$clusterId'
+      fullPath: '/clusters/$clusterId'
+      preLoaderRoute: typeof AuthClustersClusterIdRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/channels/create': {
@@ -491,16 +567,20 @@ interface AuthRouteChildren {
   AuthDashboardRoute: typeof AuthDashboardRoute
   AuthSettingsRoute: typeof AuthSettingsRoute
   AuthChannelsCreateRoute: typeof AuthChannelsCreateRoute
+  AuthClustersClusterIdRoute: typeof AuthClustersClusterIdRoute
+  AuthClustersNewRoute: typeof AuthClustersNewRoute
   AuthProjectsProjectIdRoute: typeof AuthProjectsProjectIdRoute
   AuthResourcesResourceIdRoute: typeof AuthResourcesResourceIdRoute
   AuthUsersCreateRoute: typeof AuthUsersCreateRoute
   AuthBuildsIndexRoute: typeof AuthBuildsIndexRoute
   AuthChannelsIndexRoute: typeof AuthChannelsIndexRoute
+  AuthClustersIndexRoute: typeof AuthClustersIndexRoute
   AuthContainersIndexRoute: typeof AuthContainersIndexRoute
   AuthDatabasesIndexRoute: typeof AuthDatabasesIndexRoute
   AuthDomainsIndexRoute: typeof AuthDomainsIndexRoute
   AuthProjectsIndexRoute: typeof AuthProjectsIndexRoute
   AuthRolesIndexRoute: typeof AuthRolesIndexRoute
+  AuthServersIndexRoute: typeof AuthServersIndexRoute
   AuthSourcesIndexRoute: typeof AuthSourcesIndexRoute
   AuthSwarmIndexRoute: typeof AuthSwarmIndexRoute
   AuthUsersIndexRoute: typeof AuthUsersIndexRoute
@@ -514,16 +594,20 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthDashboardRoute: AuthDashboardRoute,
   AuthSettingsRoute: AuthSettingsRoute,
   AuthChannelsCreateRoute: AuthChannelsCreateRoute,
+  AuthClustersClusterIdRoute: AuthClustersClusterIdRoute,
+  AuthClustersNewRoute: AuthClustersNewRoute,
   AuthProjectsProjectIdRoute: AuthProjectsProjectIdRoute,
   AuthResourcesResourceIdRoute: AuthResourcesResourceIdRoute,
   AuthUsersCreateRoute: AuthUsersCreateRoute,
   AuthBuildsIndexRoute: AuthBuildsIndexRoute,
   AuthChannelsIndexRoute: AuthChannelsIndexRoute,
+  AuthClustersIndexRoute: AuthClustersIndexRoute,
   AuthContainersIndexRoute: AuthContainersIndexRoute,
   AuthDatabasesIndexRoute: AuthDatabasesIndexRoute,
   AuthDomainsIndexRoute: AuthDomainsIndexRoute,
   AuthProjectsIndexRoute: AuthProjectsIndexRoute,
   AuthRolesIndexRoute: AuthRolesIndexRoute,
+  AuthServersIndexRoute: AuthServersIndexRoute,
   AuthSourcesIndexRoute: AuthSourcesIndexRoute,
   AuthSwarmIndexRoute: AuthSwarmIndexRoute,
   AuthUsersIndexRoute: AuthUsersIndexRoute,

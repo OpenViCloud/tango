@@ -29,6 +29,8 @@ import (
 	infrahttp "tango/internal/infrastructure/server"
 	infraservices "tango/internal/infrastructure/services"
 	infratraefik "tango/internal/infrastructure/traefik"
+	infraansible "tango/internal/infrastructure/ansible"
+	infrassh "tango/internal/infrastructure/ssh"
 	"tango/internal/messaging/inbound"
 
 	docs "tango/docs"
@@ -128,6 +130,9 @@ func main() {
 	resourceDomainRepo := persistrepo.NewResourceDomainRepository(db)
 	baseDomainRepo := persistrepo.NewBaseDomainRepository(db)
 
+	serverRepo := persistrepo.NewServerRepository(db)
+	clusterRepo := persistrepo.NewClusterRepository(db)
+
 	bootstrapPlatformConfig(ctx, cfg, platformConfigRepo, logger)
 
 	if err := auth.SeedDemoData(ctx, userRepo, roleRepo); err != nil {
@@ -141,6 +146,14 @@ func main() {
 	if err != nil {
 		fatal(logger, "init cipher failed", err)
 	}
+
+	sshManager := infrassh.NewManager(platformConfigRepo, cipherService)
+	if err := sshManager.EnsureKeypair(ctx); err != nil {
+		logger.Warn("ensure SSH keypair failed", "err", err)
+	}
+
+	logBroadcaster := infraansible.NewLogBroadcaster()
+	ansibleRunner := infraansible.NewRunner(logBroadcaster, sshManager)
 
 	channelService := infraservices.NewChannelService(channelRepo, cipherService)
 	roleService := infraservices.NewRoleService(roleRepo)
@@ -362,6 +375,10 @@ func main() {
 	if dockerRepo != nil {
 		resourceTerminalWSHandler = rest.NewResourceTerminalWSHandler(dockerRepo, getResourceHandler)
 	}
+	serverHandler := rest.NewServerHandler(serverRepo, sshManager)
+	clusterHandler := rest.NewClusterHandler(clusterRepo, serverRepo, ansibleRunner, cipherService)
+	clusterWSHandler := rest.NewClusterWSHandler(logBroadcaster)
+
 	settingsHandler := rest.NewSettingsHandler(platformConfigRepo, traefikFileProvider, traefikRestarter)
 	baseDomainHandler := rest.NewBaseDomainHandler(baseDomainRepo, resourceDomainRepo, resourceRepo)
 	backupHandler := rest.NewBackupHandler(
@@ -462,6 +479,9 @@ func main() {
 			projectHandler.Register(protected)
 			backupHandler.Register(protected)
 			sourceConnectionHandler.RegisterProtected(protected)
+			serverHandler.Register(protected)
+			clusterHandler.Register(protected)
+			clusterWSHandler.Register(protected)
 			settingsHandler.RegisterRoutes(protected)
 			baseDomainHandler.RegisterRoutes(protected)
 			rest.NewSwarmHandler(swarmRepo).RegisterRoutes(protected)

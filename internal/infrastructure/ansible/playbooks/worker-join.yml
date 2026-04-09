@@ -1,0 +1,21 @@
+---
+- name: Join workers to Kubernetes cluster
+  hosts: workers
+  become: yes
+  tasks:
+    - name: Read join command from master
+      ansible.builtin.slurp:
+        src: /tmp/kubeadm_join_cmd.sh
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      register: join_cmd_file
+
+    - name: Write join command to worker
+      ansible.builtin.copy:
+        dest: /tmp/kubeadm_join_cmd.sh
+        content: "{{ join_cmd_file.content | b64decode }}"
+        mode: "0755"
+
+    - name: Join worker to cluster
+      ansible.builtin.shell: sh /tmp/kubeadm_join_cmd.sh
+      args:
+        creates: /etc/kubernetes/kubelet.conf

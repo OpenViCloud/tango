@@ -23,5 +23,8 @@ func All() []any {
 		&PlatformConfigRecord{},
 		&ResourceDomainRecord{},
 		&BaseDomainRecord{},
+		&ServerRecord{},
+		&ClusterRecord{},
+		&ClusterNodeRecord{},
 	}
 }

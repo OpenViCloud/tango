@@ -1,0 +1,49 @@
+---
+- name: Initialize Kubernetes control plane
+  hosts: control_plane
+  become: yes
+  tasks:
+    - name: Initialize cluster on master
+      ansible.builtin.shell: |
+        kubeadm init \
+          --apiserver-advertise-address={{ node_ip }} \
+          --node-name={{ inventory_hostname }} \
+          --pod-network-cidr={{ pod_cidr | default('192.168.0.0/16') }}
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Create .kube directory for root
+      ansible.builtin.file:
+        path: /root/.kube
+        state: directory
+        mode: "0700"
+
+    - name: Copy admin.conf to root kube config
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /root/.kube/config
+        remote_src: yes
+        mode: "0600"
+
+    - name: Install Calico network plugin
+      ansible.builtin.shell: |
+        kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/calico.yaml
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: Generate join command
+      ansible.builtin.shell: kubeadm token create --print-join-command
+      register: join_command
+
+    - name: Save join command on master
+      ansible.builtin.copy:
+        dest: /tmp/kubeadm_join_cmd.sh
+        content: |
+          {{ join_command.stdout }} --node-name {{ groups['workers'][0] }}
+        mode: "0755"
+
+    - name: Fetch kubeconfig to controller
+      ansible.builtin.fetch:
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ kubeconfig_dest | default('/tmp/tango-kubeconfig.yaml') }}"
+        flat: yes

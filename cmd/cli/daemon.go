@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"syscall"
 	"time"
 
 	"tango/internal/orchestrator"
@@ -48,7 +47,7 @@ var daemonStartCmd = &cobra.Command{
 		proc := exec.Command(exe, "daemon", "run")
 		proc.Stdout = logFile
 		proc.Stderr = logFile
-		proc.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+		detachProcess(proc)
 
 		if err := proc.Start(); err != nil {
 			fmt.Println("Failed to start daemon:", err)
@@ -86,7 +85,7 @@ var daemonStopCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if err := process.Signal(syscall.SIGTERM); err != nil {
+		if err := stopProcess(process); err != nil {
 			fmt.Println("Failed to send signal:", err)
 			os.Exit(1)
 		}

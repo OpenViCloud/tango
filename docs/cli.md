@@ -29,7 +29,7 @@ The API and all workloads run inside Docker. The CLI runs outside Docker as the 
 go install tango/cmd/cli@latest
 
 # Option 2: Download binary from GitHub Releases
-curl -fsSL https://github.com/time-groups/tango-cloud/releases/download/cli-latest/tango-linux-amd64 -o tango
+curl -fsSL https://github.com/time-groups/tango-cloud/releases/latest/download/tango-linux-amd64 -o tango
 chmod +x tango
 sudo install -m 0755 tango /usr/local/bin/tango
 
@@ -37,7 +37,14 @@ sudo install -m 0755 tango /usr/local/bin/tango
 # brew install tango-cloud/tap/tango
 ```
 
-For ARM Linux hosts, replace `tango-linux-amd64` with `tango-linux-arm64`.
+Available release assets:
+
+- Linux x64: `tango-linux-amd64`
+- Linux ARM64: `tango-linux-arm64`
+- macOS Intel: `tango-darwin-amd64`
+- macOS Apple Silicon: `tango-darwin-arm64`
+- Windows x64: `tango-windows-amd64.exe`
+- Windows ARM64: `tango-windows-arm64.exe`
 
 ## File Layout
 
@@ -326,7 +333,7 @@ tango uninstall --purge   # also remove Docker resources and /opt/tango runtime 
 `tango daemon install` creates a system service so the daemon starts automatically on boot and restarts on failure:
 
 - **macOS**: `~/Library/LaunchAgents/com.tango.daemon.plist` (launchd)
-- **Linux**: `~/.config/systemd/user/tango-daemon.service` (systemd user unit)
+- **Linux**: `/etc/systemd/system/tango-daemon.service` (systemd, requires root)
 
 ## Driver Architecture
 

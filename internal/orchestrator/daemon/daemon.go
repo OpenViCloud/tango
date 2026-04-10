@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"tango/internal/orchestrator"
@@ -58,7 +57,8 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	// Handle signals
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+	registerShutdownSignals(sigCh)
+	defer signal.Stop(sigCh)
 	go func() {
 		sig := <-sigCh
 		d.logger.Info("received signal, shutting down", "signal", sig)
@@ -348,8 +348,7 @@ func IsRunning() bool {
 	if err != nil {
 		return false
 	}
-	// On Unix, FindProcess always succeeds. Send signal 0 to check if alive.
-	if process.Signal(syscall.Signal(0)) != nil {
+	if !processExists(process) {
 		return false
 	}
 

@@ -1,5 +1,5 @@
 # ── Stage 1: Build FE (runs once, platform-independent) ──
-FROM --platform=$BUILDPLATFORM node:20-alpine AS fe-builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS fe-builder
 RUN npm install -g pnpm
 WORKDIR /web
 COPY web/package.json web/pnpm-lock.yaml* ./

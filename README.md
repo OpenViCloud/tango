@@ -47,7 +47,7 @@ tango-cloud/
 ### Requirements
 
 - Go 1.22+
-- Node.js 20+ and pnpm
+- Node.js 24+ and pnpm
 - Docker + Docker Compose
 
 ### Local Development

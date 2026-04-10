@@ -1250,6 +1250,7 @@ func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
 		return
 	}
 
+	isLocalHost := isLocalDevHost(req.Host)
 	d, err := h.domainRepo.Create(c.Request.Context(), domain.ResourceDomain{
 		ID:         uuid.NewString(),
 		ResourceID: resourceID,
@@ -1257,7 +1258,7 @@ func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
 		TargetPort: req.TargetPort,
 		TLSEnabled: req.TLSEnabled,
 		Type:       domain.ResourceDomainTypeCustom,
-		Verified:   false,
+		Verified:   isLocalHost,
 	})
 	if err != nil {
 		if errors.Is(err, domain.ErrResourceDomainConflict) {
@@ -1266,6 +1267,13 @@ func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
 		}
 		_ = c.Error(response.InternalCause(err, ""))
 		return
+	}
+	if isLocalHost {
+		_ = h.domainRepo.SetVerified(c.Request.Context(), d.ID, time.Now())
+		h.refreshTraefikConfig(c.Request.Context(), d.ResourceID)
+		d.Verified = true
+		now := time.Now()
+		d.VerifiedAt = &now
 	}
 	c.JSON(http.StatusCreated, toResourceDomainResponse(d))
 }
@@ -1345,6 +1353,17 @@ func (h *ProjectHandler) VerifyResourceDomain(c *gin.Context) {
 		return
 	}
 
+	if isLocalDevHost(d.Host) {
+		now := time.Now()
+		_ = h.domainRepo.SetVerified(ctx, d.ID, now)
+		h.refreshTraefikConfig(ctx, d.ResourceID)
+		c.JSON(http.StatusOK, gin.H{
+			"verified":     true,
+			"resolved_ips": []string{"127.0.0.1", "::1"},
+		})
+		return
+	}
+
 	// Resolve DNS and compare with configured public IP
 	addrs, err := net.LookupHost(d.Host)
 	if err != nil || len(addrs) == 0 {
@@ -1374,6 +1393,17 @@ func (h *ProjectHandler) VerifyResourceDomain(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"verified": verified, "resolved_ips": addrs})
+}
+
+func isLocalDevHost(host string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" {
+		return false
+	}
+	return host == "localhost" ||
+		host == "127.0.0.1" ||
+		host == "::1" ||
+		strings.HasSuffix(host, ".localhost")
 }
 
 // refreshTraefikConfig rewrites the Traefik file config for a resource using its

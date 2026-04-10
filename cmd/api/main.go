@@ -21,6 +21,7 @@ import (
 	"tango/internal/domain"
 	"tango/internal/handler/rest"
 	response "tango/internal/handler/rest/response"
+	infraansible "tango/internal/infrastructure/ansible"
 	infacache "tango/internal/infrastructure/cache"
 	infradb "tango/internal/infrastructure/db"
 	infradocker "tango/internal/infrastructure/docker"
@@ -28,9 +29,8 @@ import (
 	persistrepo "tango/internal/infrastructure/persistence/repositories"
 	infrahttp "tango/internal/infrastructure/server"
 	infraservices "tango/internal/infrastructure/services"
-	infratraefik "tango/internal/infrastructure/traefik"
-	infraansible "tango/internal/infrastructure/ansible"
 	infrassh "tango/internal/infrastructure/ssh"
+	infratraefik "tango/internal/infrastructure/traefik"
 	"tango/internal/messaging/inbound"
 
 	docs "tango/docs"
@@ -301,6 +301,11 @@ func main() {
 	deleteEnvironmentHandler := command.NewDeleteEnvironmentHandler(environmentRepo)
 	forkEnvironmentHandler := command.NewForkEnvironmentHandler(environmentRepo, resourceRepo)
 	createResourceHandler := command.NewCreateResourceHandler(resourceRepo, dockerRepo, resourceDomainRepo, platformConfigRepo)
+	resourceStackTemplates, err := query.LoadResourceStackTemplates()
+	if err != nil {
+		fatal(logger, "load resource stack templates failed", err)
+	}
+	createResourceStackHandler := command.NewCreateResourceStackHandler(createResourceHandler, resourceStackTemplates)
 	createResourceFromGitHandler := command.NewCreateResourceFromGitHandler(resourceRepo, buildJobRepo, buildSvc, resolveSourceConnectionTokenHandler)
 	startBuildForResourceHandler := command.NewStartBuildForResourceHandler(resourceRepo, buildJobRepo, buildSvc, resolveSourceConnectionTokenHandler)
 	updateResourceHandler := command.NewUpdateResourceHandler(resourceRepo, platformConfigRepo)
@@ -334,6 +339,10 @@ func main() {
 	listResourceTemplatesHandler, err := query.NewListResourceTemplatesHandler()
 	if err != nil {
 		fatal(logger, "load resource templates failed", err)
+	}
+	listResourceStackTemplatesHandler, err := query.NewListResourceStackTemplatesHandler()
+	if err != nil {
+		fatal(logger, "load resource stack templates failed", err)
 	}
 	listEnvResourcesHandler := query.NewListEnvironmentResourcesHandler(resourceRepo)
 	getResourceHandler := query.NewGetResourceHandler(resourceRepo)
@@ -417,6 +426,7 @@ func main() {
 		deleteEnvironmentHandler,
 		forkEnvironmentHandler,
 		createResourceHandler,
+		createResourceStackHandler,
 		createResourceFromGitHandler,
 		startBuildForResourceHandler,
 		updateResourceHandler,
@@ -428,6 +438,7 @@ func main() {
 		listProjectsHandler,
 		getProjectHandler,
 		listResourceTemplatesHandler,
+		listResourceStackTemplatesHandler,
 		listEnvResourcesHandler,
 		getResourceHandler,
 		runtimeReconciler,

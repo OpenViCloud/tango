@@ -1,0 +1,108 @@
+[
+  {
+    "id": "airflow",
+    "name": "Apache Airflow",
+    "icon_url": "/images/resource-templates/airflow.png",
+    "image": "apache/airflow",
+    "description": "Workflow orchestration stack split into dedicated Airflow runtime services.",
+    "color": "#017CEE",
+    "abbr": "AF",
+    "tags": ["2.10.5", "2.9.3", "latest"],
+    "shared_env": [
+      {
+        "key": "AIRFLOW__CORE__EXECUTOR",
+        "value": "CeleryExecutor"
+      },
+      {
+        "key": "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+        "value": "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+      },
+      {
+        "key": "AIRFLOW__CELERY__BROKER_URL",
+        "value": "redis://redis:6379/0"
+      },
+      {
+        "key": "AIRFLOW__CORE__FERNET_KEY",
+        "value": "change-me"
+      },
+      {
+        "key": "_AIRFLOW_WWW_USER_USERNAME",
+        "value": "admin"
+      },
+      {
+        "key": "_AIRFLOW_WWW_USER_PASSWORD",
+        "value": "admin"
+      }
+    ],
+    "components": [
+      {
+        "id": "webserver",
+        "name": "Webserver",
+        "description": "Exposes the Airflow UI and bootstraps the metadata database.",
+        "type": "service",
+        "required": true,
+        "default_enabled": true,
+        "ports": [{ "host": "8080", "container": "8080" }],
+        "env": [
+          { "key": "AIRFLOW__WEBSERVER__EXPOSE_CONFIG", "value": "false" },
+          { "key": "_AIRFLOW_DB_MIGRATE", "value": "true" },
+          { "key": "_AIRFLOW_WWW_USER_CREATE", "value": "true" }
+        ],
+        "volumes": [
+          "airflow/dags:/opt/airflow/dags",
+          "airflow/logs:/opt/airflow/logs",
+          "airflow/plugins:/opt/airflow/plugins"
+        ],
+        "cmd": ["webserver"]
+      },
+      {
+        "id": "scheduler",
+        "name": "Scheduler",
+        "description": "Parses DAGs and schedules runnable tasks.",
+        "type": "service",
+        "required": true,
+        "default_enabled": true,
+        "ports": [],
+        "env": [],
+        "volumes": [
+          "airflow/dags:/opt/airflow/dags",
+          "airflow/logs:/opt/airflow/logs",
+          "airflow/plugins:/opt/airflow/plugins"
+        ],
+        "cmd": ["scheduler"]
+      },
+      {
+        "id": "worker",
+        "name": "Worker",
+        "description": "Executes tasks when CeleryExecutor is enabled.",
+        "type": "service",
+        "required": false,
+        "default_enabled": true,
+        "ports": [],
+        "env": [],
+        "volumes": [
+          "airflow/dags:/opt/airflow/dags",
+          "airflow/logs:/opt/airflow/logs",
+          "airflow/plugins:/opt/airflow/plugins"
+        ],
+        "cmd": ["celery", "worker"]
+      },
+      {
+        "id": "triggerer",
+        "name": "Triggerer",
+        "description": "Runs deferrable task triggers and async sensors.",
+        "type": "service",
+        "required": false,
+        "default_enabled": true,
+        "ports": [],
+        "env": [],
+        "volumes": [
+          "airflow/dags:/opt/airflow/dags",
+          "airflow/logs:/opt/airflow/logs",
+          "airflow/plugins:/opt/airflow/plugins"
+        ],
+        "cmd": ["triggerer"]
+      }
+    ]
+  }
+]

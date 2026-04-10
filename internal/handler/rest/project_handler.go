@@ -29,6 +29,7 @@ type ProjectHandler struct {
 	deleteEnvironment     *command.DeleteEnvironmentHandler
 	forkEnvironment       *command.ForkEnvironmentHandler
 	createResource        *command.CreateResourceHandler
+	createResourceStack   *command.CreateResourceStackHandler
 	createResourceFromGit *command.CreateResourceFromGitHandler
 	startBuildForResource *command.StartBuildForResourceHandler
 	updateResource        *command.UpdateResourceHandler
@@ -40,6 +41,7 @@ type ProjectHandler struct {
 	listProjects          *query.ListProjectsHandler
 	getProject            *query.GetProjectHandler
 	listResourceTemplates *query.ListResourceTemplatesHandler
+	listResourceStacks    *query.ListResourceStackTemplatesHandler
 	listEnvResources      *query.ListEnvironmentResourcesHandler
 	getResource           *query.GetResourceHandler
 	runtimeReconciler     appservices.ResourceRuntimeReconciler
@@ -59,6 +61,7 @@ func NewProjectHandler(
 	deleteEnvironment *command.DeleteEnvironmentHandler,
 	forkEnvironment *command.ForkEnvironmentHandler,
 	createResource *command.CreateResourceHandler,
+	createResourceStack *command.CreateResourceStackHandler,
 	createResourceFromGit *command.CreateResourceFromGitHandler,
 	startBuildForResource *command.StartBuildForResourceHandler,
 	updateResource *command.UpdateResourceHandler,
@@ -70,6 +73,7 @@ func NewProjectHandler(
 	listProjects *query.ListProjectsHandler,
 	getProject *query.GetProjectHandler,
 	listResourceTemplates *query.ListResourceTemplatesHandler,
+	listResourceStacks *query.ListResourceStackTemplatesHandler,
 	listEnvResources *query.ListEnvironmentResourcesHandler,
 	getResource *query.GetResourceHandler,
 	runtimeReconciler appservices.ResourceRuntimeReconciler,
@@ -88,6 +92,7 @@ func NewProjectHandler(
 		deleteEnvironment:     deleteEnvironment,
 		forkEnvironment:       forkEnvironment,
 		createResource:        createResource,
+		createResourceStack:   createResourceStack,
 		createResourceFromGit: createResourceFromGit,
 		startBuildForResource: startBuildForResource,
 		updateResource:        updateResource,
@@ -99,6 +104,7 @@ func NewProjectHandler(
 		listProjects:          listProjects,
 		getProject:            getProject,
 		listResourceTemplates: listResourceTemplates,
+		listResourceStacks:    listResourceStacks,
 		listEnvResources:      listEnvResources,
 		getResource:           getResource,
 		runtimeReconciler:     runtimeReconciler,
@@ -118,11 +124,13 @@ func (h *ProjectHandler) Register(rg *gin.RouterGroup) {
 	rg.PUT("/projects/:id", h.UpdateProject)
 	rg.DELETE("/projects/:id", h.DeleteProject)
 	rg.GET("/resource-templates", h.ListResourceTemplates)
+	rg.GET("/resource-stack-templates", h.ListResourceStackTemplates)
 	rg.POST("/projects/:id/environments", h.CreateEnvironment)
 	rg.POST("/environments/:envId/fork", h.ForkEnvironment)
 	rg.DELETE("/environments/:envId", h.DeleteEnvironment)
 	rg.GET("/environments/:envId/resources", h.ListResources)
 	rg.POST("/environments/:envId/resources", h.CreateResource)
+	rg.POST("/environments/:envId/resource-stacks", h.CreateResourceStack)
 	rg.POST("/environments/:envId/resources/from-git", h.CreateResourceFromGit)
 	rg.POST("/resources/:resourceId/build", h.StartBuildForResource)
 	rg.GET("/resources/:resourceId", h.GetResource)
@@ -199,6 +207,16 @@ type createResourceFromGitRequest struct {
 	ImageTag     string                        `json:"image_tag"     binding:"required"`
 	Ports        []createResourcePortRequest   `json:"ports"`
 	EnvVars      []createResourceEnvVarRequest `json:"env_vars"`
+}
+
+type createResourceStackRequest struct {
+	TemplateID        string                        `json:"template_id" binding:"required"`
+	NamePrefix        string                        `json:"name_prefix"`
+	Image             string                        `json:"image"`
+	Tag               string                        `json:"tag"`
+	NodeID            *string                       `json:"node_id"`
+	EnabledComponents []string                      `json:"enabled_components"`
+	SharedEnvVars     []createResourceEnvVarRequest `json:"shared_env_vars"`
 }
 
 type updateResourceRequest struct {
@@ -281,6 +299,37 @@ type resourceTemplateResponse struct {
 	Type        string                           `json:"type"`
 	Volumes     []string                         `json:"volumes,omitempty"`
 	Cmd         []string                         `json:"cmd,omitempty"`
+}
+
+type resourceStackTemplateComponentResponse struct {
+	ID             string                           `json:"id"`
+	Name           string                           `json:"name"`
+	Description    string                           `json:"description"`
+	Type           string                           `json:"type"`
+	Required       bool                             `json:"required"`
+	DefaultEnabled bool                             `json:"default_enabled"`
+	Ports          []resourceTemplatePortResponse   `json:"ports"`
+	Env            []resourceTemplateEnvVarResponse `json:"env"`
+	Volumes        []string                         `json:"volumes,omitempty"`
+	Cmd            []string                         `json:"cmd,omitempty"`
+}
+
+type resourceStackTemplateResponse struct {
+	ID          string                                   `json:"id"`
+	Name        string                                   `json:"name"`
+	IconURL     string                                   `json:"icon_url"`
+	Image       string                                   `json:"image"`
+	Description string                                   `json:"description"`
+	Color       string                                   `json:"color"`
+	Abbr        string                                   `json:"abbr"`
+	Tags        []string                                 `json:"tags"`
+	SharedEnv   []resourceTemplateEnvVarResponse         `json:"shared_env"`
+	Components  []resourceStackTemplateComponentResponse `json:"components"`
+}
+
+type resourceStackCreateResponse struct {
+	TemplateID string             `json:"template_id"`
+	Resources  []resourceResponse `json:"resources"`
 }
 
 type resourceRunResponse struct {
@@ -549,6 +598,68 @@ func (h *ProjectHandler) ListResources(c *gin.Context) {
 	response.OK(c, resp)
 }
 
+func (h *ProjectHandler) ListResourceStackTemplates(c *gin.Context) {
+	templates, err := h.listResourceStacks.Handle(c.Request.Context(), query.ListResourceStackTemplatesQuery{})
+	if err != nil {
+		_ = c.Error(response.InternalCause(err, ""))
+		return
+	}
+	resp := make([]resourceStackTemplateResponse, 0, len(templates))
+	for _, template := range templates {
+		sharedEnv := make([]resourceTemplateEnvVarResponse, 0, len(template.SharedEnv))
+		for _, entry := range template.SharedEnv {
+			sharedEnv = append(sharedEnv, resourceTemplateEnvVarResponse{
+				Key:   entry.Key,
+				Value: entry.Value,
+			})
+		}
+
+		components := make([]resourceStackTemplateComponentResponse, 0, len(template.Components))
+		for _, component := range template.Components {
+			ports := make([]resourceTemplatePortResponse, 0, len(component.Ports))
+			for _, port := range component.Ports {
+				ports = append(ports, resourceTemplatePortResponse{
+					Host:      port.Host,
+					Container: port.Container,
+				})
+			}
+			env := make([]resourceTemplateEnvVarResponse, 0, len(component.Env))
+			for _, entry := range component.Env {
+				env = append(env, resourceTemplateEnvVarResponse{
+					Key:   entry.Key,
+					Value: entry.Value,
+				})
+			}
+			components = append(components, resourceStackTemplateComponentResponse{
+				ID:             component.ID,
+				Name:           component.Name,
+				Description:    component.Description,
+				Type:           component.Type,
+				Required:       component.Required,
+				DefaultEnabled: component.DefaultEnabled,
+				Ports:          ports,
+				Env:            env,
+				Volumes:        component.Volumes,
+				Cmd:            component.Cmd,
+			})
+		}
+
+		resp = append(resp, resourceStackTemplateResponse{
+			ID:          template.ID,
+			Name:        template.Name,
+			IconURL:     template.IconURL,
+			Image:       template.Image,
+			Description: template.Description,
+			Color:       template.Color,
+			Abbr:        template.Abbr,
+			Tags:        template.Tags,
+			SharedEnv:   sharedEnv,
+			Components:  components,
+		})
+	}
+	response.OK(c, resp)
+}
+
 func (h *ProjectHandler) CreateResource(c *gin.Context) {
 	var req createResourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -595,6 +706,49 @@ func (h *ProjectHandler) CreateResource(c *gin.Context) {
 		return
 	}
 	response.Created(c, toResourceResponse(resource))
+}
+
+func (h *ProjectHandler) CreateResourceStack(c *gin.Context) {
+	var req createResourceStackRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(response.Validation(nil, err.Error()))
+		return
+	}
+
+	userID := c.GetString("user_id")
+	sharedEnvVars := make([]command.ResourceEnvVarInput, 0, len(req.SharedEnvVars))
+	for _, entry := range req.SharedEnvVars {
+		sharedEnvVars = append(sharedEnvVars, command.ResourceEnvVarInput{
+			Key:      entry.Key,
+			Value:    entry.Value,
+			IsSecret: entry.IsSecret,
+		})
+	}
+
+	result, err := h.createResourceStack.Handle(c.Request.Context(), command.CreateResourceStackCommand{
+		TemplateID:        req.TemplateID,
+		NamePrefix:        req.NamePrefix,
+		Image:             req.Image,
+		Tag:               req.Tag,
+		EnvironmentID:     c.Param("envId"),
+		CreatedBy:         userID,
+		NodeID:            req.NodeID,
+		EnabledComponents: req.EnabledComponents,
+		SharedEnvVars:     sharedEnvVars,
+	})
+	if err != nil {
+		writeProjectError(c, err)
+		return
+	}
+
+	resources := make([]resourceResponse, 0, len(result.Resources))
+	for _, resource := range result.Resources {
+		resources = append(resources, toResourceResponse(resource))
+	}
+	response.Created(c, resourceStackCreateResponse{
+		TemplateID: result.TemplateID,
+		Resources:  resources,
+	})
 }
 
 func (h *ProjectHandler) CreateResourceFromGit(c *gin.Context) {

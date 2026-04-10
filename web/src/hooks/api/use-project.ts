@@ -7,7 +7,10 @@ import type {
   CreateResourceModel,
   UpdateResourceModel,
 } from "@/@types/models"
-import type { CreateResourceFromGitModel } from "@/@types/models/project"
+import type {
+  CreateResourceFromGitModel,
+  CreateResourceStackModel,
+} from "@/@types/models/project"
 import { projectService } from "@/services/api/project-service"
 
 export const PROJECT_QUERY_KEYS = {
@@ -39,6 +42,12 @@ export const useGetResourceTemplates = () =>
   useQuery({
     queryKey: PROJECT_QUERY_KEYS.resourceTemplates(),
     queryFn: () => projectService.listResourceTemplates(),
+  })
+
+export const useGetResourceStackTemplates = () =>
+  useQuery({
+    queryKey: ["resourceStackTemplates"],
+    queryFn: () => projectService.listResourceStackTemplates(),
   })
 
 export const useCreateProject = () => {
@@ -143,6 +152,17 @@ export const useCreateResource = (environmentId: string, projectId: string) => {
   return useMutation({
     mutationFn: (payload: CreateResourceModel) =>
       projectService.createResource(environmentId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PROJECT_QUERY_KEYS.project(projectId) })
+    },
+  })
+}
+
+export const useCreateResourceStack = (environmentId: string, projectId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: CreateResourceStackModel) =>
+      projectService.createResourceStack(environmentId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROJECT_QUERY_KEYS.project(projectId) })
     },

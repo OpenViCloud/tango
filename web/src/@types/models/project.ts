@@ -102,12 +102,60 @@ export const resourceTemplateSchema = z.object({
   cmd: z.array(z.string()).optional(),
 })
 
+export const resourceStackTemplateComponentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  type: z.string(),
+  required: z.boolean(),
+  default_enabled: z.boolean(),
+  ports: z.array(
+    z.object({
+      host: z.string(),
+      container: z.string(),
+    })
+  ),
+  env: z.array(
+    z.object({
+      key: z.string(),
+      value: z.string(),
+    })
+  ),
+  volumes: z.array(z.string()).optional(),
+  cmd: z.array(z.string()).optional(),
+})
+
+export const resourceStackTemplateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  icon_url: z.string(),
+  image: z.string(),
+  description: z.string(),
+  color: z.string(),
+  abbr: z.string(),
+  tags: z.array(z.string()),
+  shared_env: z.array(
+    z.object({
+      key: z.string(),
+      value: z.string(),
+    })
+  ),
+  components: z.array(resourceStackTemplateComponentSchema),
+})
+
+export const resourceStackCreateResultSchema = z.object({
+  template_id: z.string(),
+  resources: z.array(resourceSchema),
+})
+
 export type ProjectModel = z.infer<typeof projectSchema>
 export type EnvironmentModel = z.infer<typeof environmentSchema>
 export type ResourceModel = z.infer<typeof resourceSchema>
 export type ResourcePortModel = z.infer<typeof resourcePortSchema>
 export type ResourceEnvVarModel = z.infer<typeof resourceEnvVarSchema>
 export type ResourceTemplateModel = z.infer<typeof resourceTemplateSchema>
+export type ResourceStackTemplateModel = z.infer<typeof resourceStackTemplateSchema>
+export type ResourceStackCreateResultModel = z.infer<typeof resourceStackCreateResultSchema>
 export type ResourceRunModel = z.infer<typeof resourceRunSchema>
 export type ResourceLogsModel = z.infer<typeof resourceLogsSchema>
 
@@ -141,6 +189,24 @@ export const createResourceSchema = z.object({
     )
     .optional(),
   env_vars: z
+    .array(
+      z.object({
+        key: z.string(),
+        value: z.string(),
+        is_secret: z.boolean().default(false),
+      })
+    )
+    .optional(),
+})
+
+export const createResourceStackSchema = z.object({
+  template_id: z.string().min(1, "validation.required"),
+  name_prefix: z.string().min(1, "validation.required"),
+  image: z.string().optional(),
+  tag: z.string().optional(),
+  node_id: z.string().nullable().optional(),
+  enabled_components: z.array(z.string()).optional(),
+  shared_env_vars: z
     .array(
       z.object({
         key: z.string(),
@@ -199,6 +265,7 @@ export type CreateResourceFromGitModel = z.infer<typeof createResourceFromGitSch
 export type CreateProjectModel = z.infer<typeof createProjectSchema>
 export type CreateEnvironmentModel = z.infer<typeof createEnvironmentSchema>
 export type CreateResourceModel = z.infer<typeof createResourceSchema>
+export type CreateResourceStackModel = z.infer<typeof createResourceStackSchema>
 export type UpdateProjectModel = z.infer<typeof updateProjectSchema>
 export type UpdateResourceModel = z.infer<typeof updateResourceSchema>
 

@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -25,8 +26,10 @@ import {
   PROJECT_QUERY_KEYS,
   useCheckRepo,
   useCreateResource,
+  useCreateResourceStack,
   useCreateResourceFromGit,
   useGetResourceTemplates,
+  useGetResourceStackTemplates,
 } from "@/hooks/api/use-project"
 import {
   useGetSourceBranches,
@@ -34,7 +37,7 @@ import {
   useGetSourceRepos,
 } from "@/hooks/api/use-source"
 import { useSwarmNodes, useSwarmStatus } from "@/hooks/api/use-swarm"
-import type { ResourceTemplateModel } from "@/@types/models"
+import type { ResourceStackTemplateModel, ResourceTemplateModel } from "@/@types/models"
 import { useNavigate } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -42,9 +45,10 @@ import { useQueryClient } from "@tanstack/react-query"
 
 type EnvEntry = { key: string; value: string }
 type PortEntry = { host: string; container: string }
-type FlowType = "preset" | "docker" | "git" | "git-private"
-type Phase = "picker" | "config" | "git" | "submitting"
+type FlowType = "preset" | "docker" | "git" | "git-private" | "stack"
+type Phase = "picker" | "config" | "git" | "stack" | "submitting"
 type ResourcePreset = ResourceTemplateModel
+type ResourceStack = ResourceStackTemplateModel
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -100,6 +104,63 @@ function PresetCard({
       </div>
       <p className="line-clamp-2 text-xs text-muted-foreground">
         {preset.description}
+      </p>
+    </button>
+  )
+}
+
+function StackVisual({
+  stack,
+  className = "h-10 w-10 rounded-lg",
+}: {
+  stack: ResourceStack
+  className?: string
+}) {
+  if (stack.icon_url) {
+    return (
+      <img
+        src={stack.icon_url}
+        className={`${className} shrink-0 object-contain`}
+        alt={`${stack.name} logo`}
+      />
+    )
+  }
+
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center text-xs font-bold text-white ${className}`}
+      style={{ backgroundColor: stack.color }}
+    >
+      {stack.abbr}
+    </div>
+  )
+}
+
+function StackCard({
+  stack,
+  onClick,
+}: {
+  stack: ResourceStack
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col gap-2 rounded-xl border bg-card p-3 text-left transition-shadow hover:border-primary/40 hover:shadow-sm"
+    >
+      <div className="flex items-center gap-2">
+        <StackVisual stack={stack} />
+
+        <div>
+          <p className="text-sm font-semibold">{stack.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {stack.components.length} services
+          </p>
+        </div>
+      </div>
+      <p className="line-clamp-2 text-xs text-muted-foreground">
+        {stack.description}
       </p>
     </button>
   )
@@ -254,6 +315,7 @@ export function ResourceCreationPage({
   const queryClient = useQueryClient()
 
   const createMutation = useCreateResource(envId, projectId)
+  const createStackMutation = useCreateResourceStack(envId, projectId)
   const createFromGitMutation = useCreateResourceFromGit(envId, projectId)
   const checkRepoMutation = useCheckRepo()
   const {
@@ -261,6 +323,11 @@ export function ResourceCreationPage({
     isLoading: resourceTemplatesLoading,
     isError: resourceTemplatesError,
   } = useGetResourceTemplates()
+  const {
+    data: resourceStackTemplates = [],
+    isLoading: resourceStackTemplatesLoading,
+    isError: resourceStackTemplatesError,
+  } = useGetResourceStackTemplates()
   const { data: sourceConnections } = useGetSourceList()
 
   // ── Phase & flow ──────────────────────────────────────────────────────────
@@ -270,6 +337,7 @@ export function ResourceCreationPage({
   const [selectedPreset, setSelectedPreset] = useState<ResourcePreset | null>(
     null
   )
+  const [selectedStack, setSelectedStack] = useState<ResourceStack | null>(null)
 
   // ── Swarm ─────────────────────────────────────────────────────────────────
   const { data: swarmStatus } = useSwarmStatus()
@@ -288,6 +356,15 @@ export function ResourceCreationPage({
   const [envEntries, setEnvEntries] = useState<EnvEntry[]>([
     { key: "", value: "" },
   ])
+  const [stackNamePrefix, setStackNamePrefix] = useState("")
+  const [stackImage, setStackImage] = useState("")
+  const [stackTag, setStackTag] = useState("latest")
+  const [stackEnvEntries, setStackEnvEntries] = useState<EnvEntry[]>([
+    { key: "", value: "" },
+  ])
+  const [enabledStackComponents, setEnabledStackComponents] = useState<string[]>(
+    []
+  )
 
   // ── Git form ──────────────────────────────────────────────────────────────
   const [gitUrl, setGitUrl] = useState("")
@@ -327,6 +404,13 @@ export function ResourceCreationPage({
       p.id.toLowerCase().includes(q) ||
       p.image.toLowerCase().includes(q)
   )
+  const filteredStacks = resourceStackTemplates.filter(
+    (stack) =>
+      !q ||
+      stack.name.toLowerCase().includes(q) ||
+      stack.id.toLowerCase().includes(q) ||
+      stack.image.toLowerCase().includes(q)
+  )
   const dbPresets = filtered.filter((p) => p.type === "db")
   const servicePresets = filtered.filter(
     (p) => p.type === "service" || p.type === "app"
@@ -351,6 +435,7 @@ export function ResourceCreationPage({
   }
 
   const selectPreset = (preset: ResourcePreset) => {
+    setSelectedStack(null)
     setSelectedPreset(preset)
     setFlowType("preset")
     setTag(preset.tags[0] ?? "latest")
@@ -368,6 +453,7 @@ export function ResourceCreationPage({
   }
 
   const selectDockerImage = () => {
+    setSelectedStack(null)
     setSelectedPreset(null)
     setFlowType("docker")
     setTag("latest")
@@ -379,6 +465,7 @@ export function ResourceCreationPage({
   }
 
   const selectPrivateRepository = () => {
+    setSelectedStack(null)
     setSelectedPreset(null)
     setFlowType("git-private")
     setGitUrl("")
@@ -393,6 +480,26 @@ export function ResourceCreationPage({
     setGitEnv([{ key: "", value: "" }])
     setRepoChecked(null)
     setPhase("git")
+  }
+
+  const selectStack = (stack: ResourceStack) => {
+    setSelectedPreset(null)
+    setSelectedStack(stack)
+    setFlowType("stack")
+    setStackNamePrefix(stack.id)
+    setStackImage(stack.image)
+    setStackTag(stack.tags[0] ?? "latest")
+    setStackEnvEntries(
+      stack.shared_env.length > 0
+        ? stack.shared_env.map((entry) => ({ key: entry.key, value: entry.value }))
+        : [{ key: "", value: "" }]
+    )
+    setEnabledStackComponents(
+      stack.components
+        .filter((component) => component.required || component.default_enabled)
+        .map((component) => component.id)
+    )
+    setPhase("stack")
   }
 
   const handleCheckRepo = () => {
@@ -423,7 +530,57 @@ export function ResourceCreationPage({
   }
 
   const handleSubmit = () => {
-    if (flowType === "git" || flowType === "git-private") {
+    if (flowType === "stack") {
+      if (!selectedStack) {
+        toast.error("Stack template is required")
+        return
+      }
+      if (!stackNamePrefix.trim()) {
+        toast.error("Stack name prefix is required")
+        return
+      }
+      const requiredIds = selectedStack.components
+        .filter((component) => component.required)
+        .map((component) => component.id)
+      const enabledIds = Array.from(
+        new Set([...requiredIds, ...enabledStackComponents])
+      )
+      setPhase("submitting")
+      createStackMutation.mutate(
+        {
+          template_id: selectedStack.id,
+          name_prefix: stackNamePrefix.trim(),
+          image: stackImage.trim() || undefined,
+          tag: stackTag.trim() || undefined,
+          node_id: nodeId.trim() || null,
+          enabled_components: enabledIds,
+          shared_env_vars: stackEnvEntries
+            .filter((entry) => entry.key.trim())
+            .map((entry) => ({
+              key: entry.key.trim(),
+              value: entry.value,
+              is_secret: false,
+            })),
+        },
+        {
+          onSuccess: (result) => {
+            queryClient.invalidateQueries({
+              queryKey: PROJECT_QUERY_KEYS.project(projectId),
+            })
+            toast.success(
+              `Created ${result.resources.length} resources for ${selectedStack.name}`
+            )
+            navigate({
+              to: "/projects/$projectId",
+              params: { projectId },
+            })
+          },
+          onError: () => {
+            setPhase("stack")
+          },
+        }
+      )
+    } else if (flowType === "git" || flowType === "git-private") {
       const isPrivateRepoFlow = flowType === "git-private"
       if (!gitName.trim()) {
         toast.error("Resource name is required")
@@ -561,6 +718,8 @@ export function ResourceCreationPage({
         ? flowType === "git-private"
           ? "Private Repository"
           : "Git Repository"
+        : phase === "stack"
+          ? (selectedStack?.name ?? "Resource Stack")
         : selectedPreset
           ? selectedPreset.name
           : flowType === "docker"
@@ -608,10 +767,39 @@ export function ResourceCreationPage({
             </p>
           )}
 
+          {resourceStackTemplatesLoading && (
+            <p className="text-sm text-muted-foreground">
+              Loading resource stacks...
+            </p>
+          )}
+
           {resourceTemplatesError && (
             <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
               Could not load resource templates.
             </p>
+          )}
+
+          {resourceStackTemplatesError && (
+            <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              Could not load resource stacks.
+            </p>
+          )}
+
+          {filteredStacks.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                Stacks
+              </p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {filteredStacks.map((stack) => (
+                  <StackCard
+                    key={stack.id}
+                    stack={stack}
+                    onClick={() => selectStack(stack)}
+                  />
+                ))}
+              </div>
+            </section>
           )}
 
           {/* Applications */}
@@ -745,13 +933,163 @@ export function ResourceCreationPage({
             </section>
           )}
 
-          {dbPresets.length === 0 &&
+          {filteredStacks.length === 0 &&
+            dbPresets.length === 0 &&
             servicePresets.length === 0 &&
             !showApps && (
               <p className="py-12 text-center text-sm text-muted-foreground">
                 No results for &quot;{search}&quot;
               </p>
             )}
+        </div>
+      )}
+
+      {(phase === "stack" ||
+        (phase === "submitting" && flowType === "stack")) && selectedStack && (
+        <div className="flex flex-col gap-5 rounded-xl border bg-card p-6">
+          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+            <StackVisual stack={selectedStack} className="h-10 w-10 rounded-lg" />
+            <div>
+              <p className="text-sm font-semibold">{selectedStack.name}</p>
+              <p className="font-mono text-xs text-muted-foreground">
+                {stackImage}:{stackTag}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label>Stack Name Prefix</Label>
+              <Input
+                placeholder="airflow"
+                value={stackNamePrefix}
+                onChange={(e) => setStackNamePrefix(e.target.value)}
+                disabled={busy}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Version</Label>
+              <Select value={stackTag} onValueChange={setStackTag} disabled={busy}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedStack.tags.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Image</Label>
+            <Input
+              value={stackImage}
+              onChange={(e) => setStackImage(e.target.value)}
+              disabled={busy}
+            />
+          </div>
+
+          {isSwarmManager && swarmNodes.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Node</Label>
+              <Select
+                value={nodeId || "__any__"}
+                onValueChange={(value) =>
+                  setNodeId(value === "__any__" ? "" : value)
+                }
+                disabled={busy}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Any node" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__any__">Any node</SelectItem>
+                  {swarmNodes.map((node) => (
+                    <SelectItem key={node.id} value={node.id}>
+                      {node.hostname}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3">
+            <Label>Components</Label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {selectedStack.components.map((component) => {
+                const checked =
+                  component.required ||
+                  enabledStackComponents.includes(component.id)
+
+                return (
+                  <label
+                    key={component.id}
+                    className="flex items-start gap-3 rounded-lg border p-3"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      disabled={busy || component.required}
+                      onCheckedChange={(value) => {
+                        if (component.required) return
+                        setEnabledStackComponents((current) =>
+                          value
+                            ? Array.from(new Set([...current, component.id]))
+                            : current.filter((id) => id !== component.id)
+                        )
+                      }}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{component.name}</span>
+                        {component.required && (
+                          <span className="text-xs text-muted-foreground">
+                            Required
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {component.description}
+                      </p>
+                      {component.ports.length > 0 && (
+                        <p className="mt-2 font-mono text-[11px] text-muted-foreground">
+                          Ports:{" "}
+                          {component.ports
+                            .map((port) => `${port.host}:${port.container}`)
+                            .join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
+          <EnvList
+            entries={stackEnvEntries}
+            onChange={setStackEnvEntries}
+            disabled={busy}
+          />
+
+          <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
+            The API will create one resource per enabled component. Required
+            components are always created.
+          </div>
+
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <Button variant="outline" onClick={goBack} disabled={busy}>
+              Back
+            </Button>
+            <Button onClick={handleSubmit} disabled={busy}>
+              {busy ? "Creating…" : "Create Stack"}
+            </Button>
+          </div>
         </div>
       )}
 

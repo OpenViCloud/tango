@@ -21,9 +21,9 @@ func ResolveResourceMounts(cfg map[string]any, mountRoot string) (ResourceMounts
 		return ResourceMounts{}, nil
 	}
 
-	items, ok := raw.([]interface{})
-	if !ok {
-		return ResourceMounts{}, NewUserFacingError("Resource volumes must be a list of mount definitions")
+	items, err := toStringList(raw)
+	if err != nil {
+		return ResourceMounts{}, err
 	}
 
 	root := filepath.Clean(strings.TrimSpace(mountRoot))
@@ -36,11 +36,7 @@ func ResolveResourceMounts(cfg map[string]any, mountRoot string) (ResourceMounts
 		HostPaths: make([]string, 0, len(items)),
 	}
 	for _, item := range items {
-		mount, ok := item.(string)
-		if !ok {
-			return ResourceMounts{}, NewUserFacingError("Resource volumes must be strings in source:target[:mode] format")
-		}
-		bind, hostPath, err := resolveResourceMount(strings.TrimSpace(mount), root)
+		bind, hostPath, err := resolveResourceMount(strings.TrimSpace(item), root)
 		if err != nil {
 			return ResourceMounts{}, err
 		}
@@ -49,6 +45,29 @@ func ResolveResourceMounts(cfg map[string]any, mountRoot string) (ResourceMounts
 	}
 
 	return result, nil
+}
+
+func toStringList(raw any) ([]string, error) {
+	switch items := raw.(type) {
+	case []string:
+		out := make([]string, 0, len(items))
+		for _, item := range items {
+			out = append(out, item)
+		}
+		return out, nil
+	case []interface{}:
+		out := make([]string, 0, len(items))
+		for _, item := range items {
+			value, ok := item.(string)
+			if !ok {
+				return nil, NewUserFacingError("Resource volumes must be strings in source:target[:mode] format")
+			}
+			out = append(out, value)
+		}
+		return out, nil
+	default:
+		return nil, NewUserFacingError("Resource volumes must be a list of mount definitions")
+	}
 }
 
 func resolveResourceMount(input, root string) (string, string, error) {

@@ -470,15 +470,22 @@ func buildResourceCmd(cfg map[string]any) []string {
 	if !ok {
 		return nil
 	}
-	items, ok := raw.([]interface{})
-	if !ok {
+	switch items := raw.(type) {
+	case []string:
+		out := make([]string, 0, len(items))
+		for _, item := range items {
+			out = append(out, item)
+		}
+		return out
+	case []interface{}:
+		out := make([]string, 0, len(items))
+		for _, item := range items {
+			if s, ok := item.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
 		return nil
 	}
-	out := make([]string, 0, len(items))
-	for _, item := range items {
-		if s, ok := item.(string); ok {
-			out = append(out, s)
-		}
-	}
-	return out
 }

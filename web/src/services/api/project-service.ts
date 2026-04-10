@@ -12,8 +12,14 @@ import type {
   ResourceConnectionInfoModel,
   ResourceRunModel,
   ResourceTemplateModel,
+  ResourceStackTemplateModel,
+  ResourceStackCreateResultModel,
 } from "@/@types/models"
-import type { CreateResourceFromGitModel, ResourceDomainModel } from "@/@types/models/project"
+import type {
+  CreateResourceFromGitModel,
+  CreateResourceStackModel,
+  ResourceDomainModel,
+} from "@/@types/models/project"
 import type { ApiResponse } from "@/@types/models/common"
 import { api } from "@/lib/api"
 import { unwrapApiResponse } from "@/lib/api-response"
@@ -87,9 +93,19 @@ export const projectService = {
       .get<ApiResponse<ResourceTemplateModel[]>>(`/resource-templates`)
       .then((res) => unwrapApiResponse(res.data)),
 
+  listResourceStackTemplates: () =>
+    api
+      .get<ApiResponse<ResourceStackTemplateModel[]>>(`/resource-stack-templates`)
+      .then((res) => unwrapApiResponse(res.data)),
+
   createResource: (envId: string, payload: CreateResourceModel) =>
     api
       .post<ApiResponse<ResourceModel>>(`/environments/${envId}/resources`, payload)
+      .then((res) => unwrapApiResponse(res.data)),
+
+  createResourceStack: (envId: string, payload: CreateResourceStackModel) =>
+    api
+      .post<ApiResponse<ResourceStackCreateResultModel>>(`/environments/${envId}/resource-stacks`, payload)
       .then((res) => unwrapApiResponse(res.data)),
 
   getResource: (resourceId: string) =>

@@ -97,6 +97,7 @@ type Config struct {
 	AppDomain            string
 	AppTLSEnabled        bool
 	AppBackendURL        string
+	ACMEEmail            string
 	ResourceMountRoot    string
 	ResourceMountRootApp string
 }
@@ -191,6 +192,7 @@ func Load() *Config {
 	cfg.AppDomain = getEnv("APP_DOMAIN", "")
 	cfg.AppTLSEnabled = getEnv("APP_TLS_ENABLED", "false") == "true"
 	cfg.AppBackendURL = getEnv("APP_BACKEND_URL", "http://app:8080")
+	cfg.ACMEEmail = getEnv("ACME_EMAIL", "")
 	cfg.ResourceMountRoot = getEnv("RESOURCE_MOUNT_ROOT", DefaultResourceMountRootHost)
 	cfg.ResourceMountRootApp = getEnv("RESOURCE_MOUNT_ROOT_APP", DefaultResourceMountRootApp)
 

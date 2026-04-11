@@ -573,15 +573,18 @@ func bootstrapPlatformConfig(ctx context.Context, cfg *config.Config, repo domai
 	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigWildcardEnabled, "true")
 	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigTraefikNetwork, cfg.TraefikDockerNetwork)
 	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigCertResolver, "letsencrypt")
-	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigAppDomain, cfg.AppDomain)
+
+	// ENV vars take priority on every startup so re-install / update propagates changes to DB.
+	syncOrSeedPlatformConfig(ctx, repo, logger, domain.PlatformConfigAppDomain, cfg.AppDomain)
 	appTLS := "false"
 	if cfg.AppTLSEnabled {
 		appTLS = "true"
 	}
-	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigAppTLSEnabled, appTLS)
+	syncOrSeedPlatformConfig(ctx, repo, logger, domain.PlatformConfigAppTLSEnabled, appTLS)
+	syncOrSeedPlatformConfig(ctx, repo, logger, domain.PlatformConfigACMEEmail, cfg.ACMEEmail)
+
 	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigAppBackendURL, cfg.AppBackendURL)
 	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigResourceMountRoot, cfg.ResourceMountRoot)
-	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigACMEEmail, "")
 	logger.Info("platform config seeded", "public_ip", ip, "app_domain", cfg.AppDomain)
 }
 
@@ -592,6 +595,19 @@ func seedPlatformConfigIfMissing(ctx context.Context, repo domain.PlatformConfig
 	if err := repo.Set(ctx, key, value); err != nil {
 		logger.Warn("seed platform config failed", "key", key, "err", err)
 	}
+}
+
+// syncOrSeedPlatformConfig writes value to DB unconditionally when value is non-empty
+// (env var override), otherwise falls back to seed-if-missing behaviour.
+// Use this for settings that install scripts pass via env vars so re-installs propagate.
+func syncOrSeedPlatformConfig(ctx context.Context, repo domain.PlatformConfigRepository, logger *slog.Logger, key, value string) {
+	if value != "" {
+		if err := repo.Set(ctx, key, value); err != nil {
+			logger.Warn("sync platform config failed", "key", key, "err", err)
+		}
+		return
+	}
+	seedPlatformConfigIfMissing(ctx, repo, logger, key, value)
 }
 
 func refreshTraefikStaticConfig(ctx context.Context, repo domain.PlatformConfigRepository, fp domain.TraefikFileProvider, logger *slog.Logger) {

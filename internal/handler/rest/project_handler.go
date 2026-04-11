@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"regexp"
@@ -1270,10 +1271,15 @@ func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
 	}
 	if isLocalHost {
 		_ = h.domainRepo.SetVerified(c.Request.Context(), d.ID, time.Now())
+		slog.Debug("resource domain added (local host): auto-verified, refreshing traefik config",
+			"resource_id", resourceID, "host", req.Host, "target_port", req.TargetPort)
 		h.refreshTraefikConfig(c.Request.Context(), d.ResourceID)
 		d.Verified = true
 		now := time.Now()
 		d.VerifiedAt = &now
+	} else {
+		slog.Debug("resource domain added (custom): requires DNS verification before traefik routing is active",
+			"resource_id", resourceID, "host", req.Host, "target_port", req.TargetPort, "tls_enabled", req.TLSEnabled)
 	}
 	c.JSON(http.StatusCreated, toResourceDomainResponse(d))
 }
@@ -1367,6 +1373,8 @@ func (h *ProjectHandler) VerifyResourceDomain(c *gin.Context) {
 	// Resolve DNS and compare with configured public IP
 	addrs, err := net.LookupHost(d.Host)
 	if err != nil || len(addrs) == 0 {
+		slog.Debug("domain verification: DNS lookup failed",
+			"host", d.Host, "resource_id", d.ResourceID, "err", err)
 		c.JSON(http.StatusOK, gin.H{"verified": false, "reason": "DNS lookup failed"})
 		return
 	}
@@ -1385,6 +1393,10 @@ func (h *ProjectHandler) VerifyResourceDomain(c *gin.Context) {
 			break
 		}
 	}
+
+	slog.Debug("domain verification: DNS check result",
+		"host", d.Host, "resource_id", d.ResourceID,
+		"resolved_ips", addrs, "public_ip", publicIP, "verified", verified)
 
 	if verified {
 		_ = h.domainRepo.SetVerified(ctx, d.ID, time.Now())
@@ -1410,11 +1422,20 @@ func isLocalDevHost(host string) bool {
 // current container (if running) and latest domain list.
 func (h *ProjectHandler) refreshTraefikConfig(ctx context.Context, resourceID string) {
 	if h.fileProvider == nil || h.dockerRepo == nil {
+		slog.Debug("traefik config refresh skipped: file provider or docker repo not available",
+			"resource_id", resourceID)
 		return
 	}
 
 	resource, err := h.getResource.Handle(ctx, query.GetResourceQuery{ID: resourceID})
-	if err != nil || resource.ContainerID == "" {
+	if err != nil {
+		slog.Warn("traefik config refresh: get resource failed",
+			"resource_id", resourceID, "err", err)
+		return
+	}
+	if resource.ContainerID == "" {
+		slog.Debug("traefik config refresh skipped: resource not running (no container ID)",
+			"resource_id", resourceID)
 		return
 	}
 
@@ -1423,17 +1444,30 @@ func (h *ProjectHandler) refreshTraefikConfig(ctx context.Context, resourceID st
 	// In swarm mode ContainerID is a service ID → InspectContainer fails, so fall
 	// back to the deterministic service name derived from the resource name.
 	backendName := ""
-	if info, err := h.dockerRepo.InspectContainer(ctx, resource.ContainerID); err == nil {
+	if info, inspectErr := h.dockerRepo.InspectContainer(ctx, resource.ContainerID); inspectErr == nil {
 		backendName = info.Name
 	} else if h.swarmRepo != nil {
+		slog.Debug("traefik config refresh: inspect container failed, using swarm service name fallback",
+			"resource_id", resourceID, "container_id", resource.ContainerID, "err", inspectErr)
 		backendName = swarmServiceName(resource.Name, resource.ID)
+	} else {
+		slog.Warn("traefik config refresh: cannot resolve backend name (inspect failed, no swarm repo)",
+			"resource_id", resourceID, "container_id", resource.ContainerID)
 	}
 	if backendName == "" {
 		return
 	}
 
 	domains, err := h.domainRepo.ListByResource(ctx, resourceID)
-	if err != nil || len(domains) == 0 {
+	if err != nil {
+		slog.Warn("traefik config refresh: list domains failed",
+			"resource_id", resourceID, "err", err)
+		_ = h.fileProvider.Delete(resourceID)
+		return
+	}
+	if len(domains) == 0 {
+		slog.Debug("traefik config refresh: no domains configured, removing config file",
+			"resource_id", resourceID)
 		_ = h.fileProvider.Delete(resourceID)
 		return
 	}
@@ -1445,7 +1479,14 @@ func (h *ProjectHandler) refreshTraefikConfig(ctx context.Context, resourceID st
 		}
 	}
 
-	_ = h.fileProvider.Write(resourceID, domains, backendName, certResolver)
+	if err := h.fileProvider.Write(resourceID, domains, backendName, certResolver); err != nil {
+		slog.Warn("traefik config refresh: write config failed",
+			"resource_id", resourceID, "backend", backendName, "err", err)
+		return
+	}
+	slog.Debug("traefik config refresh: config written",
+		"resource_id", resourceID, "backend", backendName,
+		"domains", len(domains), "cert_resolver", certResolver)
 }
 
 // swarmServiceName returns the deterministic service name used for DNS resolution

@@ -2,6 +2,7 @@ package traefik
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -142,10 +143,16 @@ func (p *FileProvider) Write(resourceID string, domains []*domain.ResourceDomain
 	}
 
 	if !hasRoutes {
+		slog.Debug("traefik file provider: no routable domains (all unverified?), removing config file",
+			"resource_id", resourceID, "total_domains", len(domains))
 		return p.Delete(resourceID)
 	}
 
-	return p.writeFile(filepath.Join(p.configDir, "resource-"+resourceID+".yaml"), cfg)
+	configPath := filepath.Join(p.configDir, "resource-"+resourceID+".yaml")
+	slog.Debug("traefik file provider: writing resource config",
+		"resource_id", resourceID, "path", configPath,
+		"backend", containerName, "routers", len(cfg.HTTP.Routers))
+	return p.writeFile(configPath, cfg)
 }
 
 // Delete removes the Traefik config file for the resource.

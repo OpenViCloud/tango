@@ -295,20 +295,35 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 
 	// Resolve container name if reusing an existing container
 	if containerName == "" && s.dockerRepo != nil {
-		if info, err := s.dockerRepo.InspectContainer(ctx, containerID); err == nil {
+		if info, inspectErr := s.dockerRepo.InspectContainer(ctx, containerID); inspectErr == nil {
 			containerName = info.Name
+		} else {
+			s.logger.Warn("traefik config: inspect container failed when resolving name",
+				"resource_id", resource.ID, "container_id", containerID, "err", inspectErr)
 		}
 	}
 
 	// Write Traefik file config after container is running
 	if s.fileProvider != nil && containerName != "" && s.domainRepo != nil {
-		if domains, err := s.domainRepo.ListByResource(ctx, resource.ID); err == nil && len(domains) > 0 {
+		domains, domainErr := s.domainRepo.ListByResource(ctx, resource.ID)
+		if domainErr != nil {
+			s.logger.Warn("traefik config: list domains failed", "resource_id", resource.ID, "err", domainErr)
+		} else if len(domains) == 0 {
+			s.logger.Debug("traefik config: no domains configured for resource, skipping config write",
+				"resource_id", resource.ID)
+		} else {
 			if err := s.fileProvider.Write(resource.ID, domains, containerName, certResolver); err != nil {
-				s.logger.Warn("write traefik file config", "resource_id", resource.ID, "err", err)
+				s.logger.Warn("traefik config: write failed",
+					"resource_id", resource.ID, "container", containerName, "err", err)
 			} else {
 				logLine("[traefik] routing config written")
+				s.logger.Debug("traefik config: written",
+					"resource_id", resource.ID, "container", containerName, "domains", len(domains))
 			}
 		}
+	} else if s.fileProvider != nil && containerName == "" {
+		s.logger.Warn("traefik config: skipping write — could not resolve container name",
+			"resource_id", resource.ID, "container_id", containerID)
 	}
 
 	if err := s.resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusRunning, containerID); err != nil {

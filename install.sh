@@ -327,6 +327,7 @@ fi
 cat > "$ENV_FILE" <<EOF
 APP_DOMAIN=$final_domain
 APP_TLS_ENABLED=$final_tls
+ACME_EMAIL=$final_email
 RESOURCE_MOUNT_ROOT=$final_resource_mount_root
 RESOURCE_MOUNT_ROOT_APP=$final_resource_mount_root_app
 POSTGRES_PASSWORD=$final_postgres_password

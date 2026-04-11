@@ -89,6 +89,7 @@ services:
       TRAEFIK_CONFIG_DIR: "/traefik/config"
       APP_DOMAIN: "${APP_DOMAIN:-}"
       APP_TLS_ENABLED: "${APP_TLS_ENABLED:-false}"
+      ACME_EMAIL: "${ACME_EMAIL:-}"
       APP_BACKEND_URL: "http://app:8080"
       RESOURCE_MOUNT_ROOT: "${RESOURCE_MOUNT_ROOT:-/tmp/tango-resource-volumes}"
       RESOURCE_MOUNT_ROOT_APP: "${RESOURCE_MOUNT_ROOT_APP:-/platform/resource-volumes}"

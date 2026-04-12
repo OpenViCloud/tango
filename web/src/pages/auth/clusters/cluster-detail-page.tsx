@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router"
 import {
   NetworkIcon,
   ArrowLeftIcon,
+  CloudIcon,
   DownloadIcon,
   ServerIcon,
   FileTextIcon,
@@ -13,7 +14,7 @@ import {
   PlusIcon,
   Trash2Icon,
 } from "lucide-react"
-import { useForm } from "react-hook-form"
+import { useForm, type Resolver, type SubmitHandler } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { useQuery } from "@tanstack/react-query"
@@ -21,7 +22,14 @@ import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -62,7 +70,9 @@ import {
   useCreateKubeService,
   useDeleteKubePod,
   useDeleteKubeService,
+  useImportClusterTunnel,
 } from "@/hooks/api/use-cluster"
+import { useGetCloudflareConnections } from "@/hooks/api/use-cloudflare"
 import { useGetServerList } from "@/hooks/api/use-server"
 import { clusterService } from "@/services/api/cluster-service"
 import { ClusterStatusBadge } from "./clusters-page"
@@ -73,6 +83,7 @@ import type {
   KubePersistentVolume,
   KubePersistentVolumeClaim,
 } from "@/@types/models/server"
+import type { CloudflareConnectionModel } from "@/@types/models/cloudflare"
 
 interface ClusterDetailPageProps {
   clusterId: string
@@ -82,6 +93,7 @@ export function ClusterDetailPage({ clusterId }: ClusterDetailPageProps) {
   const navigate = useNavigate()
   const { data: cluster, isLoading } = useGetCluster(clusterId)
   const { data: servers } = useGetServerList()
+  const [importTunnelOpen, setImportTunnelOpen] = useState(false)
   const isProvisioning = cluster?.status === "provisioning" || cluster?.status === "pending"
   const { lines, done, connected } = useClusterLogs(isProvisioning ? clusterId : null)
 
@@ -123,6 +135,12 @@ export function ClusterDetailPage({ clusterId }: ClusterDetailPageProps) {
         description={`Pod CIDR: ${cluster.pod_cidr}`}
         headerRight={
           <div className="flex gap-2">
+            {cluster.status === "ready" && (
+              <Button size="sm" variant="outline" onClick={() => setImportTunnelOpen(true)}>
+                <CloudIcon className="size-4" />
+                Import Existing Tunnel
+              </Button>
+            )}
             {cluster.status === "ready" && (
               <Button size="sm" variant="outline" onClick={() => void downloadKubeconfig()}>
                 <DownloadIcon className="size-4" />
@@ -196,6 +214,12 @@ export function ClusterDetailPage({ clusterId }: ClusterDetailPageProps) {
           <LogViewer lines={lines} />
         </SectionCard>
       )}
+
+      <ImportTunnelDialog
+        clusterId={clusterId}
+        open={importTunnelOpen}
+        onClose={() => setImportTunnelOpen(false)}
+      />
     </div>
   )
 }
@@ -327,6 +351,180 @@ function KubeResourcesSection({ clusterId }: { clusterId: string }) {
   )
 }
 
+const importTunnelSchema = z.object({
+  connection_id: z.string().optional(),
+  tunnel_id: z.string().min(1, "Tunnel ID is required"),
+  tunnel_token: z.string().min(1, "Tunnel token is required"),
+  namespace: z.string().min(1, "Namespace is required"),
+  overwrite: z.boolean().optional(),
+})
+
+type ImportTunnelForm = z.infer<typeof importTunnelSchema>
+
+function ImportTunnelDialog({
+  clusterId,
+  open,
+  onClose,
+}: {
+  clusterId: string
+  open: boolean
+  onClose: () => void
+}) {
+  const importTunnel = useImportClusterTunnel(clusterId)
+  const { data: connections = [], isLoading } = useGetCloudflareConnections()
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<ImportTunnelForm>({
+    resolver: zodResolver(importTunnelSchema) as Resolver<ImportTunnelForm>,
+    defaultValues: {
+      connection_id: "",
+      tunnel_id: "",
+      tunnel_token: "",
+      namespace: "default",
+      overwrite: false,
+    },
+  })
+
+  useEffect(() => {
+    if (!open) {
+      reset({
+        connection_id: "",
+        tunnel_id: "",
+        tunnel_token: "",
+        namespace: "default",
+        overwrite: false,
+      })
+    }
+  }, [open, reset])
+
+  useEffect(() => {
+    if (open && !watch("connection_id")) {
+      setValue("connection_id", "")
+    }
+  }, [open, setValue, watch])
+
+  const selectedConnectionId = watch("connection_id")
+
+  const onSubmit: SubmitHandler<ImportTunnelForm> = (data) => {
+    importTunnel.mutate(data, {
+      onSuccess: () => {
+        reset({
+          connection_id: "",
+          tunnel_id: "",
+          tunnel_token: "",
+          namespace: "default",
+          overwrite: false,
+        })
+        onClose()
+      },
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose() }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Import Existing Tunnel</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={(event) => void handleSubmit(onSubmit)(event)} className="flex flex-col gap-4">
+          <FieldGroup>
+            <Field>
+              <FieldLabel>Cloudflare Connection</FieldLabel>
+              <Select
+                value={selectedConnectionId || "__none__"}
+                onValueChange={(value) =>
+                  setValue("connection_id", value === "__none__" ? "" : value, {
+                    shouldValidate: true,
+                  })}
+                disabled={isLoading || importTunnel.isPending}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Optional" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No connection (runtime-only)</SelectItem>
+                  {connections.map((connection: CloudflareConnectionModel) => (
+                    <SelectItem key={connection.id} value={connection.id}>
+                      {connection.display_name} ({connection.zone_id})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                Chọn connection nếu bạn muốn app quản lý DNS/expose sau này. Bỏ trống nếu chỉ cần deploy `cloudflared` với tunnel có sẵn.
+              </FieldDescription>
+            </Field>
+
+            <Field>
+              <FieldLabel>Tunnel ID</FieldLabel>
+              <Input
+                className="font-mono"
+                placeholder="cloudflare-tunnel-uuid"
+                {...register("tunnel_id")}
+                disabled={importTunnel.isPending}
+              />
+              {errors.tunnel_id && <p className="text-xs text-destructive">{errors.tunnel_id.message}</p>}
+            </Field>
+
+            <Field>
+              <FieldLabel>Tunnel Token</FieldLabel>
+              <Input
+                type="password"
+                placeholder="Paste existing tunnel token"
+                {...register("tunnel_token")}
+                disabled={importTunnel.isPending}
+              />
+              <FieldDescription>
+                Token này sẽ được mã hóa trước khi lưu và dùng để deploy `cloudflared` vào cluster.
+              </FieldDescription>
+              {errors.tunnel_token && <p className="text-xs text-destructive">{errors.tunnel_token.message}</p>}
+            </Field>
+
+            <Field>
+              <FieldLabel>Namespace</FieldLabel>
+              <Input
+                placeholder="default"
+                {...register("namespace")}
+                disabled={importTunnel.isPending}
+              />
+              {errors.namespace && <p className="text-xs text-destructive">{errors.namespace.message}</p>}
+            </Field>
+
+            <Field orientation="horizontal" className="rounded-xl border px-4 py-3">
+              <FieldLabel className="gap-3 border-none p-0">
+                <FieldDescription className="mt-0 text-xs">
+                  Overwrite existing tunnel state on this cluster if one already exists.
+                </FieldDescription>
+              </FieldLabel>
+              <Switch
+                checked={watch("overwrite") ?? false}
+                onCheckedChange={(checked) =>
+                  setValue("overwrite", checked, { shouldValidate: true })
+                }
+                disabled={importTunnel.isPending}
+              />
+            </Field>
+          </FieldGroup>
+
+          <DialogFooter showCloseButton>
+            <Button
+              type="submit"
+              disabled={importTunnel.isPending}
+            >
+              {importTunnel.isPending ? "Importing..." : "Import Tunnel"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Create Pod Dialog ─────────────────────────────────────────────────────────
 
 const createPodSchema = z.object({
@@ -413,14 +611,14 @@ type CreateServiceForm = z.infer<typeof createServiceSchema>
 function CreateServiceDialog({ clusterId, open, onClose }: { clusterId: string; open: boolean; onClose: () => void }) {
   const { mutate: createService, isPending } = useCreateKubeService(clusterId)
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<CreateServiceForm>({
-    resolver: zodResolver(createServiceSchema),
+    resolver: zodResolver(createServiceSchema) as Resolver<CreateServiceForm>,
     defaultValues: { namespace: "default", type: "ClusterIP", protocol: "TCP" },
   })
 
   const svcType = watch("type")
   const protocol = watch("protocol")
 
-  const onSubmit = (data: CreateServiceForm) => {
+  const onSubmit: SubmitHandler<CreateServiceForm> = (data) => {
     createService(
       {
         namespace: data.namespace,

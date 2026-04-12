@@ -22,10 +22,11 @@ import (
 	"tango/internal/handler/rest"
 	response "tango/internal/handler/rest/response"
 	infraansible "tango/internal/infrastructure/ansible"
-	infrakube "tango/internal/infrastructure/kube"
 	infacache "tango/internal/infrastructure/cache"
+	infracf "tango/internal/infrastructure/cloudflare"
 	infradb "tango/internal/infrastructure/db"
 	infradocker "tango/internal/infrastructure/docker"
+	infrakube "tango/internal/infrastructure/kube"
 	"tango/internal/infrastructure/persistence/models"
 	persistrepo "tango/internal/infrastructure/persistence/repositories"
 	infrahttp "tango/internal/infrastructure/server"
@@ -133,6 +134,8 @@ func main() {
 
 	serverRepo := persistrepo.NewServerRepository(db)
 	clusterRepo := persistrepo.NewClusterRepository(db)
+	cloudflareConnectionRepo := persistrepo.NewCloudflareConnectionRepository(db)
+	clusterTunnelRepo := persistrepo.NewClusterTunnelRepository(db)
 
 	bootstrapPlatformConfig(ctx, cfg, platformConfigRepo, logger)
 
@@ -390,6 +393,33 @@ func main() {
 	clusterWSHandler := rest.NewClusterWSHandler(logBroadcaster)
 	kubeClientManager := infrakube.NewKubeClientManager(clusterRepo, cipherService)
 	kubeHandler := rest.NewKubeHandler(kubeClientManager, clusterRepo)
+	cfFactory := infracf.NewFactory()
+	createCloudflareConnectionHandler := command.NewCreateCloudflareConnectionHandler(cloudflareConnectionRepo, cipherService, cfFactory)
+	updateCloudflareConnectionHandler := command.NewUpdateCloudflareConnectionHandler(cloudflareConnectionRepo, cipherService, cfFactory)
+	getCloudflareConnectionHandler := query.NewGetCloudflareConnectionHandler(cloudflareConnectionRepo)
+	listCloudflareConnectionsHandler := query.NewListCloudflareConnectionsHandler(cloudflareConnectionRepo)
+	cloudflareConnectionHandler := rest.NewCloudflareConnectionHandler(
+		createCloudflareConnectionHandler,
+		updateCloudflareConnectionHandler,
+		getCloudflareConnectionHandler,
+		listCloudflareConnectionsHandler,
+	)
+	exposeHandler := command.NewExposeServiceHandler(
+		clusterRepo,
+		clusterTunnelRepo,
+		cloudflareConnectionRepo,
+		kubeClientManager,
+		cfFactory,
+		cipherService,
+	)
+	unexposeHandler := command.NewUnexposeServiceHandler(
+		clusterTunnelRepo,
+		cloudflareConnectionRepo,
+		kubeClientManager,
+		cfFactory,
+		cipherService,
+	)
+	tunnelHandler := rest.NewTunnelHandler(exposeHandler, unexposeHandler, clusterTunnelRepo, cloudflareConnectionRepo)
 
 	settingsHandler := rest.NewSettingsHandler(platformConfigRepo, traefikFileProvider, traefikRestarter)
 	baseDomainHandler := rest.NewBaseDomainHandler(baseDomainRepo, resourceDomainRepo, resourceRepo)
@@ -497,6 +527,8 @@ func main() {
 			clusterHandler.Register(protected)
 			clusterWSHandler.Register(protected)
 			kubeHandler.Register(protected)
+			cloudflareConnectionHandler.Register(protected)
+			tunnelHandler.Register(protected)
 			settingsHandler.RegisterRoutes(protected)
 			baseDomainHandler.RegisterRoutes(protected)
 			rest.NewSwarmHandler(swarmRepo).RegisterRoutes(protected)

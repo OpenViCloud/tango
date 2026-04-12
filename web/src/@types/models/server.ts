@@ -60,6 +60,21 @@ export const clusterSchema = z.object({
 
 export type ClusterModel = z.infer<typeof clusterSchema>
 
+export type ClusterTunnelExposureModel = {
+  id: string
+  hostname: string
+  service_url: string
+}
+
+export type ClusterTunnelModel = {
+  id: string
+  cluster_id: string
+  connection_id?: string
+  tunnel_id: string
+  namespace: string
+  exposures: ClusterTunnelExposureModel[]
+}
+
 export const bootstrapClusterSchema = z.object({
   name: z.string().min(1, "Name is required"),
   k8s_version: z.string().optional(),
@@ -70,6 +85,16 @@ export const bootstrapClusterSchema = z.object({
 })
 
 export type BootstrapClusterModel = z.infer<typeof bootstrapClusterSchema>
+
+export const importClusterTunnelSchema = z.object({
+  connection_id: z.string().optional(),
+  tunnel_id: z.string().min(1, "Tunnel ID is required"),
+  tunnel_token: z.string().min(1, "Tunnel token is required"),
+  namespace: z.string().min(1, "Namespace is required"),
+  overwrite: z.boolean().optional(),
+})
+
+export type ImportClusterTunnelModel = z.infer<typeof importClusterTunnelSchema>
 
 // ── Kubernetes resources ─────────────────────────────────────────────────────
 

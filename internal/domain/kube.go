@@ -73,6 +73,28 @@ type KubeServiceSpec struct {
 	Ports     []KubeServicePort `json:"ports"`
 }
 
+// KubeDeploymentSpec describes the minimal spec needed to create/update a Deployment.
+type KubeDeploymentSpec struct {
+	Name      string
+	Namespace string
+	Replicas  int32
+	Labels    map[string]string
+	Image     string
+	Command   []string
+	Args      []string
+	// SecretEnv: envVarName -> secretRef
+	SecretEnv map[string]KubeSecretKeyRef
+	// ConfigMapMounts: configMapName → mountPath inside container
+	ConfigMapMounts map[string]string
+	// SecretMounts: secretName → mountPath inside container
+	SecretMounts map[string]string
+}
+
+type KubeSecretKeyRef struct {
+	SecretName string
+	Key        string
+}
+
 // KubeClient is the interface for interacting with a single Kubernetes cluster.
 type KubeClient interface {
 	ListNamespaces(ctx context.Context) ([]KubeNamespace, error)
@@ -84,6 +106,13 @@ type KubeClient interface {
 	DeleteService(ctx context.Context, namespace, name string) error
 	ListPersistentVolumes(ctx context.Context) ([]KubePersistentVolume, error)
 	ListPersistentVolumeClaims(ctx context.Context, namespace string) ([]KubePersistentVolumeClaim, error)
+
+	// Tunnel support — idempotent create-or-update operations.
+	CreateOrUpdateSecret(ctx context.Context, namespace, name string, data map[string]string) error
+	CreateOrUpdateConfigMap(ctx context.Context, namespace, name string, data map[string]string) error
+	CreateOrUpdateDeployment(ctx context.Context, namespace string, spec KubeDeploymentSpec) error
+	DeleteDeployment(ctx context.Context, namespace, name string) error
+	RolloutRestartDeployment(ctx context.Context, namespace, name string) error
 }
 
 // KubeClientFactory builds and caches KubeClient instances per cluster.

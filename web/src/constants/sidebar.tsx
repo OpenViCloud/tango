@@ -69,6 +69,11 @@ export const appSidebarSections: SidebarSection[] = [
         icon: appIcons.sources,
       },
       {
+        titleKey: "sidebar.cloudflare",
+        url: "/cloudflare",
+        icon: appIcons.cloudflare,
+      },
+      {
         titleKey: "sidebar.domains",
         url: "/domains",
         icon: appIcons.domains,

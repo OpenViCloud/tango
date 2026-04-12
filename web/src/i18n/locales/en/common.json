@@ -693,6 +693,7 @@
     "databases": "Databases",
     "databaseList": "Databases",
     "sources": "Sources",
+    "cloudflare": "Cloudflare",
     "sourceList": "Sources",
     "domains": "Domains",
     "domainList": "Domains",
@@ -862,6 +863,47 @@
       "connectedOn": "Connected on {{date}}"
     },
     "githubConnected": "GitHub source connected."
+  },
+  "cloudflare": {
+    "page": {
+      "title": "Cloudflare Connections",
+      "description": "Store user-managed Cloudflare credentials per account and zone, then reuse them when exposing Kubernetes services through tunnels."
+    },
+    "actions": {
+      "add": "Add Connection",
+      "edit": "Edit",
+      "cancel": "Cancel",
+      "create": "Create Connection",
+      "update": "Update Connection"
+    },
+    "empty": {
+      "title": "No Cloudflare connections yet",
+      "description": "Add an account and zone binding first. Tunnel creation will use the encrypted API token stored here."
+    },
+    "sheet": {
+      "createTitle": "Add Cloudflare Connection",
+      "editTitle": "Update Cloudflare Connection",
+      "description": "Tango verifies the token against the selected Cloudflare account and zone before saving it in encrypted form."
+    },
+    "form": {
+      "displayName": "Display Name",
+      "accountId": "Account ID",
+      "zoneId": "Zone ID",
+      "apiToken": "API Token",
+      "apiTokenHint": "Use a Cloudflare API token that can manage tunnels and DNS records for the selected zone.",
+      "apiTokenEditHint": "Leave blank to keep the current encrypted API token.",
+      "apiTokenOptional": "Leave blank to keep current token"
+    },
+    "card": {
+      "accountId": "Account ID",
+      "zoneId": "Zone ID",
+      "tokenStored": "Encrypted API token stored",
+      "tokenMissing": "API token missing"
+    },
+    "toast": {
+      "created": "Cloudflare connection created.",
+      "updated": "Cloudflare connection updated."
+    }
   },
   "projects": {
     "page": {

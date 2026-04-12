@@ -103,16 +103,16 @@ type Config struct {
 }
 
 type fileConfig struct {
-	Port                   string `json:"port,omitempty"`
-	DBDriver               string `json:"db_driver,omitempty"`
-	DBURL                  string `json:"database_url,omitempty"`
-	APIKey                 string `json:"api_key,omitempty"`
-	BaseURL                string `json:"base_url,omitempty"`
-	ChatChannel            string `json:"chat_channel,omitempty"`
-	ChatModel              string `json:"chat_model,omitempty"`
-	OrchestrationEngine    string `json:"orchestration_engine,omitempty"`
-	WorkflowEngine         string `json:"workflow_engine,omitempty"`
-	DataEncryptionKey string `json:"data_encryption_key,omitempty"`
+	Port                string `json:"port,omitempty"`
+	DBDriver            string `json:"db_driver,omitempty"`
+	DBURL               string `json:"database_url,omitempty"`
+	APIKey              string `json:"api_key,omitempty"`
+	BaseURL             string `json:"base_url,omitempty"`
+	ChatChannel         string `json:"chat_channel,omitempty"`
+	ChatModel           string `json:"chat_model,omitempty"`
+	OrchestrationEngine string `json:"orchestration_engine,omitempty"`
+	WorkflowEngine      string `json:"workflow_engine,omitempty"`
+	DataEncryptionKey   string `json:"data_encryption_key,omitempty"`
 }
 
 func Load() *Config {

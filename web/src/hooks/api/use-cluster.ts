@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-import type { BootstrapClusterModel, ClusterNodeModel } from "@/@types/models/server"
+import type {
+  BootstrapClusterModel,
+  ClusterNodeModel,
+  ImportClusterTunnelModel,
+} from "@/@types/models/server"
 import { getErrorMessage } from "@/lib/get-error-message"
 import { clusterService } from "@/services/api/cluster-service"
 
@@ -65,6 +69,23 @@ export const useDeleteCluster = () => {
         queryKey: CLUSTER_QUERY_KEYS.list(),
       })
       toast.success(purge ? "Cluster removed and K8s uninstall started on nodes." : "Cluster removed.")
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error))
+    },
+  })
+}
+
+export const useImportClusterTunnel = (clusterId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: ImportClusterTunnelModel) =>
+      clusterService.importTunnel(clusterId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: CLUSTER_QUERY_KEYS.detail(clusterId),
+      })
+      toast.success("Existing tunnel imported.")
     },
     onError: (error) => {
       toast.error(getErrorMessage(error))

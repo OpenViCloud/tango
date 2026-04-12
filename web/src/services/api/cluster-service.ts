@@ -2,6 +2,8 @@ import type { ApiResponse } from "@/@types/models/common"
 import type {
   BootstrapClusterModel,
   ClusterModel,
+  ClusterTunnelModel,
+  ImportClusterTunnelModel,
   KubeNamespace,
   KubePod,
   KubeService,
@@ -47,6 +49,14 @@ export const clusterService = {
     api
       .delete(`/clusters/${id}`, { params: purge ? { purge: "true" } : undefined })
       .then(() => undefined),
+
+  importTunnel: (
+    id: string,
+    payload: ImportClusterTunnelModel,
+  ): Promise<ClusterTunnelModel> =>
+    api
+      .post<ApiResponse<ClusterTunnelModel>>(`/clusters/${id}/tunnels/import`, payload)
+      .then((res) => unwrapApiResponse(res.data)),
 
   // ── Kubernetes resource endpoints ──────────────────────────────────────────
 

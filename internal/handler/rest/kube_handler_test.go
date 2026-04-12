@@ -18,13 +18,13 @@ import (
 // ── Fakes ─────────────────────────────────────────────────────────────────────
 
 type fakeKubeClient struct {
-	pods        []domain.KubePod
-	services    []domain.KubeService
-	createdPod  *domain.KubePod
-	createdSvc  *domain.KubeService
-	deletedPod  string
-	deletedSvc  string
-	err         error
+	pods       []domain.KubePod
+	services   []domain.KubeService
+	createdPod *domain.KubePod
+	createdSvc *domain.KubeService
+	deletedPod string
+	deletedSvc string
+	err        error
 }
 
 func (f *fakeKubeClient) ListNamespaces(_ context.Context) ([]domain.KubeNamespace, error) {
@@ -65,6 +65,21 @@ func (f *fakeKubeClient) ListPersistentVolumes(_ context.Context) ([]domain.Kube
 }
 func (f *fakeKubeClient) ListPersistentVolumeClaims(_ context.Context, _ string) ([]domain.KubePersistentVolumeClaim, error) {
 	return nil, f.err
+}
+func (f *fakeKubeClient) CreateOrUpdateSecret(_ context.Context, _, _ string, _ map[string]string) error {
+	return f.err
+}
+func (f *fakeKubeClient) CreateOrUpdateConfigMap(_ context.Context, _, _ string, _ map[string]string) error {
+	return f.err
+}
+func (f *fakeKubeClient) CreateOrUpdateDeployment(_ context.Context, _ string, _ domain.KubeDeploymentSpec) error {
+	return f.err
+}
+func (f *fakeKubeClient) DeleteDeployment(_ context.Context, _, _ string) error {
+	return f.err
+}
+func (f *fakeKubeClient) RolloutRestartDeployment(_ context.Context, _, _ string) error {
+	return f.err
 }
 
 var _ domain.KubeClient = (*fakeKubeClient)(nil)

@@ -2,13 +2,18 @@ package kube
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"tango/internal/domain"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 )
@@ -203,6 +208,195 @@ func (c *kubeClientImpl) ListPersistentVolumeClaims(ctx context.Context, namespa
 	return result, nil
 }
 
+// CreateOrUpdateSecret creates or replaces a Kubernetes Secret with string data.
+func (c *kubeClientImpl) CreateOrUpdateSecret(ctx context.Context, namespace, name string, data map[string]string) error {
+	secrets := c.cs.CoreV1().Secrets(namespace)
+	existing, err := secrets.Get(ctx, name, metav1.GetOptions{})
+	if k8serrors.IsNotFound(err) {
+		_, err = secrets.Create(ctx, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+			StringData: data,
+		}, metav1.CreateOptions{})
+		return ignoreNil(fmt.Errorf("create secret %s: %w", name, err))
+	}
+	if err != nil {
+		return fmt.Errorf("get secret %s: %w", name, err)
+	}
+	if existing.StringData == nil {
+		existing.StringData = make(map[string]string)
+	}
+	for k, v := range data {
+		existing.StringData[k] = v
+	}
+	if _, err = secrets.Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("update secret %s: %w", name, err)
+	}
+	return nil
+}
+
+// CreateOrUpdateConfigMap creates or replaces a Kubernetes ConfigMap.
+func (c *kubeClientImpl) CreateOrUpdateConfigMap(ctx context.Context, namespace, name string, data map[string]string) error {
+	cms := c.cs.CoreV1().ConfigMaps(namespace)
+	existing, err := cms.Get(ctx, name, metav1.GetOptions{})
+	if k8serrors.IsNotFound(err) {
+		_, err = cms.Create(ctx, &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+			Data:       data,
+		}, metav1.CreateOptions{})
+		return ignoreNil(fmt.Errorf("create configmap %s: %w", name, err))
+	}
+	if err != nil {
+		return fmt.Errorf("get configmap %s: %w", name, err)
+	}
+	existing.Data = data
+	if _, err = cms.Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("update configmap %s: %w", name, err)
+	}
+	return nil
+}
+
+// CreateOrUpdateDeployment creates or updates a Kubernetes Deployment from the given spec.
+func (c *kubeClientImpl) CreateOrUpdateDeployment(ctx context.Context, namespace string, spec domain.KubeDeploymentSpec) error {
+	replicas := spec.Replicas
+	if replicas == 0 {
+		replicas = 1
+	}
+
+	labels := spec.Labels
+	if labels == nil {
+		labels = map[string]string{"app": spec.Name}
+	}
+
+	// Build volume + volumeMount lists from the maps.
+	var volumes []corev1.Volume
+	var mounts []corev1.VolumeMount
+
+	for cmName, mountPath := range spec.ConfigMapMounts {
+		volName := "cm-" + cmName
+		volumes = append(volumes, corev1.Volume{
+			Name: volName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
+				},
+			},
+		})
+		mounts = append(mounts, corev1.VolumeMount{Name: volName, MountPath: mountPath})
+	}
+	for secretName, mountPath := range spec.SecretMounts {
+		volName := "sec-" + secretName
+		volumes = append(volumes, corev1.Volume{
+			Name: volName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{SecretName: secretName},
+			},
+		})
+		mounts = append(mounts, corev1.VolumeMount{Name: volName, MountPath: mountPath})
+	}
+
+	container := corev1.Container{
+		Command:      spec.Command,
+		Name:         spec.Name,
+		Image:        spec.Image,
+		Args:         spec.Args,
+		VolumeMounts: mounts,
+	}
+	if len(spec.SecretEnv) > 0 {
+		env := make([]corev1.EnvVar, 0, len(spec.SecretEnv))
+		for name, ref := range spec.SecretEnv {
+			env = append(env, corev1.EnvVar{
+				Name: name,
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: ref.SecretName},
+						Key:                  ref.Key,
+					},
+				},
+			})
+		}
+		container.Env = env
+	}
+
+	desired := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Name: spec.Name, Namespace: namespace, Labels: labels},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{MatchLabels: labels},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				Spec:       corev1.PodSpec{Containers: []corev1.Container{container}, Volumes: volumes},
+			},
+		},
+	}
+
+	deps := c.cs.AppsV1().Deployments(namespace)
+	_, err := deps.Get(ctx, spec.Name, metav1.GetOptions{})
+	if k8serrors.IsNotFound(err) {
+		if _, err = deps.Create(ctx, desired, metav1.CreateOptions{}); err != nil {
+			return fmt.Errorf("create deployment %s: %w", spec.Name, err)
+		}
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("get deployment %s: %w", spec.Name, err)
+	}
+	if _, err = deps.Update(ctx, desired, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("update deployment %s: %w", spec.Name, err)
+	}
+	return nil
+}
+
+// DeleteDeployment deletes the named Deployment.
+func (c *kubeClientImpl) DeleteDeployment(ctx context.Context, namespace, name string) error {
+	err := c.cs.AppsV1().Deployments(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	if k8serrors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("delete deployment %s: %w", name, err)
+	}
+	return nil
+}
+
+// RolloutRestartDeployment triggers a rollout restart by patching the pod template annotation.
+func (c *kubeClientImpl) RolloutRestartDeployment(ctx context.Context, namespace, name string) error {
+	patch := map[string]any{
+		"spec": map[string]any{
+			"template": map[string]any{
+				"metadata": map[string]any{
+					"annotations": map[string]string{
+						"kubectl.kubernetes.io/restartedAt": time.Now().UTC().Format(time.RFC3339),
+					},
+				},
+			},
+		},
+	}
+	data, err := json.Marshal(patch)
+	if err != nil {
+		return fmt.Errorf("marshal restart patch: %w", err)
+	}
+	_, err = c.cs.AppsV1().Deployments(namespace).Patch(
+		ctx, name, types.MergePatchType, data, metav1.PatchOptions{},
+	)
+	if err != nil {
+		return fmt.Errorf("restart deployment %s: %w", name, err)
+	}
+	return nil
+}
+
+// ignoreNil returns nil when err wraps a nil error (avoids "create X: <nil>" strings).
+func ignoreNil(err error) error {
+	if err == nil {
+		return nil
+	}
+	// unwrap: if the inner error is nil the message is meaningless
+	type unwrapper interface{ Unwrap() error }
+	if u, ok := err.(unwrapper); ok && u.Unwrap() == nil {
+		return nil
+	}
+	return err
+}
+
 // Compile-time assertion.
 var _ domain.KubeClient = (*kubeClientImpl)(nil)
 
@@ -247,4 +441,3 @@ func accessModesToString(modes []corev1.PersistentVolumeAccessMode) string {
 	}
 	return out
 }
-

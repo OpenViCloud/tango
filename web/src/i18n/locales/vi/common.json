@@ -693,6 +693,7 @@
     "databases": "Databases",
     "databaseList": "Databases",
     "sources": "Sources",
+    "cloudflare": "Cloudflare",
     "sourceList": "Sources",
     "domains": "Domains",
     "domainList": "Domains",
@@ -862,6 +863,47 @@
       "connectedOn": "Kết nối lúc {{date}}"
     },
     "githubConnected": "Đã kết nối GitHub source."
+  },
+  "cloudflare": {
+    "page": {
+      "title": "Kết nối Cloudflare",
+      "description": "Lưu credential Cloudflare theo từng user, account và zone để tái sử dụng khi publish service Kubernetes qua tunnel."
+    },
+    "actions": {
+      "add": "Thêm kết nối",
+      "edit": "Sửa",
+      "cancel": "Hủy",
+      "create": "Tạo kết nối",
+      "update": "Cập nhật kết nối"
+    },
+    "empty": {
+      "title": "Chưa có kết nối Cloudflare",
+      "description": "Hãy thêm account và zone trước. Flow tạo tunnel sẽ dùng API token đã mã hóa được lưu tại đây."
+    },
+    "sheet": {
+      "createTitle": "Thêm kết nối Cloudflare",
+      "editTitle": "Cập nhật kết nối Cloudflare",
+      "description": "Tango sẽ verify token với account và zone Cloudflare đã chọn trước khi lưu ở dạng mã hóa."
+    },
+    "form": {
+      "displayName": "Tên hiển thị",
+      "accountId": "Account ID",
+      "zoneId": "Zone ID",
+      "apiToken": "API Token",
+      "apiTokenHint": "Dùng Cloudflare API token có quyền quản lý tunnel và DNS record cho zone đã chọn.",
+      "apiTokenEditHint": "Để trống nếu muốn giữ nguyên API token đã mã hóa hiện tại.",
+      "apiTokenOptional": "Để trống để giữ token hiện tại"
+    },
+    "card": {
+      "accountId": "Account ID",
+      "zoneId": "Zone ID",
+      "tokenStored": "Đã lưu API token mã hóa",
+      "tokenMissing": "Thiếu API token"
+    },
+    "toast": {
+      "created": "Đã tạo kết nối Cloudflare.",
+      "updated": "Đã cập nhật kết nối Cloudflare."
+    }
   },
   "projects": {
     "page": {

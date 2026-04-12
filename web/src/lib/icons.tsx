@@ -45,6 +45,7 @@ export const appIcons = {
   builds: createSolarIcon(Lightning),
   docker: DockerIcon,
   databases: createSolarIcon(Database),
+  cloudflare: createSolarIcon(Global),
   domains: createSolarIcon(Global),
   projects: createSolarIcon(Box),
   sources: GitIcon,

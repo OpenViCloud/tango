@@ -26,6 +26,7 @@ import { Route as AuthDomainsIndexRouteImport } from './routes/_auth/domains/ind
 import { Route as AuthDatabasesIndexRouteImport } from './routes/_auth/databases/index'
 import { Route as AuthContainersIndexRouteImport } from './routes/_auth/containers/index'
 import { Route as AuthClustersIndexRouteImport } from './routes/_auth/clusters/index'
+import { Route as AuthCloudflareIndexRouteImport } from './routes/_auth/cloudflare/index'
 import { Route as AuthChannelsIndexRouteImport } from './routes/_auth/channels/index'
 import { Route as AuthBuildsIndexRouteImport } from './routes/_auth/builds/index'
 import { Route as AuthUsersCreateRouteImport } from './routes/_auth/users/create'
@@ -121,6 +122,11 @@ const AuthClustersIndexRoute = AuthClustersIndexRouteImport.update({
   path: '/clusters/',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthCloudflareIndexRoute = AuthCloudflareIndexRouteImport.update({
+  id: '/cloudflare/',
+  path: '/cloudflare/',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthChannelsIndexRoute = AuthChannelsIndexRouteImport.update({
   id: '/channels/',
   path: '/channels/',
@@ -193,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/users/create': typeof AuthUsersCreateRoute
   '/builds/': typeof AuthBuildsIndexRoute
   '/channels/': typeof AuthChannelsIndexRoute
+  '/cloudflare/': typeof AuthCloudflareIndexRoute
   '/clusters/': typeof AuthClustersIndexRoute
   '/containers/': typeof AuthContainersIndexRoute
   '/databases/': typeof AuthDatabasesIndexRoute
@@ -221,6 +228,7 @@ export interface FileRoutesByTo {
   '/users/create': typeof AuthUsersCreateRoute
   '/builds': typeof AuthBuildsIndexRoute
   '/channels': typeof AuthChannelsIndexRoute
+  '/cloudflare': typeof AuthCloudflareIndexRoute
   '/clusters': typeof AuthClustersIndexRoute
   '/containers': typeof AuthContainersIndexRoute
   '/databases': typeof AuthDatabasesIndexRoute
@@ -252,6 +260,7 @@ export interface FileRoutesById {
   '/_auth/users/create': typeof AuthUsersCreateRoute
   '/_auth/builds/': typeof AuthBuildsIndexRoute
   '/_auth/channels/': typeof AuthChannelsIndexRoute
+  '/_auth/cloudflare/': typeof AuthCloudflareIndexRoute
   '/_auth/clusters/': typeof AuthClustersIndexRoute
   '/_auth/containers/': typeof AuthContainersIndexRoute
   '/_auth/databases/': typeof AuthDatabasesIndexRoute
@@ -282,6 +291,7 @@ export interface FileRouteTypes {
     | '/users/create'
     | '/builds/'
     | '/channels/'
+    | '/cloudflare/'
     | '/clusters/'
     | '/containers/'
     | '/databases/'
@@ -310,6 +320,7 @@ export interface FileRouteTypes {
     | '/users/create'
     | '/builds'
     | '/channels'
+    | '/cloudflare'
     | '/clusters'
     | '/containers'
     | '/databases'
@@ -340,6 +351,7 @@ export interface FileRouteTypes {
     | '/_auth/users/create'
     | '/_auth/builds/'
     | '/_auth/channels/'
+    | '/_auth/cloudflare/'
     | '/_auth/clusters/'
     | '/_auth/containers/'
     | '/_auth/databases/'
@@ -482,6 +494,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthClustersIndexRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/cloudflare/': {
+      id: '/_auth/cloudflare/'
+      path: '/cloudflare'
+      fullPath: '/cloudflare/'
+      preLoaderRoute: typeof AuthCloudflareIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/channels/': {
       id: '/_auth/channels/'
       path: '/channels'
@@ -574,6 +593,7 @@ interface AuthRouteChildren {
   AuthUsersCreateRoute: typeof AuthUsersCreateRoute
   AuthBuildsIndexRoute: typeof AuthBuildsIndexRoute
   AuthChannelsIndexRoute: typeof AuthChannelsIndexRoute
+  AuthCloudflareIndexRoute: typeof AuthCloudflareIndexRoute
   AuthClustersIndexRoute: typeof AuthClustersIndexRoute
   AuthContainersIndexRoute: typeof AuthContainersIndexRoute
   AuthDatabasesIndexRoute: typeof AuthDatabasesIndexRoute
@@ -601,6 +621,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthUsersCreateRoute: AuthUsersCreateRoute,
   AuthBuildsIndexRoute: AuthBuildsIndexRoute,
   AuthChannelsIndexRoute: AuthChannelsIndexRoute,
+  AuthCloudflareIndexRoute: AuthCloudflareIndexRoute,
   AuthClustersIndexRoute: AuthClustersIndexRoute,
   AuthContainersIndexRoute: AuthContainersIndexRoute,
   AuthDatabasesIndexRoute: AuthDatabasesIndexRoute,

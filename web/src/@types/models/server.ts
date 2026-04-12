@@ -70,3 +70,53 @@ export const bootstrapClusterSchema = z.object({
 })
 
 export type BootstrapClusterModel = z.infer<typeof bootstrapClusterSchema>
+
+// ── Kubernetes resources ─────────────────────────────────────────────────────
+
+export type KubeNamespace = {
+  name: string
+  status: string
+}
+
+export type KubePod = {
+  name: string
+  namespace: string
+  status: string
+  node_name: string
+  pod_ip: string
+}
+
+export type KubeServicePort = {
+  name: string
+  port: number
+  target_port: string
+  node_port?: number
+  protocol: string
+}
+
+export type KubeService = {
+  name: string
+  namespace: string
+  type: string
+  cluster_ip: string
+  ports: KubeServicePort[]
+}
+
+export type KubePersistentVolume = {
+  name: string
+  capacity: string
+  access_modes: string
+  reclaim_policy: string
+  status: string
+  storage_class_name: string
+}
+
+export type KubePersistentVolumeClaim = {
+  name: string
+  namespace: string
+  status: string
+  volume_name: string
+  capacity: string
+  access_modes: string
+  storage_class_name: string
+}

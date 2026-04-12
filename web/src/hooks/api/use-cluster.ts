@@ -72,6 +72,137 @@ export const useDeleteCluster = () => {
   })
 }
 
+// ── Kubernetes resource queries ──────────────────────────────────────────────
+
+export const KUBE_QUERY_KEYS = {
+  namespaces: (id: string) => ["clusters", id, "namespaces"],
+  pods: (id: string, namespace?: string) => ["clusters", id, "pods", namespace ?? ""],
+  services: (id: string, namespace?: string) => ["clusters", id, "services", namespace ?? ""],
+  volumes: (id: string) => ["clusters", id, "volumes"],
+  volumeClaims: (id: string, namespace?: string) => ["clusters", id, "volume-claims", namespace ?? ""],
+}
+
+export const useKubeNamespaces = (clusterId: string, enabled = true) =>
+  useQuery({
+    queryKey: KUBE_QUERY_KEYS.namespaces(clusterId),
+    queryFn: () => clusterService.listNamespaces(clusterId),
+    enabled: Boolean(clusterId) && enabled,
+  })
+
+export const useKubePods = (clusterId: string, namespace?: string, enabled = true) =>
+  useQuery({
+    queryKey: KUBE_QUERY_KEYS.pods(clusterId, namespace),
+    queryFn: () => clusterService.listPods(clusterId, namespace),
+    enabled: Boolean(clusterId) && enabled,
+  })
+
+export const useKubeServices = (clusterId: string, namespace?: string, enabled = true) =>
+  useQuery({
+    queryKey: KUBE_QUERY_KEYS.services(clusterId, namespace),
+    queryFn: () => clusterService.listServices(clusterId, namespace),
+    enabled: Boolean(clusterId) && enabled,
+  })
+
+export const useKubePersistentVolumes = (clusterId: string, enabled = true) =>
+  useQuery({
+    queryKey: KUBE_QUERY_KEYS.volumes(clusterId),
+    queryFn: () => clusterService.listPersistentVolumes(clusterId),
+    enabled: Boolean(clusterId) && enabled,
+  })
+
+export const useKubePersistentVolumeClaims = (clusterId: string, namespace?: string, enabled = true) =>
+  useQuery({
+    queryKey: KUBE_QUERY_KEYS.volumeClaims(clusterId, namespace),
+    queryFn: () => clusterService.listPersistentVolumeClaims(clusterId, namespace),
+    enabled: Boolean(clusterId) && enabled,
+  })
+
+export const useCreateKubePod = (clusterId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      namespace,
+      name,
+      image,
+      labels,
+    }: {
+      namespace: string
+      name: string
+      image: string
+      labels?: Record<string, string>
+    }) => clusterService.createPod(clusterId, namespace, { name, image, labels }),
+    onSuccess: (_data, { namespace }) => {
+      void queryClient.invalidateQueries({
+        queryKey: KUBE_QUERY_KEYS.pods(clusterId, namespace),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: KUBE_QUERY_KEYS.pods(clusterId),
+      })
+      toast.success("Pod created.")
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error))
+    },
+  })
+}
+
+export const useCreateKubeService = (clusterId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      namespace,
+      name,
+      type,
+      selector,
+      ports,
+    }: {
+      namespace: string
+      name: string
+      type: string
+      selector: Record<string, string>
+      ports: Array<{ name: string; port: number; target_port: string; protocol: string }>
+    }) => clusterService.createService(clusterId, namespace, { name, type, selector, ports }),
+    onSuccess: (_data, { namespace }) => {
+      void queryClient.invalidateQueries({
+        queryKey: KUBE_QUERY_KEYS.services(clusterId, namespace),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: KUBE_QUERY_KEYS.services(clusterId),
+      })
+      toast.success("Service created.")
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error))
+    },
+  })
+}
+
+export const useDeleteKubePod = (clusterId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ namespace, name }: { namespace: string; name: string }) =>
+      clusterService.deletePod(clusterId, namespace, name),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["clusters", clusterId, "pods"] })
+      toast.success("Pod deleted.")
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  })
+}
+
+export const useDeleteKubeService = (clusterId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ namespace, name }: { namespace: string; name: string }) =>
+      clusterService.deleteService(clusterId, namespace, name),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["clusters", clusterId, "services"] })
+      toast.success("Service deleted.")
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  })
+}
+
 // ── WebSocket log streaming ──────────────────────────────────────────────────
 
 type WsMsg =

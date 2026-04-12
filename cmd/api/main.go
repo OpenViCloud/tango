@@ -22,6 +22,7 @@ import (
 	"tango/internal/handler/rest"
 	response "tango/internal/handler/rest/response"
 	infraansible "tango/internal/infrastructure/ansible"
+	infrakube "tango/internal/infrastructure/kube"
 	infacache "tango/internal/infrastructure/cache"
 	infradb "tango/internal/infrastructure/db"
 	infradocker "tango/internal/infrastructure/docker"
@@ -387,6 +388,8 @@ func main() {
 	serverHandler := rest.NewServerHandler(serverRepo, sshManager)
 	clusterHandler := rest.NewClusterHandler(clusterRepo, serverRepo, ansibleRunner, cipherService)
 	clusterWSHandler := rest.NewClusterWSHandler(logBroadcaster)
+	kubeClientManager := infrakube.NewKubeClientManager(clusterRepo, cipherService)
+	kubeHandler := rest.NewKubeHandler(kubeClientManager, clusterRepo)
 
 	settingsHandler := rest.NewSettingsHandler(platformConfigRepo, traefikFileProvider, traefikRestarter)
 	baseDomainHandler := rest.NewBaseDomainHandler(baseDomainRepo, resourceDomainRepo, resourceRepo)
@@ -493,6 +496,7 @@ func main() {
 			serverHandler.Register(protected)
 			clusterHandler.Register(protected)
 			clusterWSHandler.Register(protected)
+			kubeHandler.Register(protected)
 			settingsHandler.RegisterRoutes(protected)
 			baseDomainHandler.RegisterRoutes(protected)
 			rest.NewSwarmHandler(swarmRepo).RegisterRoutes(protected)

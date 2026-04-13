@@ -12,8 +12,11 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
+import type {
+  ResourceStackTemplateModel,
+  ResourceTemplateModel,
+} from "@/@types/models"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -27,10 +30,10 @@ import {
   PROJECT_QUERY_KEYS,
   useCheckRepo,
   useCreateResource,
-  useCreateResourceStack,
   useCreateResourceFromGit,
-  useGetResourceTemplates,
+  useCreateResourceStack,
   useGetResourceStackTemplates,
+  useGetResourceTemplates,
 } from "@/hooks/api/use-project"
 import {
   useGetSourceBranches,
@@ -38,9 +41,8 @@ import {
   useGetSourceRepos,
 } from "@/hooks/api/use-source"
 import { useSwarmNodes, useSwarmStatus } from "@/hooks/api/use-swarm"
-import type { ResourceStackTemplateModel, ResourceTemplateModel } from "@/@types/models"
-import { useNavigate } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -500,7 +502,10 @@ export function ResourceCreationPage({
     setStackTag(stack.tags[0] ?? "latest")
     setStackEnvEntries(
       stack.shared_env.length > 0
-        ? stack.shared_env.map((entry) => ({ key: entry.key, value: entry.value }))
+        ? stack.shared_env.map((entry) => ({
+            key: entry.key,
+            value: entry.value,
+          }))
         : [{ key: "", value: "" }]
     )
     setStackComponents(
@@ -513,7 +518,10 @@ export function ResourceCreationPage({
             ? `${c.ports[0].host}:${c.ports[0].container}`
             : "",
         volumes: c.volumes ?? [],
-        env: c.env.length > 0 ? c.env.map((e) => ({ key: e.key, value: e.value })) : [],
+        env:
+          c.env.length > 0
+            ? c.env.map((e) => ({ key: e.key, value: e.value }))
+            : [],
         expanded: false,
       }))
     )
@@ -593,7 +601,11 @@ export function ResourceCreationPage({
                 volumes: c.volumes,
                 env: c.env
                   .filter((e) => e.key.trim())
-                  .map((e) => ({ key: e.key.trim(), value: e.value, is_secret: false })),
+                  .map((e) => ({
+                    key: e.key.trim(),
+                    value: e.value,
+                    is_secret: false,
+                  })),
               }
             }),
         },
@@ -755,11 +767,11 @@ export function ResourceCreationPage({
           : "Git Repository"
         : phase === "stack"
           ? (selectedStack?.name ?? "Resource Stack")
-        : selectedPreset
-          ? selectedPreset.name
-          : flowType === "docker"
-            ? "Docker Image"
-            : "New Resource"
+          : selectedPreset
+            ? selectedPreset.name
+            : flowType === "docker"
+              ? "Docker Image"
+              : "New Resource"
 
   // ── Layout ────────────────────────────────────────────────────────────────
   return (
@@ -980,292 +992,331 @@ export function ResourceCreationPage({
       )}
 
       {(phase === "stack" ||
-        (phase === "submitting" && flowType === "stack")) && selectedStack && (
-        <div className="flex flex-col gap-5 rounded-xl border bg-card p-6">
-          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-            <StackVisual stack={selectedStack} className="h-10 w-10 rounded-lg" />
-            <div>
-              <p className="text-sm font-semibold">{selectedStack.name}</p>
-              <p className="font-mono text-xs text-muted-foreground">
-                {stackImage}:{stackTag}
-              </p>
+        (phase === "submitting" && flowType === "stack")) &&
+        selectedStack && (
+          <div className="flex flex-col gap-5 rounded-xl border bg-card p-6">
+            <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+              <StackVisual
+                stack={selectedStack}
+                className="h-10 w-10 rounded-lg"
+              />
+              <div>
+                <p className="text-sm font-semibold">{selectedStack.name}</p>
+                <p className="font-mono text-xs text-muted-foreground">
+                  {stackImage}:{stackTag}
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label>Stack Name Prefix</Label>
+                <Input
+                  placeholder="airflow"
+                  value={stackNamePrefix}
+                  onChange={(e) => setStackNamePrefix(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label>Version</Label>
+                <Input
+                  list={`stack-tags-${selectedStack.id}`}
+                  placeholder="e.g. 3.0.2"
+                  value={stackTag}
+                  onChange={(e) => setStackTag(e.target.value)}
+                  disabled={busy}
+                />
+                <datalist id={`stack-tags-${selectedStack.id}`}>
+                  {selectedStack.tags.map((value) => (
+                    <option key={value} value={value} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-1.5">
-              <Label>Stack Name Prefix</Label>
+              <Label>Image</Label>
               <Input
-                placeholder="airflow"
-                value={stackNamePrefix}
-                onChange={(e) => setStackNamePrefix(e.target.value)}
+                value={stackImage}
+                onChange={(e) => setStackImage(e.target.value)}
                 disabled={busy}
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label>Version</Label>
-              <Input
-                list={`stack-tags-${selectedStack.id}`}
-                placeholder="e.g. 3.0.2"
-                value={stackTag}
-                onChange={(e) => setStackTag(e.target.value)}
-                disabled={busy}
-              />
-              <datalist id={`stack-tags-${selectedStack.id}`}>
-                {selectedStack.tags.map((value) => (
-                  <option key={value} value={value} />
-                ))}
-              </datalist>
-            </div>
-          </div>
+            {isSwarmManager && swarmNodes.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <Label>Node</Label>
+                <Select
+                  value={nodeId || "__any__"}
+                  onValueChange={(value) =>
+                    setNodeId(value === "__any__" ? "" : value)
+                  }
+                  disabled={busy}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any node" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__any__">Any node</SelectItem>
+                    {swarmNodes.map((node) => (
+                      <SelectItem key={node.id} value={node.id}>
+                        {node.hostname}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-          <div className="flex flex-col gap-1.5">
-            <Label>Image</Label>
-            <Input
-              value={stackImage}
-              onChange={(e) => setStackImage(e.target.value)}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <Label>Components</Label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setStackComponents((prev) => [
+                      ...prev,
+                      {
+                        id: "",
+                        type: "service",
+                        cmd: "",
+                        port: "",
+                        volumes: [],
+                        env: [],
+                        expanded: true,
+                      },
+                    ])
+                  }
+                  disabled={busy}
+                  className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <PlusIcon className="size-3" />
+                  Add
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {stackComponents.map((comp, idx) => {
+                  const update = (patch: Partial<typeof comp>) =>
+                    setStackComponents((prev) =>
+                      prev.map((c, i) => (i === idx ? { ...c, ...patch } : c))
+                    )
+                  return (
+                    <div
+                      key={idx}
+                      className="overflow-hidden rounded-lg border"
+                    >
+                      {/* Header row */}
+                      <div className="grid grid-cols-[1fr_1fr_auto_auto_auto] items-center gap-2 p-2">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          {comp.type === "job" && (
+                            <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">
+                              Init
+                            </span>
+                          )}
+                          <Input
+                            placeholder="ID (e.g. db-migrate)"
+                            value={comp.id}
+                            onChange={(e) => update({ id: e.target.value })}
+                            disabled={busy}
+                          />
+                        </div>
+                        <Input
+                          placeholder="Command (e.g. db migrate)"
+                          value={comp.cmd}
+                          onChange={(e) => update({ cmd: e.target.value })}
+                          disabled={busy}
+                        />
+                        {comp.type === "job" ? (
+                          <div className="w-32" />
+                        ) : (
+                          <Input
+                            placeholder="Port (e.g. 8080:8080)"
+                            value={comp.port}
+                            onChange={(e) => update({ port: e.target.value })}
+                            disabled={busy}
+                            className="w-32"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => update({ expanded: !comp.expanded })}
+                          disabled={busy}
+                          className="text-muted-foreground transition-colors hover:text-foreground"
+                          title="Edit env & volumes"
+                        >
+                          <ChevronDownIcon
+                            className={`size-4 transition-transform ${comp.expanded ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setStackComponents((prev) =>
+                              prev.filter((_, i) => i !== idx)
+                            )
+                          }
+                          disabled={busy}
+                          className="text-muted-foreground transition-colors hover:text-destructive"
+                        >
+                          <MinusIcon className="size-4" />
+                        </button>
+                      </div>
+
+                      {/* Expanded section — env & volumes */}
+                      {comp.expanded && (
+                        <div className="space-y-4 border-t bg-muted/20 p-3">
+                          {/* Volumes */}
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-xs font-medium text-muted-foreground">
+                              Volumes
+                            </span>
+                            {comp.volumes.map((vol, vi) => (
+                              <div
+                                key={vi}
+                                className="flex items-center gap-1.5"
+                              >
+                                <Input
+                                  className="flex-1 font-mono text-xs"
+                                  placeholder="host/path:/container/path"
+                                  value={vol}
+                                  onChange={(e) => {
+                                    const next = [...comp.volumes]
+                                    next[vi] = e.target.value
+                                    update({ volumes: next })
+                                  }}
+                                  disabled={busy}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    update({
+                                      volumes: comp.volumes.filter(
+                                        (_, j) => j !== vi
+                                      ),
+                                    })
+                                  }
+                                  disabled={busy}
+                                  className="text-muted-foreground transition-colors hover:text-destructive"
+                                >
+                                  <MinusIcon className="size-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                update({ volumes: [...comp.volumes, ""] })
+                              }
+                              disabled={busy}
+                              className="flex items-center gap-1 self-start text-xs text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              <PlusIcon className="size-3" /> Add volume
+                            </button>
+                          </div>
+
+                          {/* Env vars */}
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-xs font-medium text-muted-foreground">
+                              Env Vars
+                            </span>
+                            {comp.env.map((e, ei) => (
+                              <div
+                                key={ei}
+                                className="flex items-center gap-1.5"
+                              >
+                                <Input
+                                  className="flex-1 font-mono text-xs"
+                                  placeholder="KEY"
+                                  value={e.key}
+                                  onChange={(ev) => {
+                                    const next = [...comp.env]
+                                    next[ei] = {
+                                      ...next[ei],
+                                      key: ev.target.value,
+                                    }
+                                    update({ env: next })
+                                  }}
+                                  disabled={busy}
+                                />
+                                <Input
+                                  className="flex-1 text-xs"
+                                  placeholder="value"
+                                  value={e.value}
+                                  onChange={(ev) => {
+                                    const next = [...comp.env]
+                                    next[ei] = {
+                                      ...next[ei],
+                                      value: ev.target.value,
+                                    }
+                                    update({ env: next })
+                                  }}
+                                  disabled={busy}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    update({
+                                      env: comp.env.filter((_, j) => j !== ei),
+                                    })
+                                  }
+                                  disabled={busy}
+                                  className="text-muted-foreground transition-colors hover:text-destructive"
+                                >
+                                  <MinusIcon className="size-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                update({
+                                  env: [...comp.env, { key: "", value: "" }],
+                                })
+                              }
+                              disabled={busy}
+                              className="flex items-center gap-1 self-start text-xs text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              <PlusIcon className="size-3" /> Add env var
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+
+                {stackComponents.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No components. Click Add to define one.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <EnvList
+              entries={stackEnvEntries}
+              onChange={setStackEnvEntries}
               disabled={busy}
             />
-          </div>
 
-          {isSwarmManager && swarmNodes.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <Label>Node</Label>
-              <Select
-                value={nodeId || "__any__"}
-                onValueChange={(value) =>
-                  setNodeId(value === "__any__" ? "" : value)
-                }
-                disabled={busy}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Any node" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__any__">Any node</SelectItem>
-                  {swarmNodes.map((node) => (
-                    <SelectItem key={node.id} value={node.id}>
-                      {node.hostname}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <Label>Components</Label>
-              <button
-                type="button"
-                onClick={() =>
-                  setStackComponents((prev) => [
-                    ...prev,
-                    { id: "", type: "service", cmd: "", port: "", volumes: [], env: [], expanded: true },
-                  ])
-                }
-                disabled={busy}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <PlusIcon className="size-3" />
-                Add
-              </button>
+            <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
+              The API will create one resource per enabled component. Required
+              components are always created.
             </div>
 
-            <div className="flex flex-col gap-2">
-              {stackComponents.map((comp, idx) => {
-                const update = (patch: Partial<typeof comp>) =>
-                  setStackComponents((prev) =>
-                    prev.map((c, i) => (i === idx ? { ...c, ...patch } : c))
-                  )
-                return (
-                  <div key={idx} className="rounded-lg border overflow-hidden">
-                    {/* Header row */}
-                    <div className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-2 items-center p-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {comp.type === "job" && (
-                          <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-amber-500/15 text-amber-600">
-                            Init
-                          </span>
-                        )}
-                        <Input
-                          placeholder="ID (e.g. db-migrate)"
-                          value={comp.id}
-                          onChange={(e) => update({ id: e.target.value })}
-                          disabled={busy}
-                        />
-                      </div>
-                      <Input
-                        placeholder="Command (e.g. db migrate)"
-                        value={comp.cmd}
-                        onChange={(e) => update({ cmd: e.target.value })}
-                        disabled={busy}
-                      />
-                      {comp.type === "job" ? (
-                        <div className="w-32" />
-                      ) : (
-                        <Input
-                          placeholder="Port (e.g. 8080:8080)"
-                          value={comp.port}
-                          onChange={(e) => update({ port: e.target.value })}
-                          disabled={busy}
-                          className="w-32"
-                        />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => update({ expanded: !comp.expanded })}
-                        disabled={busy}
-                        className="text-muted-foreground hover:text-foreground transition-colors"
-                        title="Edit env & volumes"
-                      >
-                        <ChevronDownIcon
-                          className={`size-4 transition-transform ${comp.expanded ? "rotate-180" : ""}`}
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setStackComponents((prev) => prev.filter((_, i) => i !== idx))
-                        }
-                        disabled={busy}
-                        className="text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <MinusIcon className="size-4" />
-                      </button>
-                    </div>
-
-                    {/* Expanded section — env & volumes */}
-                    {comp.expanded && (
-                      <div className="border-t bg-muted/20 p-3 space-y-4">
-                        {/* Volumes */}
-                        <div className="flex flex-col gap-1.5">
-                          <span className="text-xs font-medium text-muted-foreground">
-                            Volumes
-                          </span>
-                          {comp.volumes.map((vol, vi) => (
-                            <div key={vi} className="flex gap-1.5 items-center">
-                              <Input
-                                className="flex-1 font-mono text-xs"
-                                placeholder="host/path:/container/path"
-                                value={vol}
-                                onChange={(e) => {
-                                  const next = [...comp.volumes]
-                                  next[vi] = e.target.value
-                                  update({ volumes: next })
-                                }}
-                                disabled={busy}
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  update({ volumes: comp.volumes.filter((_, j) => j !== vi) })
-                                }
-                                disabled={busy}
-                                className="text-muted-foreground hover:text-destructive transition-colors"
-                              >
-                                <MinusIcon className="size-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => update({ volumes: [...comp.volumes, ""] })}
-                            disabled={busy}
-                            className="flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <PlusIcon className="size-3" /> Add volume
-                          </button>
-                        </div>
-
-                        {/* Env vars */}
-                        <div className="flex flex-col gap-1.5">
-                          <span className="text-xs font-medium text-muted-foreground">
-                            Env Vars
-                          </span>
-                          {comp.env.map((e, ei) => (
-                            <div key={ei} className="flex gap-1.5 items-center">
-                              <Input
-                                className="flex-1 font-mono text-xs"
-                                placeholder="KEY"
-                                value={e.key}
-                                onChange={(ev) => {
-                                  const next = [...comp.env]
-                                  next[ei] = { ...next[ei], key: ev.target.value }
-                                  update({ env: next })
-                                }}
-                                disabled={busy}
-                              />
-                              <Input
-                                className="flex-1 text-xs"
-                                placeholder="value"
-                                value={e.value}
-                                onChange={(ev) => {
-                                  const next = [...comp.env]
-                                  next[ei] = { ...next[ei], value: ev.target.value }
-                                  update({ env: next })
-                                }}
-                                disabled={busy}
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  update({ env: comp.env.filter((_, j) => j !== ei) })
-                                }
-                                disabled={busy}
-                                className="text-muted-foreground hover:text-destructive transition-colors"
-                              >
-                                <MinusIcon className="size-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              update({ env: [...comp.env, { key: "", value: "" }] })
-                            }
-                            disabled={busy}
-                            className="flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <PlusIcon className="size-3" /> Add env var
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-
-              {stackComponents.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  No components. Click Add to define one.
-                </p>
-              )}
+            <div className="flex justify-end gap-2 border-t pt-4">
+              <Button variant="outline" onClick={goBack} disabled={busy}>
+                Back
+              </Button>
+              <Button onClick={handleSubmit} disabled={busy}>
+                {busy ? "Creating…" : "Create Stack"}
+              </Button>
             </div>
           </div>
-
-          <EnvList
-            entries={stackEnvEntries}
-            onChange={setStackEnvEntries}
-            disabled={busy}
-          />
-
-          <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-            The API will create one resource per enabled component. Required
-            components are always created.
-          </div>
-
-          <div className="flex justify-end gap-2 border-t pt-4">
-            <Button variant="outline" onClick={goBack} disabled={busy}>
-              Back
-            </Button>
-            <Button onClick={handleSubmit} disabled={busy}>
-              {busy ? "Creating…" : "Create Stack"}
-            </Button>
-          </div>
-        </div>
-      )}
+        )}
 
       {/* ── Git form ───────────────────────────────────────────── */}
       {(phase === "git" ||
@@ -1574,7 +1625,10 @@ export function ResourceCreationPage({
           {/* Selected preset badge */}
           {selectedPreset && (
             <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-              <PresetVisual preset={selectedPreset} className="h-10 w-10 rounded-lg" />
+              <PresetVisual
+                preset={selectedPreset}
+                className="h-10 w-10 rounded-lg"
+              />
               <div>
                 <p className="text-sm font-semibold">{selectedPreset.name}</p>
                 <p className="font-mono text-xs text-muted-foreground">

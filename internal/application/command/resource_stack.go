@@ -6,19 +6,29 @@ import (
 	"slices"
 	"strings"
 
+	appservices "tango/internal/application/services"
 	"tango/internal/domain"
 )
 
+type CustomComponentInput struct {
+	ID      string
+	Type    string // "service" | "job"
+	Cmd     []string
+	Ports   []ResourcePortInput
+	Volumes []string
+	Env     []ResourceEnvVarInput
+}
+
 type CreateResourceStackCommand struct {
-	TemplateID        string
-	NamePrefix        string
-	Image             string
-	Tag               string
-	EnvironmentID     string
-	CreatedBy         string
-	NodeID            *string
-	EnabledComponents []string
-	SharedEnvVars     []ResourceEnvVarInput
+	TemplateID       string
+	NamePrefix       string
+	Image            string
+	Tag              string
+	EnvironmentID    string
+	CreatedBy        string
+	NodeID           *string
+	SharedEnvVars    []ResourceEnvVarInput
+	CustomComponents []CustomComponentInput
 }
 
 type CreateResourceStackResult struct {
@@ -29,11 +39,13 @@ type CreateResourceStackResult struct {
 type CreateResourceStackHandler struct {
 	createResource *CreateResourceHandler
 	templates      map[string]domain.ResourceStackTemplate
+	jobRunner      appservices.JobRunner
 }
 
 func NewCreateResourceStackHandler(
 	createResource *CreateResourceHandler,
 	templates []domain.ResourceStackTemplate,
+	jobRunner appservices.JobRunner,
 ) *CreateResourceStackHandler {
 	index := make(map[string]domain.ResourceStackTemplate, len(templates))
 	for _, template := range templates {
@@ -42,6 +54,7 @@ func NewCreateResourceStackHandler(
 	return &CreateResourceStackHandler{
 		createResource: createResource,
 		templates:      index,
+		jobRunner:      jobRunner,
 	}
 }
 
@@ -72,57 +85,29 @@ func (h *CreateResourceStackHandler) Handle(ctx context.Context, cmd CreateResou
 		tag = "latest"
 	}
 
-	enabledSet := make(map[string]struct{}, len(cmd.EnabledComponents))
-	for _, id := range cmd.EnabledComponents {
-		key := strings.TrimSpace(id)
-		if key == "" {
-			continue
-		}
-		enabledSet[key] = struct{}{}
-	}
-
-	for id := range enabledSet {
-		if !stackHasComponent(template, id) {
-			return nil, domain.NewUserFacingError("Unknown stack component: " + id)
-		}
-	}
-
 	sharedEnv := mergeEnvEntries(template.SharedEnv, cmd.SharedEnvVars)
 
-	resources := make([]*domain.Resource, 0, len(template.Components))
-	for _, component := range template.Components {
-		if !component.Required {
-			if len(enabledSet) == 0 {
-				if !component.DefaultEnabled {
-					continue
-				}
-			} else if _, ok := enabledSet[component.ID]; !ok {
-				continue
-			}
+	// Helper: create one resource record from a CustomComponentInput.
+	createComp := func(comp CustomComponentInput, compType string) (*domain.Resource, error) {
+		id := strings.TrimSpace(comp.ID)
+		if id == "" {
+			return nil, nil
 		}
-
-		componentEnv := mergeEnvEntries(component.Env, nil)
-		envVars := append(sharedEnv, componentEnv...)
-		ports, err := stackPortsToInput(component.Ports)
-		if err != nil {
-			return nil, err
-		}
-
 		config := map[string]any{}
-		if len(component.Volumes) > 0 {
-			config["volumes"] = component.Volumes
+		if len(comp.Cmd) > 0 {
+			config["cmd"] = comp.Cmd
 		}
-		if len(component.Cmd) > 0 {
-			config["cmd"] = component.Cmd
+		if len(comp.Volumes) > 0 {
+			config["volumes"] = comp.Volumes
 		}
 		if len(config) == 0 {
 			config = nil
 		}
-
-		resource, err := h.createResource.Handle(ctx, CreateResourceCommand{
+		envVars := mergeEnvVarInputs(sharedEnv, comp.Env)
+		return h.createResource.Handle(ctx, CreateResourceCommand{
 			ID:            newResourceID(),
-			Name:          buildStackResourceName(namePrefix, component.ID),
-			Type:          component.Type,
+			Name:          buildStackResourceName(namePrefix, id),
+			Type:          compType,
 			Image:         image,
 			Tag:           tag,
 			Config:        config,
@@ -130,15 +115,49 @@ func (h *CreateResourceStackHandler) Handle(ctx context.Context, cmd CreateResou
 			CreatedBy:     cmd.CreatedBy,
 			NodeID:        cmd.NodeID,
 			Replicas:      1,
-			Ports:         ports,
+			Ports:         comp.Ports,
 			EnvVars:       envVars,
 		})
-		if err != nil {
-			return nil, fmt.Errorf("create stack component %s: %w", component.Name, err)
-		}
-		resources = append(resources, resource)
 	}
 
+	// Pass 1: create & run job components synchronously (fail fast).
+	var jobResources []*domain.Resource
+	for _, comp := range cmd.CustomComponents {
+		if comp.Type != domain.ResourceTypeJob {
+			continue
+		}
+		resource, err := createComp(comp, domain.ResourceTypeJob)
+		if err != nil {
+			return nil, fmt.Errorf("create job component %s: %w", comp.ID, err)
+		}
+		if resource == nil {
+			continue
+		}
+		if h.jobRunner != nil {
+			if err := h.jobRunner.RunJobSync(ctx, resource.ID); err != nil {
+				return nil, fmt.Errorf("job %s: %w", comp.ID, err)
+			}
+		}
+		jobResources = append(jobResources, resource)
+	}
+
+	// Pass 2: create service components (not started yet — user triggers manually).
+	var serviceResources []*domain.Resource
+	for _, comp := range cmd.CustomComponents {
+		if comp.Type == domain.ResourceTypeJob {
+			continue
+		}
+		resource, err := createComp(comp, domain.ResourceTypeService)
+		if err != nil {
+			return nil, fmt.Errorf("create stack component %s: %w", comp.ID, err)
+		}
+		if resource == nil {
+			continue
+		}
+		serviceResources = append(serviceResources, resource)
+	}
+
+	resources := append(jobResources, serviceResources...)
 	if len(resources) == 0 {
 		return nil, domain.NewUserFacingError("No stack components were enabled")
 	}
@@ -147,35 +166,6 @@ func (h *CreateResourceStackHandler) Handle(ctx context.Context, cmd CreateResou
 		TemplateID: template.ID,
 		Resources:  resources,
 	}, nil
-}
-
-func stackHasComponent(template domain.ResourceStackTemplate, id string) bool {
-	for _, component := range template.Components {
-		if component.ID == id {
-			return true
-		}
-	}
-	return false
-}
-
-func stackPortsToInput(ports []domain.ResourceStackTemplatePort) ([]ResourcePortInput, error) {
-	out := make([]ResourcePortInput, 0, len(ports))
-	for _, port := range ports {
-		hostPort, err := parsePortString(port.Host)
-		if err != nil {
-			return nil, domain.NewUserFacingError("Invalid host port for stack component")
-		}
-		containerPort, err := parsePortString(port.Container)
-		if err != nil {
-			return nil, domain.NewUserFacingError("Invalid container port for stack component")
-		}
-		out = append(out, ResourcePortInput{
-			HostPort:     hostPort,
-			InternalPort: containerPort,
-			Proto:        "tcp",
-		})
-	}
-	return out, nil
 }
 
 func parsePortString(value string) (int, error) {
@@ -230,6 +220,34 @@ func mergeEnvEntries(base []domain.ResourceStackTemplateEnvVar, overrides []Reso
 		return strings.Compare(a.Key, b.Key)
 	})
 
+	return merged
+}
+
+// mergeEnvVarInputs merges component-level env into the base (shared) env.
+// Component env takes precedence over shared env for duplicate keys.
+func mergeEnvVarInputs(base, overrides []ResourceEnvVarInput) []ResourceEnvVarInput {
+	merged := make([]ResourceEnvVarInput, 0, len(base)+len(overrides))
+	index := make(map[string]int, len(base)+len(overrides))
+	for _, e := range base {
+		k := strings.TrimSpace(e.Key)
+		if k == "" {
+			continue
+		}
+		index[k] = len(merged)
+		merged = append(merged, e)
+	}
+	for _, e := range overrides {
+		k := strings.TrimSpace(e.Key)
+		if k == "" {
+			continue
+		}
+		if i, ok := index[k]; ok {
+			merged[i] = e
+		} else {
+			index[k] = len(merged)
+			merged = append(merged, e)
+		}
+	}
 	return merged
 }
 

@@ -12,6 +12,7 @@ const (
 	ResourceTypeDB      ResourceType = "db"
 	ResourceTypeApp     ResourceType = "app"
 	ResourceTypeService ResourceType = "service"
+	ResourceTypeJob     ResourceType = "job" // one-shot init task (e.g. db migrate)
 )
 
 const (
@@ -20,6 +21,7 @@ const (
 	ResourceStatusRunning      ResourceStatus = "running"
 	ResourceStatusStopped      ResourceStatus = "stopped"
 	ResourceStatusError        ResourceStatus = "error"
+	ResourceStatusCompleted    ResourceStatus = "completed"    // job finished successfully
 	ResourceStatusPendingBuild ResourceStatus = "pending_build" // waiting for build job
 	ResourceStatusBuilding     ResourceStatus = "building"      // build job running
 	ResourceStatusCreated      ResourceStatus = "created"       // saved but never built

@@ -87,6 +87,35 @@ func (s *ResourceRunService) StartAfterBuild(ctx context.Context, resourceID, im
 	return nil
 }
 
+// RunJobSync implements application/services.JobRunner.
+// It creates a run record, starts the job container, and blocks until it exits.
+func (s *ResourceRunService) RunJobSync(ctx context.Context, resourceID string) error {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	runID := "resrun_" + hex.EncodeToString(b)
+
+	run, err := domain.NewResourceRun(runID, resourceID)
+	if err != nil {
+		return fmt.Errorf("create job run record: %w", err)
+	}
+	saved, err := s.runRepo.Save(ctx, run)
+	if err != nil {
+		return fmt.Errorf("save job run record: %w", err)
+	}
+
+	broadcaster := newLogBroadcaster()
+	s.active.Store(saved.ID, broadcaster)
+	defer func() {
+		broadcaster.closeAll()
+		s.active.Delete(saved.ID)
+	}()
+
+	if err := s.runStart(saved, broadcaster); err != nil {
+		return fmt.Errorf("job %s failed: %w", resourceID, err)
+	}
+	return nil
+}
+
 func (s *ResourceRunService) Subscribe(runID string) (<-chan []byte, func()) {
 	val, ok := s.active.Load(runID)
 	if !ok {
@@ -291,6 +320,33 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 	logLine(fmt.Sprintf("[start] starting container %s", containerID))
 	if err := s.dockerRepo.StartContainer(ctx, containerID); err != nil {
 		return fail("start container", err)
+	}
+
+	// ── Job mode: wait for container to exit ────────────────────────────────
+	if resource.Type == domain.ResourceTypeJob {
+		logLine("[job] waiting for job container to finish…")
+		exitCode, err := s.dockerRepo.WaitContainer(ctx, containerID)
+		if err != nil {
+			return fail("wait job container", err)
+		}
+		logLine(fmt.Sprintf("[job] container exited with code %d", exitCode))
+		if exitCode != 0 {
+			return fail(fmt.Sprintf("job failed with exit code %d", exitCode), nil)
+		}
+		if err := s.resourceRepo.UpdateStatus(ctx, resource.ID, domain.ResourceStatusCompleted, containerID); err != nil {
+			return fail("update job status", err)
+		}
+		logLine("[done] job completed successfully")
+		done := time.Now().UTC()
+		run.Status = domain.ResourceRunStatusDone
+		run.FinishedAt = &done
+		run.Logs = b.Snapshot()
+		run.ErrorMsg = ""
+		if _, err := s.runRepo.Update(ctx, run); err != nil {
+			s.logger.Error("update resource run on success (job)", "run_id", run.ID, "err", err)
+			return err
+		}
+		return nil
 	}
 
 	// Resolve container name if reusing an existing container

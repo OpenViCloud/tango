@@ -7,7 +7,7 @@
     "description": "Workflow orchestration stack split into dedicated Airflow runtime services.",
     "color": "#017CEE",
     "abbr": "AF",
-    "tags": ["2.10.5", "2.9.3", "latest"],
+    "tags": ["3.0.2", "3.0.1", "3.0.0", "2.10.5", "2.9.3"],
     "shared_env": [
       {
         "key": "AIRFLOW__CORE__EXECUTOR",
@@ -26,39 +26,49 @@
         "value": "change-me"
       },
       {
-        "key": "_AIRFLOW_WWW_USER_USERNAME",
-        "value": "admin"
+        "key": "AIRFLOW__CORE__SECRET_KEY",
+        "value": "change-me"
       },
       {
-        "key": "_AIRFLOW_WWW_USER_PASSWORD",
-        "value": "admin"
+        "key": "AIRFLOW__SIMPLE_AUTH_MANAGER__PASSWORDS",
+        "value": "admin:admin"
       }
     ],
     "components": [
       {
-        "id": "webserver",
-        "name": "Webserver",
-        "description": "Exposes the Airflow UI and bootstraps the metadata database.",
+        "id": "db-migrate",
+        "name": "DB Migrate",
+        "description": "Runs airflow db migrate once before services start. Ensures schema is up to date.",
+        "type": "job",
+        "required": true,
+        "default_enabled": true,
+        "ports": [],
+        "env": [],
+        "volumes": [],
+        "cmd": ["db", "migrate"]
+      },
+      {
+        "id": "api-server",
+        "name": "API Server",
+        "description": "Serves the Airflow REST API and UI (replaces webserver in Airflow 3.x).",
         "type": "service",
         "required": true,
         "default_enabled": true,
         "ports": [{ "host": "8080", "container": "8080" }],
         "env": [
-          { "key": "AIRFLOW__WEBSERVER__EXPOSE_CONFIG", "value": "false" },
-          { "key": "_AIRFLOW_DB_MIGRATE", "value": "true" },
-          { "key": "_AIRFLOW_WWW_USER_CREATE", "value": "true" }
+          { "key": "AIRFLOW__API_SERVER__EXPOSE_CONFIG", "value": "false" }
         ],
         "volumes": [
           "airflow/dags:/opt/airflow/dags",
           "airflow/logs:/opt/airflow/logs",
           "airflow/plugins:/opt/airflow/plugins"
         ],
-        "cmd": ["webserver"]
+        "cmd": ["api-server"]
       },
       {
         "id": "scheduler",
         "name": "Scheduler",
-        "description": "Parses DAGs and schedules runnable tasks.",
+        "description": "Schedules runnable tasks (no longer parses DAGs in Airflow 3.x).",
         "type": "service",
         "required": true,
         "default_enabled": true,
@@ -70,6 +80,22 @@
           "airflow/plugins:/opt/airflow/plugins"
         ],
         "cmd": ["scheduler"]
+      },
+      {
+        "id": "dag-processor",
+        "name": "DAG Processor",
+        "description": "Parses and processes DAG files (new dedicated service in Airflow 3.x).",
+        "type": "service",
+        "required": true,
+        "default_enabled": true,
+        "ports": [],
+        "env": [],
+        "volumes": [
+          "airflow/dags:/opt/airflow/dags",
+          "airflow/logs:/opt/airflow/logs",
+          "airflow/plugins:/opt/airflow/plugins"
+        ],
+        "cmd": ["dag-processor"]
       },
       {
         "id": "worker",

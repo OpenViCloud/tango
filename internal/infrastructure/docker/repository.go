@@ -548,6 +548,17 @@ func (r *Repository) StopContainer(ctx context.Context, containerID string) erro
 	return nil
 }
 
+// WaitContainer blocks until the container exits and returns its exit code.
+func (r *Repository) WaitContainer(ctx context.Context, containerID string) (int64, error) {
+	statusCh, errCh := r.client.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		return -1, fmt.Errorf("wait container %s: %w", containerID, err)
+	case status := <-statusCh:
+		return status.StatusCode, nil
+	}
+}
+
 // RemoveContainer removes a container. Pass force=true to remove running containers.
 func (r *Repository) RemoveContainer(ctx context.Context, containerID string, force bool) error {
 	f := filters.NewArgs(filters.Arg("id", containerID))

@@ -205,7 +205,6 @@ export const createResourceStackSchema = z.object({
   image: z.string().optional(),
   tag: z.string().optional(),
   node_id: z.string().nullable().optional(),
-  enabled_components: z.array(z.string()).optional(),
   shared_env_vars: z
     .array(
       z.object({
@@ -215,6 +214,26 @@ export const createResourceStackSchema = z.object({
       })
     )
     .optional(),
+  custom_components: z.array(
+    z.object({
+      id: z.string(),
+      type: z.string().optional(), // "service" | "job"
+      cmd: z.array(z.string()),
+      ports: z
+        .array(
+          z.object({
+            host_port: z.number(),
+            internal_port: z.number(),
+            proto: z.string().default("tcp"),
+          })
+        )
+        .optional(),
+      volumes: z.array(z.string()).optional(),
+      env: z
+        .array(z.object({ key: z.string(), value: z.string(), is_secret: z.boolean() }))
+        .optional(),
+    })
+  ),
 })
 
 export const updateProjectSchema = z.object({

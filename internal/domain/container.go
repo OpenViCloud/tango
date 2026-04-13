@@ -197,5 +197,7 @@ type DockerRepository interface {
 	StartContainer(ctx context.Context, containerID string) error
 	StopContainer(ctx context.Context, containerID string) error
 	RemoveContainer(ctx context.Context, containerID string, force bool) error
+	// WaitContainer blocks until the container exits and returns its exit code.
+	WaitContainer(ctx context.Context, containerID string) (exitCode int64, err error)
 	Close() error
 }

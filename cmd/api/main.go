@@ -309,7 +309,7 @@ func main() {
 	if err != nil {
 		fatal(logger, "load resource stack templates failed", err)
 	}
-	createResourceStackHandler := command.NewCreateResourceStackHandler(createResourceHandler, resourceStackTemplates)
+	// createResourceStackHandler is wired below after resourceRunSvc is available.
 	createResourceFromGitHandler := command.NewCreateResourceFromGitHandler(resourceRepo, buildJobRepo, buildSvc, resolveSourceConnectionTokenHandler)
 	startBuildForResourceHandler := command.NewStartBuildForResourceHandler(resourceRepo, buildJobRepo, buildSvc, resolveSourceConnectionTokenHandler)
 	updateResourceHandler := command.NewUpdateResourceHandler(resourceRepo, platformConfigRepo)
@@ -328,6 +328,7 @@ func main() {
 	}
 
 	resourceRunSvc := infraservices.NewResourceRunService(resourceRepo, resourceRunRepo, dockerRepo, swarmRepo, resourceDomainRepo, platformConfigRepo, traefikFileProvider, logger)
+	createResourceStackHandler := command.NewCreateResourceStackHandler(createResourceHandler, resourceStackTemplates, resourceRunSvc)
 	var runtimeReconciler appservices.ResourceRuntimeReconciler
 	if dockerRepo != nil {
 		runtimeReconciler = infraservices.NewResourceRuntimeReconciler(resourceRepo, dockerRepo, swarmRepo, logger)

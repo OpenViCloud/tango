@@ -210,14 +210,23 @@ type createResourceFromGitRequest struct {
 	EnvVars      []createResourceEnvVarRequest `json:"env_vars"`
 }
 
+type createCustomStackComponentRequest struct {
+	ID      string                        `json:"id"`
+	Type    string                        `json:"type,omitempty"` // "service" | "job"
+	Cmd     []string                      `json:"cmd"`
+	Ports   []createResourcePortRequest   `json:"ports,omitempty"`
+	Volumes []string                      `json:"volumes,omitempty"`
+	Env     []createResourceEnvVarRequest `json:"env,omitempty"`
+}
+
 type createResourceStackRequest struct {
-	TemplateID        string                        `json:"template_id" binding:"required"`
-	NamePrefix        string                        `json:"name_prefix"`
-	Image             string                        `json:"image"`
-	Tag               string                        `json:"tag"`
-	NodeID            *string                       `json:"node_id"`
-	EnabledComponents []string                      `json:"enabled_components"`
-	SharedEnvVars     []createResourceEnvVarRequest `json:"shared_env_vars"`
+	TemplateID       string                              `json:"template_id" binding:"required"`
+	NamePrefix       string                              `json:"name_prefix"`
+	Image            string                              `json:"image"`
+	Tag              string                              `json:"tag"`
+	NodeID           *string                             `json:"node_id"`
+	SharedEnvVars    []createResourceEnvVarRequest       `json:"shared_env_vars"`
+	CustomComponents []createCustomStackComponentRequest `json:"custom_components"`
 }
 
 type updateResourceRequest struct {
@@ -726,16 +735,44 @@ func (h *ProjectHandler) CreateResourceStack(c *gin.Context) {
 		})
 	}
 
+	customComponents := make([]command.CustomComponentInput, 0, len(req.CustomComponents))
+	for _, cc := range req.CustomComponents {
+		ports := make([]command.ResourcePortInput, 0, len(cc.Ports))
+		for _, p := range cc.Ports {
+			ports = append(ports, command.ResourcePortInput{
+				HostPort:     p.HostPort,
+				InternalPort: p.InternalPort,
+				Proto:        p.Proto,
+			})
+		}
+		env := make([]command.ResourceEnvVarInput, 0, len(cc.Env))
+		for _, e := range cc.Env {
+			env = append(env, command.ResourceEnvVarInput{
+				Key:      e.Key,
+				Value:    e.Value,
+				IsSecret: e.IsSecret,
+			})
+		}
+		customComponents = append(customComponents, command.CustomComponentInput{
+			ID:      cc.ID,
+			Type:    cc.Type,
+			Cmd:     cc.Cmd,
+			Ports:   ports,
+			Volumes: cc.Volumes,
+			Env:     env,
+		})
+	}
+
 	result, err := h.createResourceStack.Handle(c.Request.Context(), command.CreateResourceStackCommand{
-		TemplateID:        req.TemplateID,
-		NamePrefix:        req.NamePrefix,
-		Image:             req.Image,
-		Tag:               req.Tag,
-		EnvironmentID:     c.Param("envId"),
-		CreatedBy:         userID,
-		NodeID:            req.NodeID,
-		EnabledComponents: req.EnabledComponents,
-		SharedEnvVars:     sharedEnvVars,
+		TemplateID:       req.TemplateID,
+		NamePrefix:       req.NamePrefix,
+		Image:            req.Image,
+		Tag:              req.Tag,
+		EnvironmentID:    c.Param("envId"),
+		CreatedBy:        userID,
+		NodeID:           req.NodeID,
+		SharedEnvVars:    sharedEnvVars,
+		CustomComponents: customComponents,
 	})
 	if err != nil {
 		writeProjectError(c, err)

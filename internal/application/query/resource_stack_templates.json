@@ -148,8 +148,9 @@
       { "key": "OPENCLAW_TMP_DIR", "value": "/home/node/.openclaw/tmp" },
       { "key": "OPENCLAW_GATEWAY_TOKEN", "value": "" },
       { "key": "OPENCLAW_DEFAULT_MODEL", "value": "anthropic/claude-sonnet-4-6" },
-      { "key": "OPENCLAW_AUTH_PROVIDER", "value": "anthropic" },
-      { "key": "OPENCLAW_AUTH_KEY", "value": "", "is_secret": true }
+      { "key": "ANTHROPIC_API_KEY", "value": "" },
+      { "key": "OPENAI_API_KEY", "value": "" },
+      { "key": "GEMINI_API_KEY", "value": "" }
     ],
     "components": [
       {

@@ -39,6 +39,8 @@ func WriteVolumeFiles(cfg map[string]any, mountRoot string, env map[string]strin
 		return err
 	}
 
+	resolveProviderVars(env)
+
 	for _, item := range items {
 		if err := writeOneVolumeFile(item.Path, item.Content, root, env); err != nil {
 			return err
@@ -105,6 +107,32 @@ func interpolateEnvVars(content string, env map[string]string) string {
 		pairs = append(pairs, "{{"+k+"}}", v)
 	}
 	return strings.NewReplacer(pairs...).Replace(content)
+}
+
+// resolveProviderVars detects which AI provider API key is set and injects
+// OPENCLAW_AUTH_PROVIDER and OPENCLAW_AUTH_KEY into the env map so that
+// volume_files templates can reference them via {{OPENCLAW_AUTH_PROVIDER}}
+// and {{OPENCLAW_AUTH_KEY}} without the user needing to set them explicitly.
+// Priority: Anthropic → OpenAI → Gemini.
+func resolveProviderVars(env map[string]string) {
+	if env["OPENCLAW_AUTH_PROVIDER"] != "" {
+		return // already explicitly set, don't override
+	}
+	type candidate struct {
+		keyVar   string
+		provider string
+	}
+	for _, c := range []candidate{
+		{"ANTHROPIC_API_KEY", "anthropic"},
+		{"OPENAI_API_KEY", "openai"},
+		{"GEMINI_API_KEY", "google"},
+	} {
+		if v := strings.TrimSpace(env[c.keyVar]); v != "" {
+			env["OPENCLAW_AUTH_PROVIDER"] = c.provider
+			env["OPENCLAW_AUTH_KEY"] = v
+			return
+		}
+	}
 }
 
 type ResourceMounts struct {

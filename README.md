@@ -69,21 +69,22 @@ make web-dev    # Vite dev server → http://localhost:5173 (proxies /api → :8
 `make dev` loads `.env.dev` so no manual `export` is needed.
 
 > **Note:** `.env.dev` is gitignored. Copy and adjust if you need custom values:
+>
 > ```bash
 > cp .env.dev .env.dev.local  # optional personal overrides
 > ```
 
 #### Useful dev commands
 
-| Command | Description |
-| ------- | ----------- |
-| `make infra` | Start dev infra containers (Traefik, Postgres, BuildKit, backup-runner) |
-| `make infra-down` | Stop dev infra containers |
-| `make dev` | Run API server locally with `.env.dev` |
-| `make web-dev` | Run Vite frontend dev server |
-| `make test` | Run Go tests |
-| `make build` | Build API binary to `bin/api` |
-| `make build-full` | Build frontend + embed into API binary |
+| Command           | Description                                                             |
+| ----------------- | ----------------------------------------------------------------------- |
+| `make infra`      | Start dev infra containers (Traefik, Postgres, BuildKit, backup-runner) |
+| `make infra-down` | Stop dev infra containers                                               |
+| `make dev`        | Run API server locally with `.env.dev`                                  |
+| `make web-dev`    | Run Vite frontend dev server                                            |
+| `make test`       | Run Go tests                                                            |
+| `make build`      | Build API binary to `bin/api`                                           |
+| `make build-full` | Build frontend + embed into API binary                                  |
 
 #### Testing Traefik locally
 
@@ -117,7 +118,7 @@ After deployment, HTTPS settings (email, domain, TLS toggle) can also be changed
 
 ```bash
 # http://localhost:8080 (or your configured domain)
-# default login: demo.admin@example.com / password123
+# default login: emailconfig / password123
 ```
 
 ### Install CLI
@@ -132,13 +133,13 @@ See [CLI documentation](docs/cli.md) for orchestration commands, daemon setup, a
 
 ## Documentation
 
-| Doc | Description |
-| --- | ----------- |
-| [Architecture](docs/architecture.md) | Backend conventions, DDD/CQRS structure, adding new modules |
-| [CLI](docs/cli.md) | CLI commands, daemon health checks, service management, driver architecture |
-| [Domain Model](docs/domain-model.md) | Project/Resource hierarchy, build pipeline, backup/restore, routing |
-| [CI/CD](docs/ci-cd.md) | GitHub Actions workflow, Docker image builds, .dockerignore optimization |
-| [API Reference](docs/api-reference.md) | All REST endpoints and WebSocket paths |
-| [Configuration](docs/configuration.md) | All environment variables with defaults |
-| [Database](docs/database.md) | GORM schema, tables, migration notes |
-| [Roadmap](docs/roadmap.md) | Implementation phases and planned features |
+| Doc                                    | Description                                                                 |
+| -------------------------------------- | --------------------------------------------------------------------------- |
+| [Architecture](docs/architecture.md)   | Backend conventions, DDD/CQRS structure, adding new modules                 |
+| [CLI](docs/cli.md)                     | CLI commands, daemon health checks, service management, driver architecture |
+| [Domain Model](docs/domain-model.md)   | Project/Resource hierarchy, build pipeline, backup/restore, routing         |
+| [CI/CD](docs/ci-cd.md)                 | GitHub Actions workflow, Docker image builds, .dockerignore optimization    |
+| [API Reference](docs/api-reference.md) | All REST endpoints and WebSocket paths                                      |
+| [Configuration](docs/configuration.md) | All environment variables with defaults                                     |
+| [Database](docs/database.md)           | GORM schema, tables, migration notes                                        |
+| [Roadmap](docs/roadmap.md)             | Implementation phases and planned features                                  |

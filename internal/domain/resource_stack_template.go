@@ -22,6 +22,7 @@ type ResourceStackTemplateComponent struct {
 	Env            []ResourceStackTemplateEnvVar `json:"env"`
 	Volumes        []string                      `json:"volumes,omitempty"`
 	Cmd            []string                      `json:"cmd,omitempty"`
+	VolumeFiles    []VolumeFileTemplate          `json:"volume_files,omitempty"`
 }
 
 type ResourceStackTemplate struct {

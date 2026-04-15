@@ -123,6 +123,9 @@ export const resourceStackTemplateComponentSchema = z.object({
   ),
   volumes: z.array(z.string()).optional(),
   cmd: z.array(z.string()).optional(),
+  volume_files: z
+    .array(z.object({ path: z.string(), content: z.string() }))
+    .optional(),
 })
 
 export const resourceStackTemplateSchema = z.object({
@@ -229,6 +232,9 @@ export const createResourceStackSchema = z.object({
         )
         .optional(),
       volumes: z.array(z.string()).optional(),
+      volume_files: z
+        .array(z.object({ path: z.string(), content: z.string() }))
+        .optional(),
       env: z
         .array(z.object({ key: z.string(), value: z.string(), is_secret: z.boolean() }))
         .optional(),

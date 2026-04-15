@@ -372,6 +372,7 @@ export function ResourceCreationPage({
       cmd: string
       port: string
       volumes: string[]
+      volumeFiles: { path: string; content: string }[]
       env: EnvEntry[]
       expanded: boolean
     }[]
@@ -518,6 +519,7 @@ export function ResourceCreationPage({
             ? `${c.ports[0].host}:${c.ports[0].container}`
             : "",
         volumes: c.volumes ?? [],
+        volumeFiles: c.volume_files ?? [],
         env:
           c.env.length > 0
             ? c.env.map((e) => ({ key: e.key, value: e.value }))
@@ -599,6 +601,7 @@ export function ResourceCreationPage({
                     ]
                   : [],
                 volumes: c.volumes,
+                volume_files: c.volumeFiles.length > 0 ? c.volumeFiles : undefined,
                 env: c.env
                   .filter((e) => e.key.trim())
                   .map((e) => ({
@@ -1084,6 +1087,7 @@ export function ResourceCreationPage({
                         cmd: "",
                         port: "",
                         volumes: [],
+                        volumeFiles: [],
                         env: [],
                         expanded: true,
                       },

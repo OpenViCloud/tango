@@ -29,5 +29,6 @@ func All() []any {
 		&CloudflareConnectionRecord{},
 		&ClusterTunnelRecord{},
 		&TunnelExposureRecord{},
+		&APIKeyRecord{},
 	}
 }

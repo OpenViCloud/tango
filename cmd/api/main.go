@@ -132,6 +132,8 @@ func main() {
 	resourceDomainRepo := persistrepo.NewResourceDomainRepository(db)
 	baseDomainRepo := persistrepo.NewBaseDomainRepository(db)
 
+	apiKeyRepo := persistrepo.NewAPIKeyRepository(db)
+
 	serverRepo := persistrepo.NewServerRepository(db)
 	clusterRepo := persistrepo.NewClusterRepository(db)
 	cloudflareConnectionRepo := persistrepo.NewCloudflareConnectionRepository(db)
@@ -204,6 +206,22 @@ func main() {
 		)
 	}
 
+	// API key handlers
+	createAPIKeyHandler := command.NewCreateAPIKeyHandler(apiKeyRepo)
+	revokeAPIKeyHandler := command.NewRevokeAPIKeyHandler(apiKeyRepo)
+	listAPIKeysHandler := query.NewListAPIKeysHandler(apiKeyRepo)
+	findAPIKeyByHashHandler := query.NewFindAPIKeyByHashHandler(apiKeyRepo)
+	apiKeyLookup := auth.APIKeyLookup(func(ctx context.Context, keyHash string) (*domain.APIKey, error) {
+		key, err := findAPIKeyByHashHandler.Handle(ctx, keyHash)
+		if err != nil {
+			return nil, err
+		}
+		if key != nil {
+			_ = apiKeyRepo.UpdateLastUsed(ctx, key.ID)
+		}
+		return key, nil
+	})
+
 	// Command and query handlers
 	statusHandler := query.NewGetStatusHandler()
 	createUserHandler := command.NewCreateUserHandler(userRepo)
@@ -267,6 +285,7 @@ func main() {
 
 	// HTTP handlers
 	authHandler := auth.NewHandler(userRepo, changePasswordHandler)
+	apiKeyHandler := rest.NewAPIKeyHandler(createAPIKeyHandler, revokeAPIKeyHandler, listAPIKeysHandler)
 	userHandler := rest.NewUserHandler(
 		createUserHandler,
 		updateUserHandler,
@@ -507,9 +526,10 @@ func main() {
 		sourceConnectionHandler.RegisterPublic(api)
 
 		protected := api.Group("/")
-		protected.Use(auth.Middleware())
+		protected.Use(auth.Middleware(apiKeyLookup))
 		{
 			protected.POST("/auth/change-password", authHandler.ChangePassword)
+			apiKeyHandler.Register(protected)
 			userHandler.Register(protected)
 			channelHandler.Register(protected)
 			discordRuntimeHandler.Register(protected)

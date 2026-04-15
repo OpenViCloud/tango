@@ -294,6 +294,9 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 				return fail(fmt.Sprintf("prepare resource volume %s", hostPath), err)
 			}
 		}
+		if err := domain.WriteVolumeFiles(resource.Config, mountRoot, buildResourceEnv(resource.EnvVars)); err != nil {
+			return fail("write volume config files", err)
+		}
 
 		ct, err := s.dockerRepo.CreateContainer(ctx, domain.CreateContainerInput{
 			Name:         containerName,
@@ -439,6 +442,9 @@ func (s *ResourceRunService) runStartSwarm(
 			if err := os.MkdirAll(hostPath, 0o755); err != nil {
 				return fail(fmt.Sprintf("prepare resource volume %s", hostPath), err)
 			}
+		}
+		if err := domain.WriteVolumeFiles(resource.Config, mountRoot, buildResourceEnv(resource.EnvVars)); err != nil {
+			return fail("write volume config files", err)
 		}
 
 		nodeID := ""

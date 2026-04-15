@@ -130,5 +130,50 @@
         "cmd": ["triggerer"]
       }
     ]
+  },
+  {
+    "id": "openclaw",
+    "name": "OpenClaw AI Gateway",
+    "icon_url": "/images/resource-templates/openclaw.png",
+    "image": "ghcr.io/openclaw/openclaw",
+    "description": "Self-hosted AI gateway with unified API for OpenAI, Anthropic, and Gemini models.",
+    "color": "#6366f1",
+    "abbr": "OC",
+    "tags": ["latest"],
+    "shared_env": [
+      { "key": "HOME", "value": "/home/node" },
+      { "key": "TERM", "value": "xterm-256color" },
+      { "key": "OPENCLAW_CONFIG_DIR", "value": "/home/node/.openclaw" },
+      { "key": "OPENCLAW_WORKSPACE_DIR", "value": "/home/node/.openclaw/workspace" },
+      { "key": "OPENCLAW_TMP_DIR", "value": "/home/node/.openclaw/tmp" },
+      { "key": "OPENCLAW_GATEWAY_TOKEN", "value": "" },
+      { "key": "OPENCLAW_DEFAULT_MODEL", "value": "anthropic/claude-sonnet-4-6" },
+      { "key": "OPENCLAW_AUTH_PROVIDER", "value": "anthropic" },
+      { "key": "OPENCLAW_AUTH_KEY", "value": "", "is_secret": true }
+    ],
+    "components": [
+      {
+        "id": "gateway",
+        "name": "Gateway",
+        "description": "OpenClaw AI gateway. Serves the unified AI API on port 18789.",
+        "type": "service",
+        "required": true,
+        "default_enabled": true,
+        "ports": [{ "host": "18789", "container": "18789" }],
+        "env": [],
+        "volumes": ["openclaw-config:/home/node/.openclaw"],
+        "cmd": ["node", "dist/index.js", "gateway", "--bind", "lan", "--port", "18789"],
+        "volume_files": [
+          {
+            "path": "openclaw-config/openclaw.json",
+            "content": "{\"gateway\":{\"mode\":\"local\",\"bind\":\"lan\",\"auth\":{\"token\":\"{{OPENCLAW_GATEWAY_TOKEN}}\"}},\"agents\":{\"defaults\":{\"model\":{\"primary\":\"{{OPENCLAW_DEFAULT_MODEL}}\"}}}}"
+          },
+          {
+            "path": "openclaw-config/agents/main/agent/auth-profiles.json",
+            "content": "{\"version\":1,\"profiles\":{\"{{OPENCLAW_AUTH_PROVIDER}}:default\":{\"type\":\"api_key\",\"provider\":\"{{OPENCLAW_AUTH_PROVIDER}}\",\"key\":\"{{OPENCLAW_AUTH_KEY}}\"}}}"
+          }
+        ]
+      }
+    ]
   }
 ]

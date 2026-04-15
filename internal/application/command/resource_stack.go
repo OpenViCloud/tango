@@ -11,12 +11,13 @@ import (
 )
 
 type CustomComponentInput struct {
-	ID      string
-	Type    string // "service" | "job"
-	Cmd     []string
-	Ports   []ResourcePortInput
-	Volumes []string
-	Env     []ResourceEnvVarInput
+	ID          string
+	Type        string // "service" | "job"
+	Cmd         []string
+	Ports       []ResourcePortInput
+	Volumes     []string
+	Env         []ResourceEnvVarInput
+	VolumeFiles []domain.VolumeFileTemplate
 }
 
 type CreateResourceStackCommand struct {
@@ -99,6 +100,9 @@ func (h *CreateResourceStackHandler) Handle(ctx context.Context, cmd CreateResou
 		}
 		if len(comp.Volumes) > 0 {
 			config["volumes"] = comp.Volumes
+		}
+		if len(comp.VolumeFiles) > 0 {
+			config["volume_files"] = comp.VolumeFiles
 		}
 		if len(config) == 0 {
 			config = nil

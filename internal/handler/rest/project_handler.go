@@ -211,12 +211,13 @@ type createResourceFromGitRequest struct {
 }
 
 type createCustomStackComponentRequest struct {
-	ID      string                        `json:"id"`
-	Type    string                        `json:"type,omitempty"` // "service" | "job"
-	Cmd     []string                      `json:"cmd"`
-	Ports   []createResourcePortRequest   `json:"ports,omitempty"`
-	Volumes []string                      `json:"volumes,omitempty"`
-	Env     []createResourceEnvVarRequest `json:"env,omitempty"`
+	ID          string                        `json:"id"`
+	Type        string                        `json:"type,omitempty"` // "service" | "job"
+	Cmd         []string                      `json:"cmd"`
+	Ports       []createResourcePortRequest   `json:"ports,omitempty"`
+	Volumes     []string                      `json:"volumes,omitempty"`
+	Env         []createResourceEnvVarRequest `json:"env,omitempty"`
+	VolumeFiles []domain.VolumeFileTemplate   `json:"volume_files,omitempty"`
 }
 
 type createResourceStackRequest struct {
@@ -322,6 +323,7 @@ type resourceStackTemplateComponentResponse struct {
 	Env            []resourceTemplateEnvVarResponse `json:"env"`
 	Volumes        []string                         `json:"volumes,omitempty"`
 	Cmd            []string                         `json:"cmd,omitempty"`
+	VolumeFiles    []domain.VolumeFileTemplate      `json:"volume_files,omitempty"`
 }
 
 type resourceStackTemplateResponse struct {
@@ -651,6 +653,7 @@ func (h *ProjectHandler) ListResourceStackTemplates(c *gin.Context) {
 				Env:            env,
 				Volumes:        component.Volumes,
 				Cmd:            component.Cmd,
+				VolumeFiles:    component.VolumeFiles,
 			})
 		}
 
@@ -754,12 +757,13 @@ func (h *ProjectHandler) CreateResourceStack(c *gin.Context) {
 			})
 		}
 		customComponents = append(customComponents, command.CustomComponentInput{
-			ID:      cc.ID,
-			Type:    cc.Type,
-			Cmd:     cc.Cmd,
-			Ports:   ports,
-			Volumes: cc.Volumes,
-			Env:     env,
+			ID:          cc.ID,
+			Type:        cc.Type,
+			Cmd:         cc.Cmd,
+			Ports:       ports,
+			Volumes:     cc.Volumes,
+			Env:         env,
+			VolumeFiles: cc.VolumeFiles,
 		})
 	}
 

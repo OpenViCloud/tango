@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"os"
 	"time"
@@ -14,6 +16,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// APIKeyLookup is a function that resolves a hashed API key to the owning user ID.
+// Injected at startup to avoid circular imports.
+type APIKeyLookup func(ctx context.Context, keyHash string) (*domain.APIKey, error)
 
 // ── Models ───────────────────────────────────────
 
@@ -229,8 +235,41 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 
 // ── Middleware ───────────────────────────────────
 
-func Middleware() gin.HandlerFunc {
+// Middleware returns a Gin handler that authenticates via JWT cookie or X-API-Key header.
+// apiKeyLookup may be nil if API key auth is not needed.
+func Middleware(apiKeyLookup ...APIKeyLookup) gin.HandlerFunc {
+	var lookup APIKeyLookup
+	if len(apiKeyLookup) > 0 {
+		lookup = apiKeyLookup[0]
+	}
+
 	return func(c *gin.Context) {
+		// 1. Try API key header first
+		if lookup != nil {
+			if rawKey := c.GetHeader("X-API-Key"); rawKey != "" {
+				sum := sha256.Sum256([]byte(rawKey))
+				keyHash := hex.EncodeToString(sum[:])
+
+				apiKey, err := lookup(c.Request.Context(), keyHash)
+				if err != nil || apiKey == nil {
+					_ = c.Error(response.Unauthorized("Invalid API key"))
+					c.Abort()
+					return
+				}
+				if apiKey.IsExpired() {
+					_ = c.Error(response.New(http.StatusUnauthorized, "API_KEY_EXPIRED", "API key has expired"))
+					c.Abort()
+					return
+				}
+				c.Set("user_id", apiKey.UserID)
+				c.Set("auth_method", "api_key")
+				c.Set("api_key_id", apiKey.ID)
+				c.Next()
+				return
+			}
+		}
+
+		// 2. Fall back to JWT cookie
 		token, err := c.Cookie("access_token")
 		if err != nil || token == "" {
 			_ = c.Error(response.Unauthorized("Missing access token"))
@@ -246,6 +285,7 @@ func Middleware() gin.HandlerFunc {
 		}
 
 		c.Set("user_id", claims["user_id"])
+		c.Set("auth_method", "jwt")
 		c.Next()
 	}
 }

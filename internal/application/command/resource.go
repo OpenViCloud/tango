@@ -93,12 +93,12 @@ func NewCreateResourceHandler(
 }
 
 func (h *CreateResourceHandler) Handle(ctx context.Context, cmd CreateResourceCommand) (*domain.Resource, error) {
-	mountRoot := resolveResourceMountRoot(ctx, h.platformConfig)
-	mounts, err := domain.ResolveResourceMounts(cmd.Config, mountRoot)
+	mountRootApp := resolveResourceMountRootApp(ctx, h.platformConfig)
+	mountsApp, err := domain.ResolveResourceMounts(cmd.Config, mountRootApp)
 	if err != nil {
 		return nil, err
 	}
-	for _, hostPath := range mounts.HostPaths {
+	for _, hostPath := range mountsApp.HostPaths {
 		if err := os.MkdirAll(hostPath, 0o755); err != nil {
 			return nil, fmt.Errorf("prepare resource volume %s: %w", hostPath, err)
 		}
@@ -185,12 +185,12 @@ func (h *UpdateResourceHandler) Handle(ctx context.Context, cmd UpdateResourceCo
 		configToSave = resource.Config
 	}
 	if configToSave != nil {
-		mountRoot := resolveResourceMountRoot(ctx, h.platformConfig)
-		mounts, err := domain.ResolveResourceMounts(configToSave, mountRoot)
+		mountRootApp := resolveResourceMountRootApp(ctx, h.platformConfig)
+		mountsApp, err := domain.ResolveResourceMounts(configToSave, mountRootApp)
 		if err != nil {
 			return nil, err
 		}
-		for _, hostPath := range mounts.HostPaths {
+		for _, hostPath := range mountsApp.HostPaths {
 			if err := os.MkdirAll(hostPath, 0o755); err != nil {
 				return nil, fmt.Errorf("prepare resource volume %s: %w", hostPath, err)
 			}
@@ -292,7 +292,12 @@ func (h *StartResourceHandler) Handle(ctx context.Context, cmd StartResourceComm
 		if err != nil {
 			return err
 		}
-		for _, hostPath := range mounts.HostPaths {
+		mountRootApp := resolveResourceMountRootApp(ctx, h.platformConfig)
+		mountsApp, err := domain.ResolveResourceMounts(resource.Config, mountRootApp)
+		if err != nil {
+			return err
+		}
+		for _, hostPath := range mountsApp.HostPaths {
 			if err := os.MkdirAll(hostPath, 0o755); err != nil {
 				return fmt.Errorf("prepare resource volume %s: %w", hostPath, err)
 			}
@@ -377,6 +382,20 @@ func resolveResourceMountRoot(ctx context.Context, repo domain.PlatformConfigRep
 		}
 	}
 	return config.DefaultResourceMountRootHost
+}
+
+// resolveResourceMountRootApp returns the container-internal path used for
+// writing volume files. When tango runs inside Docker, this differs from the
+// host path used for bind-mount sources.
+func resolveResourceMountRootApp(ctx context.Context, repo domain.PlatformConfigRepository) string {
+	if repo != nil {
+		if cfg, err := repo.Get(ctx, domain.PlatformConfigResourceMountRootApp); err == nil {
+			if value := strings.TrimSpace(cfg.Value); value != "" {
+				return value
+			}
+		}
+	}
+	return config.DefaultResourceMountRootApp
 }
 
 // ── Stop Resource ─────────────────────────────────────────────────────────────

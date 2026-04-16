@@ -642,6 +642,7 @@ func bootstrapPlatformConfig(ctx context.Context, cfg *config.Config, repo domai
 
 	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigAppBackendURL, cfg.AppBackendURL)
 	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigResourceMountRoot, cfg.ResourceMountRoot)
+	seedPlatformConfigIfMissing(ctx, repo, logger, domain.PlatformConfigResourceMountRootApp, cfg.ResourceMountRootApp)
 	logger.Info("platform config seeded", "public_ip", ip, "app_domain", cfg.AppDomain)
 }
 

@@ -278,10 +278,16 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 		logLine(fmt.Sprintf("[create] using container name %s", containerName))
 
 		mountRoot := config.DefaultResourceMountRootHost
+		mountRootApp := config.DefaultResourceMountRootApp
 		if s.platformConfig != nil {
 			if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigResourceMountRoot); err == nil {
 				if value := strings.TrimSpace(cfg.Value); value != "" {
 					mountRoot = value
+				}
+			}
+			if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigResourceMountRootApp); err == nil {
+				if value := strings.TrimSpace(cfg.Value); value != "" {
+					mountRootApp = value
 				}
 			}
 		}
@@ -289,12 +295,16 @@ func (s *ResourceRunService) runStart(run *domain.ResourceRun, b *LogBroadcaster
 		if err != nil {
 			return fail("validate resource volumes", err)
 		}
-		for _, hostPath := range mounts.HostPaths {
+		mountsApp, err := domain.ResolveResourceMounts(resource.Config, mountRootApp)
+		if err != nil {
+			return fail("validate resource volumes (app)", err)
+		}
+		for _, hostPath := range mountsApp.HostPaths {
 			if err := os.MkdirAll(hostPath, 0o755); err != nil {
 				return fail(fmt.Sprintf("prepare resource volume %s", hostPath), err)
 			}
 		}
-		if err := domain.WriteVolumeFiles(resource.Config, mountRoot, buildResourceEnv(resource.EnvVars)); err != nil {
+		if err := domain.WriteVolumeFiles(resource.Config, mountRootApp, buildResourceEnv(resource.EnvVars)); err != nil {
 			return fail("write volume config files", err)
 		}
 
@@ -427,10 +437,16 @@ func (s *ResourceRunService) runStartSwarm(
 		logLine("[swarm] creating service")
 
 		mountRoot := config.DefaultResourceMountRootHost
+		mountRootApp := config.DefaultResourceMountRootApp
 		if s.platformConfig != nil {
 			if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigResourceMountRoot); err == nil {
 				if value := strings.TrimSpace(cfg.Value); value != "" {
 					mountRoot = value
+				}
+			}
+			if cfg, err := s.platformConfig.Get(ctx, domain.PlatformConfigResourceMountRootApp); err == nil {
+				if value := strings.TrimSpace(cfg.Value); value != "" {
+					mountRootApp = value
 				}
 			}
 		}
@@ -438,12 +454,16 @@ func (s *ResourceRunService) runStartSwarm(
 		if err != nil {
 			return fail("validate resource volumes", err)
 		}
-		for _, hostPath := range mounts.HostPaths {
+		mountsApp, err := domain.ResolveResourceMounts(resource.Config, mountRootApp)
+		if err != nil {
+			return fail("validate resource volumes (app)", err)
+		}
+		for _, hostPath := range mountsApp.HostPaths {
 			if err := os.MkdirAll(hostPath, 0o755); err != nil {
 				return fail(fmt.Sprintf("prepare resource volume %s", hostPath), err)
 			}
 		}
-		if err := domain.WriteVolumeFiles(resource.Config, mountRoot, buildResourceEnv(resource.EnvVars)); err != nil {
+		if err := domain.WriteVolumeFiles(resource.Config, mountRootApp, buildResourceEnv(resource.EnvVars)); err != nil {
 			return fail("write volume config files", err)
 		}
 

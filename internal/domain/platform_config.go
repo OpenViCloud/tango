@@ -17,8 +17,9 @@ const (
 	PlatformConfigAppDomain         = "app_domain"
 	PlatformConfigAppTLSEnabled     = "app_tls_enabled"
 	PlatformConfigAppBackendURL     = "app_backend_url"
-	PlatformConfigResourceMountRoot = "resource_mount_root"
-	PlatformConfigACMEEmail         = "acme_email"
+	PlatformConfigResourceMountRoot    = "resource_mount_root"
+	PlatformConfigResourceMountRootApp = "resource_mount_root_app"
+	PlatformConfigACMEEmail            = "acme_email"
 )
 
 type PlatformConfig struct {

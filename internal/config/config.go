@@ -66,6 +66,9 @@ type Config struct {
 
 	DataEncryptionKey string
 
+	AdminEmail    string
+	AdminPassword string
+
 	DiscordToken                      string
 	DiscordRequireMention             bool
 	DiscordEnableTyping               bool
@@ -165,6 +168,8 @@ func Load() *Config {
 	cfg.OrchestrationEngine = normalizeExecutionEngine(getEnv("ORCHESTRATION_ENGINE", cfg.OrchestrationEngine))
 	cfg.WorkflowEngine = normalizeExecutionEngine(getEnv("WORKFLOW_ENGINE", cfg.WorkflowEngine))
 	cfg.DataEncryptionKey = getEnv("DATA_ENCRYPTION_KEY", cfg.DataEncryptionKey)
+	cfg.AdminEmail = getEnv("ADMIN_EMAIL", "")
+	cfg.AdminPassword = getEnv("ADMIN_PASSWORD", "")
 	cfg.DiscordToken = getEnv("DISCORD_BOT_TOKEN", "")
 	cfg.DiscordRequireMention = getEnvBool("DISCORD_REQUIRE_MENTION", cfg.DiscordRequireMention)
 	cfg.DiscordEnableTyping = getEnvBool("DISCORD_ENABLE_TYPING", cfg.DiscordEnableTyping)

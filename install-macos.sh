@@ -23,6 +23,7 @@ TRAEFIK_CONFIG_DIR="$TRAEFIK_DIR/config"
 TRAEFIK_STATIC_CONFIG="$TRAEFIK_DIR/traefik.yml"
 RESOURCE_MOUNT_ROOT="$BASE_DIR/data/resource-volumes"
 RESOURCE_MOUNT_ROOT_APP="/platform/resource-volumes"
+APP_DATA_ROOT="$BASE_DIR/data/app-storage"
 ENV_FILE="$BASE_DIR/.env"
 CLI_BINARY_TARGET="/usr/local/bin/tango"
 COMPOSE_FILE="$BASE_DIR/docker-compose.yml"
@@ -350,6 +351,9 @@ echo "=== RESOURCE MOUNT ROOT ==="
 mkdir -p "$RESOURCE_MOUNT_ROOT"
 chmod -R 777 "$RESOURCE_MOUNT_ROOT"
 
+echo "=== APP DATA ROOT ==="
+mkdir -p "$APP_DATA_ROOT"
+
 # Chown toàn bộ BASE_DIR về user thật (script chạy với sudo nên mọi file/thư mục mặc định owned bởi root)
 chown -R "$REAL_USER" "$BASE_DIR"
 
@@ -376,6 +380,7 @@ if [ -f "$ENV_FILE" ]; then
   existing_tls=$(grep "^APP_TLS_ENABLED="         "$ENV_FILE" 2>/dev/null | cut -d'=' -f2  || echo "false")
   existing_resource_mount_root=$(grep "^RESOURCE_MOUNT_ROOT="     "$ENV_FILE" 2>/dev/null | cut -d'=' -f2  || true)
   existing_resource_mount_root_app=$(grep "^RESOURCE_MOUNT_ROOT_APP=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2  || true)
+  existing_app_data_root=$(grep "^APP_DATA_ROOT="               "$ENV_FILE" 2>/dev/null | cut -d'=' -f2  || true)
   existing_jwt_secret=$(grep "^JWT_SECRET="            "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || true)
   existing_data_encryption_key=$(grep "^DATA_ENCRYPTION_KEY=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || true)
   existing_postgres_password=$(grep "^POSTGRES_PASSWORD="    "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || true)
@@ -388,6 +393,7 @@ final_domain="${DOMAIN:-$existing_domain}"
 final_tls="${TLS_ENABLED:-$existing_tls}"
 final_resource_mount_root="${existing_resource_mount_root:-$RESOURCE_MOUNT_ROOT}"
 final_resource_mount_root_app="${existing_resource_mount_root_app:-$RESOURCE_MOUNT_ROOT_APP}"
+final_app_data_root="${existing_app_data_root:-$APP_DATA_ROOT}"
 final_jwt_secret="${existing_jwt_secret:-$(generate_hex 32)}"
 final_data_encryption_key="${existing_data_encryption_key:-$(generate_alnum_32)}"
 final_postgres_password="${existing_postgres_password:-$(generate_hex 24)}"
@@ -406,6 +412,7 @@ APP_TLS_ENABLED=$final_tls
 ACME_EMAIL=$final_email
 RESOURCE_MOUNT_ROOT=$final_resource_mount_root
 RESOURCE_MOUNT_ROOT_APP=$final_resource_mount_root_app
+APP_DATA_ROOT=$final_app_data_root
 POSTGRES_PASSWORD=$final_postgres_password
 DATABASE_URL=$final_database_url
 JWT_SECRET=$final_jwt_secret

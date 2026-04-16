@@ -29,7 +29,7 @@ infra-down:
 dev:
 	@if [ ! -f .env.dev ]; then \
 		KEY=$$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c32); \
-		printf '# Local dev environment — loaded by `make dev`\n# Do NOT commit this file\n\nPORT=8080\nAPI_BASE_URL=http://localhost:8080\nFRONTEND_BASE_URL=http://localhost:5173\n\nDB_DRIVER=postgres\nDATABASE_URL=postgres://postgres:postgres@localhost:5432/tango?sslmode=disable\n\nDATA_ENCRYPTION_KEY=%s\n\nBUILDKIT_HOST=tcp://localhost:1234\n\nBACKUP_RUNNER_BASE_URL=http://localhost:8081\nBACKUP_RUNNER_TOKEN=\n\nTRAEFIK_CONFIG_DIR=./traefik/config\nTRAEFIK_DOCKER_NETWORK=tango_net\n\nLOG_FORMAT=text\nLOG_OUTPUT=stdout\n' "$$KEY" > .env.dev; \
+		printf '# Local dev environment — loaded by `make dev`\n# Do NOT commit this file\n\nPORT=8080\nAPI_BASE_URL=http://localhost:8080\nFRONTEND_BASE_URL=http://localhost:5173\n\nDB_DRIVER=postgres\nDATABASE_URL=postgres://postgres:postgres@localhost:5432/tango?sslmode=disable\n\nDATA_ENCRYPTION_KEY=%s\n\n# Admin account seeded on first start (skip if already exists)\nADMIN_EMAIL=admin@tango.local\nADMIN_PASSWORD=admin123\n\nBUILDKIT_HOST=tcp://localhost:1234\n\nBACKUP_RUNNER_BASE_URL=http://localhost:8081\nBACKUP_RUNNER_TOKEN=\n\nTRAEFIK_CONFIG_DIR=./traefik/config\nTRAEFIK_DOCKER_NETWORK=tango_net\n\nLOG_FORMAT=text\nLOG_OUTPUT=stdout\n' "$$KEY" > .env.dev; \
 		echo "created .env.dev (DATA_ENCRYPTION_KEY auto-generated)"; \
 	fi
 	@set -a && . ./.env.dev && set +a && go run ./cmd/api

@@ -12,7 +12,6 @@ import (
 
 	"tango/internal/messaging/inbound"
 
-	_ "github.com/mattn/go-sqlite3"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/store/sqlstore"

@@ -106,9 +106,9 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
               ),
           },
           ports: ports
-            .filter((p) => p.host_port !== "" && p.internal_port !== "")
+            .filter((p) => p.internal_port !== "")
             .map((p) => ({
-              host_port: Number(p.host_port),
+              host_port: p.host_port !== "" ? Number(p.host_port) : 0,
               internal_port: Number(p.internal_port),
               proto: p.proto || "tcp",
               label: p.label,

@@ -1283,16 +1283,17 @@ func (h *ProjectHandler) ListResourceDomains(c *gin.Context) {
 func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
 	resourceID := c.Param("resourceId")
 	var req struct {
-		Host       string `json:"host" binding:"required"`
-		TargetPort int    `json:"target_port" binding:"required"`
-		TLSEnabled bool   `json:"tls_enabled"`
+		Host        string `json:"host" binding:"required"`
+		TargetPort  int    `json:"target_port" binding:"required"`
+		TLSEnabled  bool   `json:"tls_enabled"`
+		AutoVerify  bool   `json:"auto_verify"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		_ = c.Error(response.BadRequest(err.Error()))
 		return
 	}
 
-	isLocalHost := isLocalDevHost(req.Host)
+	shouldVerify := isLocalDevHost(req.Host) || req.AutoVerify
 	d, err := h.domainRepo.Create(c.Request.Context(), domain.ResourceDomain{
 		ID:         uuid.NewString(),
 		ResourceID: resourceID,
@@ -1300,7 +1301,7 @@ func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
 		TargetPort: req.TargetPort,
 		TLSEnabled: req.TLSEnabled,
 		Type:       domain.ResourceDomainTypeCustom,
-		Verified:   isLocalHost,
+		Verified:   shouldVerify,
 	})
 	if err != nil {
 		if errors.Is(err, domain.ErrResourceDomainConflict) {
@@ -1310,10 +1311,10 @@ func (h *ProjectHandler) AddResourceDomain(c *gin.Context) {
 		_ = c.Error(response.InternalCause(err, ""))
 		return
 	}
-	if isLocalHost {
+	if shouldVerify {
 		_ = h.domainRepo.SetVerified(c.Request.Context(), d.ID, time.Now())
-		slog.Debug("resource domain added (local host): auto-verified, refreshing traefik config",
-			"resource_id", resourceID, "host", req.Host, "target_port", req.TargetPort)
+		slog.Debug("resource domain added: auto-verified, refreshing traefik config",
+			"resource_id", resourceID, "host", req.Host, "target_port", req.TargetPort, "auto_verify", req.AutoVerify)
 		h.refreshTraefikConfig(c.Request.Context(), d.ResourceID)
 		d.Verified = true
 		now := time.Now()

@@ -103,7 +103,7 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(201, createAPIKeyResponse{
+	response.Created(c, createAPIKeyResponse{
 		apiKeyResponse: toAPIKeyResponse(result.APIKey),
 		Key:            result.PlainKey,
 	})

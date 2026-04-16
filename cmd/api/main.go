@@ -141,7 +141,7 @@ func main() {
 
 	bootstrapPlatformConfig(ctx, cfg, platformConfigRepo, logger)
 
-	if err := auth.SeedDemoData(ctx, userRepo, roleRepo); err != nil {
+	if err := auth.SeedDemoData(ctx, userRepo, roleRepo, cfg.AdminEmail, cfg.AdminPassword); err != nil {
 		fatal(logger, "seed demo data failed", err)
 	}
 

@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/glebarez/sqlite"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

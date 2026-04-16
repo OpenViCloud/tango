@@ -100,9 +100,14 @@ HTTPS/Let's Encrypt cannot be tested locally — a publicly reachable domain is 
 # Basic install (HTTP only)
 curl -fsSL https://raw.githubusercontent.com/time-groups/tango-cloud/main/install.sh | sudo bash
 
-# With HTTPS via Let's Encrypt
-curl -fsSL https://raw.githubusercontent.com/time-groups/tango-cloud/main/install.sh | \
-  sudo bash -s -- --email you@example.com --domain app.example.com --https
+# With admin credentials
+sudo ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=yourpassword \
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/time-groups/tango-cloud/main/install.sh)"
+
+# With HTTPS via Let's Encrypt + admin credentials
+sudo ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=yourpassword \
+  bash -s -- --email you@example.com --domain app.example.com --https \
+  < <(curl -fsSL https://raw.githubusercontent.com/time-groups/tango-cloud/main/install.sh)
 ```
 
 `install.sh` installs Docker if missing, creates required directories, downloads `docker-compose.yml`, generates `traefik/traefik.yml`, writes `/opt/tango/.env`, installs the CLI daemon as a system service, and starts the full stack.
@@ -114,12 +119,20 @@ On first install, the script generates and stores these secrets in `/opt/tango/.
 - `JWT_SECRET`
 - `DATA_ENCRYPTION_KEY`
 
-After deployment, HTTPS settings (email, domain, TLS toggle) can also be changed at any time from the **Settings** page in the UI — the app rewrites `traefik/traefik.yml` and restarts Traefik automatically.
+#### Admin account
+
+Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` before running `install.sh` to seed an admin account on first start. If not set, no account is created — you must add one manually via the DB or set the env vars and restart.
 
 ```bash
-# http://localhost:8080 (or your configured domain)
-# default login: emailconfig / password123
+# Re-seed after changing credentials (only creates if email not already in DB)
+sudo sh -c 'echo "ADMIN_EMAIL=admin@example.com" >> /opt/tango/.env'
+sudo sh -c 'echo "ADMIN_PASSWORD=newpassword" >> /opt/tango/.env'
+docker compose -f /opt/tango/docker-compose.yml restart app
 ```
+
+After first login, change your password from **Settings → Account** and optionally create additional accounts or API keys.
+
+After deployment, HTTPS settings (email, domain, TLS toggle) can also be changed at any time from the **Settings** page in the UI — the app rewrites `traefik/traefik.yml` and restarts Traefik automatically.
 
 ### Install CLI
 

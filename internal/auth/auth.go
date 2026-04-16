@@ -290,7 +290,7 @@ func Middleware(apiKeyLookup ...APIKeyLookup) gin.HandlerFunc {
 	}
 }
 
-func SeedDemoData(ctx context.Context, userRepo domain.UserRepository, roleRepo domain.RoleRepository) error {
+func SeedDemoData(ctx context.Context, userRepo domain.UserRepository, roleRepo domain.RoleRepository, adminEmail, adminPassword string) error {
 	roles := systemRoles()
 	for _, role := range roles {
 		if err := roleRepo.EnsureRole(ctx, role); err != nil {
@@ -298,32 +298,36 @@ func SeedDemoData(ctx context.Context, userRepo domain.UserRepository, roleRepo 
 		}
 	}
 
-	existing, err := userRepo.FindByEmail(ctx, "demo.admin@example.com")
+	if adminEmail == "" || adminPassword == "" {
+		return nil
+	}
+
+	existing, err := userRepo.FindByEmail(ctx, adminEmail)
 	if err != nil {
 		return err
 	}
-	userID := "user_0123"
-	if existing == nil {
-		passwordHash, err := HashPassword("password123")
-		if err != nil {
-			return err
-		}
-		user, err := domain.NewUser(userID, "demo.admin@example.com", "demo.admin", "Demo", "Admin", "", "", passwordHash)
-		if err != nil {
-			return err
-		}
-		if _, err := userRepo.Save(ctx, user); err != nil {
-			return err
-		}
-	} else {
-		userID = existing.ID
+	if existing != nil {
+		return nil
+	}
+
+	passwordHash, err := HashPassword(adminPassword)
+	if err != nil {
+		return err
+	}
+	user, err := domain.NewUser("user_"+adminEmail[:8], adminEmail, adminEmail, "Admin", "User", "", "", passwordHash)
+	if err != nil {
+		return err
+	}
+	saved, err := userRepo.Save(ctx, user)
+	if err != nil {
+		return err
 	}
 
 	adminRole, err := roleRepo.GetByName(ctx, "admin")
 	if err != nil {
 		return err
 	}
-	return roleRepo.AssignRoleToUser(ctx, userID, adminRole.ID)
+	return roleRepo.AssignRoleToUser(ctx, saved.ID, adminRole.ID)
 }
 
 func systemRoles() []*domain.Role {

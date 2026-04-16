@@ -12,6 +12,7 @@ TRAEFIK_CONFIG_DIR="$TRAEFIK_DIR/config"
 TRAEFIK_STATIC_CONFIG="$TRAEFIK_DIR/traefik.yml"
 RESOURCE_MOUNT_ROOT="$BASE_DIR/data/resource-volumes"
 RESOURCE_MOUNT_ROOT_APP="/platform/resource-volumes"
+APP_DATA_ROOT="$BASE_DIR/data/app-storage"
 ENV_FILE="$BASE_DIR/.env"
 CLI_CONFIG_DIR="$HOME/.config/tango"
 CLI_CONFIG_FILE="$CLI_CONFIG_DIR/daemon.json"
@@ -25,11 +26,13 @@ CLI_DOWNLOAD_BASE_URL="${CLI_DOWNLOAD_BASE_URL:-https://github.com/time-groups/t
 EMAIL=""
 DOMAIN=""
 TLS_ENABLED="false"
+ADMIN_EMAIL=""
+ADMIN_PASSWORD=""
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 
 usage() {
-  echo "Usage: ./install-dev.sh [--email your@email.com] [--domain app.example.com] [--https]"
+  echo "Usage: ./install.sh [--email your@email.com] [--domain app.example.com] [--https] [--admin-email admin@example.com] [--admin-password secret]"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -55,6 +58,24 @@ while [[ $# -gt 0 ]]; do
     --https)
       TLS_ENABLED="true"
       shift
+      ;;
+    --admin-email)
+      if [ -n "$2" ] && [[ ! "$2" =~ ^-- ]]; then
+        ADMIN_EMAIL="$2"
+        shift 2
+      else
+        echo "Error: --admin-email requires a value"
+        usage; exit 1
+      fi
+      ;;
+    --admin-password)
+      if [ -n "$2" ] && [[ ! "$2" =~ ^-- ]]; then
+        ADMIN_PASSWORD="$2"
+        shift 2
+      else
+        echo "Error: --admin-password requires a value"
+        usage; exit 1
+      fi
       ;;
     *)
       echo "Unknown option: $1"
@@ -277,6 +298,10 @@ ACME_EOF
 echo "=== RESOURCE MOUNT ROOT ==="
 mkdir -p "$RESOURCE_MOUNT_ROOT"
 
+echo "=== APP DATA ROOT ==="
+mkdir -p "$APP_DATA_ROOT"
+chown -R 1000:1000 "$APP_DATA_ROOT"
+
 echo "=== DOCKER NETWORK ==="
 if ! docker network inspect tango_net >/dev/null 2>&1; then
   docker network create tango_net
@@ -300,10 +325,13 @@ if [ -f "$ENV_FILE" ]; then
   existing_tls=$(grep "^APP_TLS_ENABLED=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2 || echo "false")
   existing_resource_mount_root=$(grep "^RESOURCE_MOUNT_ROOT=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
   existing_resource_mount_root_app=$(grep "^RESOURCE_MOUNT_ROOT_APP=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
+  existing_app_data_root=$(grep "^APP_DATA_ROOT=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2)
   existing_jwt_secret=$(grep "^JWT_SECRET=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
   existing_data_encryption_key=$(grep "^DATA_ENCRYPTION_KEY=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
   existing_postgres_password=$(grep "^POSTGRES_PASSWORD=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
   existing_database_url=$(grep "^DATABASE_URL=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
+  existing_admin_email=$(grep "^ADMIN_EMAIL=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
+  existing_admin_password=$(grep "^ADMIN_PASSWORD=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
 fi
 
 # Resolve final values (args override existing)
@@ -312,11 +340,14 @@ final_domain="${DOMAIN:-$existing_domain}"
 final_tls="${TLS_ENABLED:-$existing_tls}"
 final_resource_mount_root="${existing_resource_mount_root:-$RESOURCE_MOUNT_ROOT}"
 final_resource_mount_root_app="${existing_resource_mount_root_app:-$RESOURCE_MOUNT_ROOT_APP}"
+final_app_data_root="${existing_app_data_root:-$APP_DATA_ROOT}"
 final_jwt_secret="${existing_jwt_secret:-$(generate_hex 32)}"
 final_data_encryption_key="${existing_data_encryption_key:-$(generate_alnum_32)}"
 final_postgres_password="${existing_postgres_password:-$(generate_hex 24)}"
 default_database_url="postgres://postgres:${final_postgres_password}@db:5432/tango?sslmode=disable"
 final_database_url="${existing_database_url:-$default_database_url}"
+final_admin_email="${ADMIN_EMAIL:-$existing_admin_email}"
+final_admin_password="${ADMIN_PASSWORD:-$existing_admin_password}"
 
 # --https requires --email (for Let's Encrypt)
 if [ "$final_tls" = "true" ] && [ -z "$final_email" ]; then
@@ -330,10 +361,13 @@ APP_TLS_ENABLED=$final_tls
 ACME_EMAIL=$final_email
 RESOURCE_MOUNT_ROOT=$final_resource_mount_root
 RESOURCE_MOUNT_ROOT_APP=$final_resource_mount_root_app
+APP_DATA_ROOT=$final_app_data_root
 POSTGRES_PASSWORD=$final_postgres_password
 DATABASE_URL=$final_database_url
 JWT_SECRET=$final_jwt_secret
 DATA_ENCRYPTION_KEY=$final_data_encryption_key
+ADMIN_EMAIL=$final_admin_email
+ADMIN_PASSWORD=$final_admin_password
 EOF
 
 sudo chown root:root "$ENV_FILE"

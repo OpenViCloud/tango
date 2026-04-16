@@ -191,7 +191,7 @@ export const projectService = {
       .get<ResourceDomainModel[]>(`/resources/${resourceId}/domains`)
       .then((res) => res.data),
 
-  addResourceDomain: (resourceId: string, payload: { host: string; target_port: number; tls_enabled: boolean }) =>
+  addResourceDomain: (resourceId: string, payload: { host: string; target_port: number; tls_enabled: boolean; auto_verify?: boolean }) =>
     api
       .post<ResourceDomainModel>(`/resources/${resourceId}/domains`, payload)
       .then((res) => res.data),

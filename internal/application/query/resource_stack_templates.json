@@ -167,7 +167,7 @@
         "volume_files": [
           {
             "path": "openclaw-config/openclaw.json",
-            "content": "{\"gateway\":{\"mode\":\"local\",\"bind\":\"lan\",\"auth\":{\"token\":\"{{OPENCLAW_GATEWAY_TOKEN}}\"}},\"agents\":{\"defaults\":{\"model\":{\"primary\":\"{{OPENCLAW_DEFAULT_MODEL}}\"}}}}"
+            "content": "{\"gateway\":{\"mode\":\"local\",\"bind\":\"lan\",\"auth\":{\"token\":\"{{OPENCLAW_GATEWAY_TOKEN}}\"},\"controlUi\":{\"allowedOrigins\":[\"*\"]}},\"agents\":{\"defaults\":{\"model\":{\"primary\":\"{{OPENCLAW_DEFAULT_MODEL}}\"}}}}"
           },
           {
             "path": "openclaw-config/agents/main/agent/auth-profiles.json",

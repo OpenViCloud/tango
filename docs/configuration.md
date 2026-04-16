@@ -87,6 +87,39 @@ project-a/uploads:/app/uploads
 shared/cache:/data:ro
 ```
 
+### Why two variables?
+
+Both variables point to the **same physical directory** on disk — they are two views of the same folder:
+
+```
+Ubuntu host                         tango container
+/opt/tango/data/resource-volumes → /platform/resource-volumes
+        ↑                                   ↑
+ RESOURCE_MOUNT_ROOT               RESOURCE_MOUNT_ROOT_APP
+ (Docker bind-mount source)        (path tango writes files to)
+```
+
+`docker-compose.yml` wires them together with a single bind mount:
+
+```yaml
+- ${RESOURCE_MOUNT_ROOT}:${RESOURCE_MOUNT_ROOT_APP}
+```
+
+The split is necessary because tango itself runs inside a Docker container:
+
+- **`RESOURCE_MOUNT_ROOT`** is the **host path** — passed to the Docker daemon as the bind-mount source when creating resource containers (e.g. openclaw). The Docker daemon runs on the host and needs the host-side path.
+- **`RESOURCE_MOUNT_ROOT_APP`** is the **container-internal path** — used by tango's Go code when it needs to write files into a resource volume (e.g. pre-populating `openclaw.json` before the container starts). Writing to the host path from inside tango's container would write to tango's own overlay filesystem, not to the shared volume.
+
+### macOS vs Linux behaviour
+
+On macOS, developers typically run the tango binary **natively** (not via Docker). In that case both paths resolve to the same filesystem location and everything works. On Linux, tango runs inside Docker, so the two paths must be set correctly or volume config files will not reach resource containers.
+
+If you see `Missing config` errors from a resource container on Linux, verify that:
+
+1. `RESOURCE_MOUNT_ROOT` in `.env` matches the bind-mount source in `docker-compose.yml`.
+2. `RESOURCE_MOUNT_ROOT_APP` matches the bind-mount target (the path inside tango's container).
+3. The host directory exists and is writable by the tango container.
+
 ## Channel Integrations
 
 | Variable | Default | Description |

@@ -233,7 +233,23 @@
     "abbr": "N8",
     "tags": ["latest", "1.44.1"],
     "ports": [{ "host": "5678", "container": "5678" }],
-    "env": [{ "key": "N8N_BASIC_AUTH_ACTIVE", "value": "true" }],
+    "env": [
+      { "key": "DB_TYPE", "value": "postgresdb" },
+      { "key": "DB_POSTGRESDB_HOST", "value": "postgres" },
+      { "key": "DB_POSTGRESDB_PORT", "value": "5432" },
+      { "key": "DB_POSTGRESDB_DATABASE", "value": "postgres" },
+      { "key": "DB_POSTGRESDB_USER", "value": "postgres" },
+      { "key": "DB_POSTGRESDB_PASSWORD", "value": "postgres" },
+      { "key": "N8N_BASIC_AUTH_ACTIVE", "value": "true" },
+      { "key": "N8N_BASIC_AUTH_USER", "value": "n8n.admin@gmail.com" },
+      { "key": "N8N_BASIC_AUTH_PASSWORD", "value": "PaSSVV0RD123Xyz" },
+      { "key": "N8N_HOST", "value": "localhost:5678" },
+      { "key": "N8N_EDITOR_BASE_URL", "value": "https://localhost:5678" },
+      { "key": "N8N_PORT", "value": "5678" },
+      { "key": "N8N_PROTOCOL", "value": "https" },
+      { "key": "WEBHOOK_URL", "value": "https://localhost:5678" },
+      { "key": "N8N_PROXY_HOPS", "value": "1" }
+    ],
     "type": "service"
   },
   {

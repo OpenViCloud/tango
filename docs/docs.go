@@ -16,31 +16,38 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/agents": {
+        "/api-keys": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
+                "description": "Lists all API keys belonging to the authenticated user. Key values are not returned.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "agents"
+                    "api-keys"
                 ],
-                "summary": "List agents",
+                "summary": "List API keys",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.agentListResponse"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/internal_handler_rest.apiKeyResponse"
+                            }
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -51,6 +58,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Creates a new API key for the authenticated user. The key is shown once and cannot be retrieved again.",
                 "consumes": [
                     "application/json"
                 ],
@@ -58,17 +66,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "agents"
+                    "api-keys"
                 ],
-                "summary": "Create agent",
+                "summary": "Create API key",
                 "parameters": [
                     {
-                        "description": "Agent payload",
+                        "description": "API key options",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.createAgentRequest"
+                            "$ref": "#/definitions/internal_handler_rest.createAPIKeyRequest"
                         }
                     }
                 ],
@@ -76,146 +84,49 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/rest.agentResponse"
+                            "$ref": "#/definitions/internal_handler_rest.createAPIKeyResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
             }
         },
-        "/agents/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "agents"
-                ],
-                "summary": "Get agent by ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Agent ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/rest.agentResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "agents"
-                ],
-                "summary": "Update agent",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Agent ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Agent payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/rest.updateAgentRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/rest.agentResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
-            },
+        "/api-keys/{id}": {
             "delete": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
+                "description": "Permanently deletes an API key. Only the owner can revoke their own keys.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "agents"
+                    "api-keys"
                 ],
-                "summary": "Delete agent",
+                "summary": "Revoke API key",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Agent ID",
+                        "description": "API key ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -225,16 +136,79 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content"
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/change-password": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Changes the current user's password and clears auth cookies so they must log in again.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Change password",
+                "parameters": [
+                    {
+                        "description": "Password change payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -260,7 +234,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.LoginRequest"
+                            "$ref": "#/definitions/internal_auth.LoginRequest"
                         }
                     }
                 ],
@@ -268,25 +242,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.TokenResponse"
+                            "$ref": "#/definitions/internal_auth.TokenResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
                         }
                     }
                 }
@@ -294,7 +268,7 @@ const docTemplate = `{
         },
         "/auth/logout": {
             "post": {
-                "description": "Clears the refresh token cookie.",
+                "description": "Clears auth cookies.",
                 "produces": [
                     "application/json"
                 ],
@@ -306,7 +280,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.MessageResponse"
+                            "$ref": "#/definitions/internal_auth.MessageResponse"
                         }
                     }
                 }
@@ -326,13 +300,573 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/auth.TokenResponse"
+                            "$ref": "#/definitions/internal_auth.TokenResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/internal_auth.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/backup-configs": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backup-configs"
+                ],
+                "summary": "POST /backup-configs",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/backup-configs/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backup-configs"
+                ],
+                "summary": "GET /backup-configs/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backup-configs"
+                ],
+                "summary": "PUT /backup-configs/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/backup-sources": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backup-sources"
+                ],
+                "summary": "GET /backup-sources",
+                "responses": {}
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backup-sources"
+                ],
+                "summary": "POST /backup-sources",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/backup-sources/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backup-sources"
+                ],
+                "summary": "GET /backup-sources/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backup-sources"
+                ],
+                "summary": "PUT /backup-sources/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backup-sources"
+                ],
+                "summary": "DELETE /backup-sources/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/backup-sources/{id}/backup-config": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backup-sources"
+                ],
+                "summary": "GET /backup-sources/{id}/backup-config",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/backup-sources/{id}/backups": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backup-sources"
+                ],
+                "summary": "GET /backup-sources/{id}/backups",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backup-sources"
+                ],
+                "summary": "POST /backup-sources/{id}/backups",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/backups/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backups"
+                ],
+                "summary": "GET /backups/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/backups/{id}/restore": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "backups"
+                ],
+                "summary": "POST /backups/{id}/restore",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/builds": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "builds"
+                ],
+                "summary": "List build jobs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page index (0-based)",
+                        "name": "pageIndex",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.buildJobListResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "builds"
+                ],
+                "summary": "Submit a new build job from a Git URL",
+                "parameters": [
+                    {
+                        "description": "Build request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.createBuildRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.buildJobResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/builds/check-repo": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "builds"
+                ],
+                "summary": "Check if a git repository is accessible and optionally verify a branch",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Git repository URL",
+                        "name": "url",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Branch to verify (optional)",
+                        "name": "branch",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Access token for private repos (optional)",
+                        "name": "token",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.checkRepoResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/builds/upload": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "builds"
+                ],
+                "summary": "Submit a new build job from an uploaded archive (.tar.gz or .zip)",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Source archive (.tar.gz, .tgz, or .zip)",
+                        "name": "archive",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Image tag to push",
+                        "name": "image_tag",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Build mode: auto (default) or dockerfile",
+                        "name": "build_mode",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.buildJobResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/builds/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "builds"
+                ],
+                "summary": "Get a build job by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Build job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.buildJobResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/builds/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "builds"
+                ],
+                "summary": "Cancel a running build job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Build job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.buildJobResponse"
                         }
                     }
                 }
@@ -356,19 +890,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.channelListResponse"
+                            "$ref": "#/definitions/internal_handler_rest.channelListResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -396,7 +930,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.createChannelRequest"
+                            "$ref": "#/definitions/internal_handler_rest.createChannelRequest"
                         }
                     }
                 ],
@@ -404,25 +938,75 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/rest.channelOperationResponse"
+                            "$ref": "#/definitions/internal_handler_rest.channelOperationResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/channels/test-connection": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "channels"
+                ],
+                "summary": "Test channel connection",
+                "parameters": [
+                    {
+                        "description": "Channel connection payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.testChannelConnectionRequestDoc"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.channelTestConnectionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -455,19 +1039,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.channelOperationResponse"
+                            "$ref": "#/definitions/internal_handler_rest.channelOperationResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -502,7 +1086,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.updateChannelRequest"
+                            "$ref": "#/definitions/internal_handler_rest.updateChannelRequest"
                         }
                     }
                 ],
@@ -510,31 +1094,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.channelOperationResponse"
+                            "$ref": "#/definitions/internal_handler_rest.channelOperationResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -568,13 +1152,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -607,25 +1191,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.channelQRCodeResponse"
+                            "$ref": "#/definitions/internal_handler_rest.channelQRCodeResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -658,25 +1242,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.channelOperationResponse"
+                            "$ref": "#/definitions/internal_handler_rest.channelOperationResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -709,25 +1293,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.channelOperationResponse"
+                            "$ref": "#/definitions/internal_handler_rest.channelOperationResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -760,138 +1344,628 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.channelOperationResponse"
+                            "$ref": "#/definitions/internal_handler_rest.channelOperationResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
             }
         },
-        "/chat/completions": {
+        "/cloudflare/connections": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "cloudflare"
+                ],
+                "summary": "GET /cloudflare/connections",
+                "responses": {}
+            },
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns a normal completion or streams assistant deltas over SSE when stream=true.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
-                    "chat"
+                    "cloudflare"
                 ],
-                "summary": "Create chat completion",
+                "summary": "POST /cloudflare/connections",
                 "parameters": [
                     {
-                        "description": "Chat completion payload",
+                        "description": "Payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.chatCompletionRequest"
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
                         }
                     }
                 ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/rest.chatCompletionResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
+                "responses": {}
             }
         },
-        "/conversations": {
+        "/cloudflare/connections/{id}": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
-                    "chat"
+                    "cloudflare"
                 ],
-                "summary": "List conversations",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/rest.conversationListResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/conversations/{id}/messages": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "chat"
-                ],
-                "summary": "List conversation messages",
+                "summary": "GET /cloudflare/connections/{id}",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Conversation ID",
+                        "description": "id",
                         "name": "id",
                         "in": "path",
                         "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "cloudflare"
+                ],
+                "summary": "PUT /cloudflare/connections/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "GET /clusters",
+                "responses": {}
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "POST /clusters",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "GET /clusters/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "DELETE /clusters/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}/inventory-preview": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "POST /clusters/{id}/inventory-preview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}/kubeconfig": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "GET /clusters/{id}/kubeconfig",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}/namespaces": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "GET /clusters/{id}/namespaces",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}/pods": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "GET /clusters/{id}/pods",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "POST /clusters/{id}/pods",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}/pods/{name}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "DELETE /clusters/{id}/pods/{name}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}/services": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "GET /clusters/{id}/services",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "POST /clusters/{id}/services",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}/services/{name}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "DELETE /clusters/{id}/services/{name}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}/tunnels": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "GET /clusters/{id}/tunnels",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}/tunnels/expose": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "POST /clusters/{id}/tunnels/expose",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "DELETE /clusters/{id}/tunnels/expose",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}/tunnels/import": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "POST /clusters/{id}/tunnels/import",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}/volume-claims": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "GET /clusters/{id}/volume-claims",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/clusters/{id}/volumes": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "clusters"
+                ],
+                "summary": "GET /clusters/{id}/volumes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/docker/containers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "docker"
+                ],
+                "summary": "List containers",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Include stopped containers",
+                        "name": "all",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -900,62 +1974,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/rest.conversationMessageResponse"
+                                "$ref": "#/definitions/internal_handler_rest.containerResponse"
                             }
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/llm/providers": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "llm"
-                ],
-                "summary": "List LLM providers",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/rest.llmProviderListResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -973,17 +1999,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "llm"
+                    "docker"
                 ],
-                "summary": "Create LLM provider",
+                "summary": "Create a container",
                 "parameters": [
                     {
-                        "description": "LLM provider payload",
+                        "description": "Container config",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.createLLMProviderRequest"
+                            "$ref": "#/definitions/internal_handler_rest.createContainerRequest"
                         }
                     }
                 ],
@@ -991,140 +2017,45 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/rest.llmProviderResponse"
+                            "$ref": "#/definitions/internal_handler_rest.containerResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
             }
         },
-        "/llm/providers/{id}": {
+        "/docker/containers/{id}": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
-                    "llm"
+                    "docker"
                 ],
-                "summary": "Get LLM provider by ID",
+                "summary": "GET /docker/containers/{id}",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Provider ID",
+                        "description": "id",
                         "name": "id",
                         "in": "path",
                         "required": true
                     }
                 ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/rest.llmProviderResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "llm"
-                ],
-                "summary": "Update LLM provider",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Provider ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "LLM provider payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/rest.updateLLMProviderRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/rest.llmProviderResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
+                "responses": {}
             },
             "delete": {
                 "security": [
@@ -1136,13 +2067,61 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "llm"
+                    "docker"
                 ],
-                "summary": "Delete LLM provider",
+                "summary": "Remove a container",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Provider ID",
+                        "description": "Container ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Force remove running container",
+                        "name": "force",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/docker/containers/{id}/start": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "docker"
+                ],
+                "summary": "Start a container",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Container ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1155,16 +2134,1147 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
+            }
+        },
+        "/docker/containers/{id}/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "docker"
+                ],
+                "summary": "GET /docker/containers/{id}/stats",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/docker/containers/{id}/stop": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "docker"
+                ],
+                "summary": "Stop a container",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Container ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/docker/images": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "docker"
+                ],
+                "summary": "List images",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/internal_handler_rest.imageResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/docker/images/pull": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "docker"
+                ],
+                "summary": "Pull an image from a registry",
+                "parameters": [
+                    {
+                        "description": "Image reference",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.pullImageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/docker/images/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "docker"
+                ],
+                "summary": "Remove an image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Image ID or tag",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Force remove",
+                        "name": "force",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/domains/check": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "domains"
+                ],
+                "summary": "GET /domains/check",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "domain",
+                        "name": "domain",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/environments/{envId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "environments"
+                ],
+                "summary": "DELETE /environments/{envId}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "envId",
+                        "name": "envId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/environments/{envId}/fork": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "environments"
+                ],
+                "summary": "POST /environments/{envId}/fork",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "envId",
+                        "name": "envId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/environments/{envId}/resource-stacks": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "environments"
+                ],
+                "summary": "POST /environments/{envId}/resource-stacks",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "envId",
+                        "name": "envId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/environments/{envId}/resources": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "environments"
+                ],
+                "summary": "GET /environments/{envId}/resources",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "envId",
+                        "name": "envId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "environments"
+                ],
+                "summary": "POST /environments/{envId}/resources",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "envId",
+                        "name": "envId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/environments/{envId}/resources/from-git": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "environments"
+                ],
+                "summary": "POST /environments/{envId}/resources/from-git",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "envId",
+                        "name": "envId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/projects": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "projects"
+                ],
+                "summary": "GET /projects",
+                "responses": {}
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "projects"
+                ],
+                "summary": "POST /projects",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/projects/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "projects"
+                ],
+                "summary": "GET /projects/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "projects"
+                ],
+                "summary": "PUT /projects/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "projects"
+                ],
+                "summary": "DELETE /projects/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/projects/{id}/environments": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "projects"
+                ],
+                "summary": "POST /projects/{id}/environments",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resource-stack-templates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "GET /resource-stack-templates",
+                "responses": {}
+            }
+        },
+        "/resource-templates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "GET /resource-templates",
+                "responses": {}
+            }
+        },
+        "/resources/reconcile": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "POST /resources/reconcile",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "GET /resources/{resourceId}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "PUT /resources/{resourceId}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "DELETE /resources/{resourceId}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}/build": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "POST /resources/{resourceId}/build",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}/connection-info": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "GET /resources/{resourceId}/connection-info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}/domains": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "GET /resources/{resourceId}/domains",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "POST /resources/{resourceId}/domains",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}/domains/{domainId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "DELETE /resources/{resourceId}/domains/{domainId}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "domainId",
+                        "name": "domainId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "PATCH /resources/{resourceId}/domains/{domainId}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "domainId",
+                        "name": "domainId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}/domains/{domainId}/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "POST /resources/{resourceId}/domains/{domainId}/verify",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "domainId",
+                        "name": "domainId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}/env-vars": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "GET /resources/{resourceId}/env-vars",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "PUT /resources/{resourceId}/env-vars",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}/logs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "GET /resources/{resourceId}/logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}/reconcile": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "POST /resources/{resourceId}/reconcile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}/restart": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "POST /resources/{resourceId}/restart",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}/scale": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "POST /resources/{resourceId}/scale",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}/start": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "POST /resources/{resourceId}/start",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/resources/{resourceId}/stop": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "resources"
+                ],
+                "summary": "POST /resources/{resourceId}/stop",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "resourceId",
+                        "name": "resourceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/restores/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "restores"
+                ],
+                "summary": "GET /restores/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
             }
         },
         "/roles": {
@@ -1185,19 +3295,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.roleListResponse"
+                            "$ref": "#/definitions/internal_handler_rest.roleListResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1225,7 +3335,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.createRoleRequest"
+                            "$ref": "#/definitions/internal_handler_rest.createRoleRequest"
                         }
                     }
                 ],
@@ -1233,25 +3343,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/rest.roleResponse"
+                            "$ref": "#/definitions/internal_handler_rest.roleResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1284,19 +3394,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.roleResponse"
+                            "$ref": "#/definitions/internal_handler_rest.roleResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1331,7 +3441,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.updateRoleRequest"
+                            "$ref": "#/definitions/internal_handler_rest.updateRoleRequest"
                         }
                     }
                 ],
@@ -1339,31 +3449,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.roleResponse"
+                            "$ref": "#/definitions/internal_handler_rest.roleResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1397,19 +3507,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1433,19 +3543,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.discordRuntimeResponse"
+                            "$ref": "#/definitions/internal_handler_rest.discordRuntimeResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1475,7 +3585,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.discordRuntimeRequest"
+                            "$ref": "#/definitions/internal_handler_rest.discordRuntimeRequest"
                         }
                     }
                 ],
@@ -1483,19 +3593,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.discordRuntimeResponse"
+                            "$ref": "#/definitions/internal_handler_rest.discordRuntimeResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1519,13 +3629,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.discordRuntimeResponse"
+                            "$ref": "#/definitions/internal_handler_rest.discordRuntimeResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1549,16 +3659,643 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.discordRuntimeResponse"
+                            "$ref": "#/definitions/internal_handler_rest.discordRuntimeResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
+            }
+        },
+        "/runtime/logs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Tail runtime logs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Maximum lines to return",
+                        "name": "lines",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional trace ID filter",
+                        "name": "traceId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional date filter in YYYY-MM-DD",
+                        "name": "date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional level filter: error, warn, info, debug",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional substring filter",
+                        "name": "contains",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.tailLogsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/servers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "servers"
+                ],
+                "summary": "GET /servers",
+                "responses": {}
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "servers"
+                ],
+                "summary": "POST /servers",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/servers/ssh-public-key": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "servers"
+                ],
+                "summary": "GET /servers/ssh-public-key",
+                "responses": {}
+            }
+        },
+        "/servers/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "servers"
+                ],
+                "summary": "GET /servers/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "servers"
+                ],
+                "summary": "DELETE /servers/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/servers/{id}/ping": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "servers"
+                ],
+                "summary": "POST /servers/{id}/ping",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/settings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "GET /settings",
+                "responses": {}
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "PATCH /settings",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/settings/base-domains": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "GET /settings/base-domains",
+                "responses": {}
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "POST /settings/base-domains",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/settings/base-domains/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "DELETE /settings/base-domains/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/settings/traefik/restart": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "POST /settings/traefik/restart",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/source-connections": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "source-connections"
+                ],
+                "summary": "GET /source-connections",
+                "responses": {}
+            }
+        },
+        "/source-connections/github/apps": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "source-connections"
+                ],
+                "summary": "POST /source-connections/github/apps",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/source-connections/github/callback": {
+            "get": {
+                "tags": [
+                    "source-connections"
+                ],
+                "summary": "GET /source-connections/github/callback",
+                "responses": {}
+            }
+        },
+        "/source-connections/github/setup": {
+            "get": {
+                "tags": [
+                    "source-connections"
+                ],
+                "summary": "GET /source-connections/github/setup",
+                "responses": {}
+            }
+        },
+        "/source-connections/github/webhook": {
+            "post": {
+                "tags": [
+                    "source-connections"
+                ],
+                "summary": "POST /source-connections/github/webhook",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/source-connections/pat": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "source-connections"
+                ],
+                "summary": "POST /source-connections/pat",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/source-connections/{id}/repos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "source-connections"
+                ],
+                "summary": "GET /source-connections/{id}/repos",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/source-connections/{id}/repos/{owner}/{repo}/branches": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "source-connections"
+                ],
+                "summary": "GET /source-connections/{id}/repos/{owner}/{repo}/branches",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "owner",
+                        "name": "owner",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "repo",
+                        "name": "repo",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/status": {
+            "get": {
+                "tags": [
+                    "status"
+                ],
+                "summary": "GET /status",
+                "responses": {}
+            }
+        },
+        "/storages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "storages"
+                ],
+                "summary": "GET /storages",
+                "responses": {}
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "storages"
+                ],
+                "summary": "POST /storages",
+                "parameters": [
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/storages/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "storages"
+                ],
+                "summary": "GET /storages/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "storages"
+                ],
+                "summary": "PUT /storages/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler_rest.swaggerGenericRequest"
+                        }
+                    }
+                ],
+                "responses": {}
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "storages"
+                ],
+                "summary": "DELETE /storages/{id}",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/swarm/nodes": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "swarm"
+                ],
+                "summary": "GET /swarm/nodes",
+                "responses": {}
+            }
+        },
+        "/swarm/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "swarm"
+                ],
+                "summary": "GET /swarm/status",
+                "responses": {}
             }
         },
         "/user/me": {
@@ -1579,25 +4316,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.userResponse"
+                            "$ref": "#/definitions/internal_handler_rest.userResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1630,25 +4367,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.userResponse"
+                            "$ref": "#/definitions/internal_handler_rest.userResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1674,20 +4411,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/rest.userResponse"
+                                "$ref": "#/definitions/internal_handler_rest.userResponse"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1715,7 +4452,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.createUserRequest"
+                            "$ref": "#/definitions/internal_handler_rest.createUserRequest"
                         }
                     }
                 ],
@@ -1723,31 +4460,31 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/rest.userResponse"
+                            "$ref": "#/definitions/internal_handler_rest.userResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1784,7 +4521,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.updateUserRequest"
+                            "$ref": "#/definitions/internal_handler_rest.updateUserRequest"
                         }
                     }
                 ],
@@ -1792,31 +4529,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rest.userResponse"
+                            "$ref": "#/definitions/internal_handler_rest.userResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1850,19 +4587,19 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1898,25 +4635,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -1951,26 +4688,26 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/rest.userRoleResponse"
+                                "$ref": "#/definitions/internal_handler_rest.userRoleResponse"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -2005,7 +4742,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.assignUserRoleRequest"
+                            "$ref": "#/definitions/internal_handler_rest.assignUserRoleRequest"
                         }
                     }
                 ],
@@ -2016,25 +4753,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
@@ -2077,475 +4814,150 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "$ref": "#/definitions/internal_handler_rest.errorResponse"
                         }
                     }
                 }
             }
         },
-        "/workspaces": {
+        "/ws/builds/{id}/logs": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
-                    "workspaces"
+                    "websocket"
                 ],
-                "summary": "List workspaces",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/rest.workspaceListResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "workspaces"
-                ],
-                "summary": "Create workspace",
+                "summary": "GET /ws/builds/{id}/logs",
                 "parameters": [
                     {
-                        "description": "Workspace payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/rest.createWorkspaceRequest"
-                        }
+                        "type": "string",
+                        "description": "id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/rest.workspaceResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
+                "responses": {}
             }
         },
-        "/workspaces/{id}": {
+        "/ws/clusters/{id}/logs": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
-                    "workspaces"
+                    "websocket"
                 ],
-                "summary": "Get workspace by ID",
+                "summary": "GET /ws/clusters/{id}/logs",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Workspace ID",
+                        "description": "id",
                         "name": "id",
                         "in": "path",
                         "required": true
                     }
                 ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/rest.workspaceResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "workspaces"
-                ],
-                "summary": "Update workspace",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Workspace ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Workspace payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/rest.updateWorkspaceRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/rest.workspaceResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "workspaces"
-                ],
-                "summary": "Delete workspace",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Workspace ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
+                "responses": {}
             }
         },
-        "/workspaces/{id}/agents": {
+        "/ws/docker/images/pull": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
-                    "workspaces"
+                    "websocket"
                 ],
-                "summary": "List workspace agents",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Workspace ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/rest.agentResponse"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "workspaces"
-                ],
-                "summary": "Sync workspace agents",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Workspace ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Workspace agent IDs payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/rest.workspaceAgentIDsRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/rest.agentResponse"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
+                "summary": "GET /ws/docker/images/pull",
+                "responses": {}
             }
         },
-        "/workspaces/{id}/channels": {
+        "/ws/resource-runs/{id}/logs": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
-                    "workspaces"
+                    "websocket"
                 ],
-                "summary": "List workspace channels",
+                "summary": "GET /ws/resource-runs/{id}/logs",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Workspace ID",
+                        "description": "id",
                         "name": "id",
                         "in": "path",
                         "required": true
                     }
                 ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/rest.channelOperationResponse"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
+                "responses": {}
+            }
+        },
+        "/ws/resources/{resourceId}/terminal": {
+            "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
-                    "workspaces"
+                    "websocket"
                 ],
-                "summary": "Sync workspace channels",
+                "summary": "GET /ws/resources/{resourceId}/terminal",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Workspace ID",
-                        "name": "id",
+                        "description": "resourceId",
+                        "name": "resourceId",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "description": "Workspace channel IDs payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/rest.workspaceChannelIDsRequest"
-                        }
                     }
                 ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/rest.channelOperationResponse"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
-                        }
-                    }
-                }
+                "responses": {}
             }
         }
     },
     "definitions": {
-        "auth.ErrorResponse": {
+        "internal_auth.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "current_password",
+                "new_password"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "new_password": {
+                    "type": "string",
+                    "minLength": 6
+                }
+            }
+        },
+        "internal_auth.ErrorResponse": {
             "type": "object",
             "properties": {
                 "error": {
@@ -2553,7 +4965,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.LoginRequest": {
+        "internal_auth.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -2569,7 +4981,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.MessageResponse": {
+        "internal_auth.MessageResponse": {
             "type": "object",
             "properties": {
                 "message": {
@@ -2577,7 +4989,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.TokenResponse": {
+        "internal_auth.TokenResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -2585,123 +4997,30 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.agentListResponse": {
+        "internal_handler_rest.apiKeyResponse": {
             "type": "object",
             "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/rest.agentResponse"
-                    }
-                },
-                "pageIndex": {
-                    "type": "integer"
-                },
-                "pageSize": {
-                    "type": "integer"
-                },
-                "totalItems": {
-                    "type": "integer"
-                },
-                "totalPage": {
-                    "type": "integer"
-                }
-            }
-        },
-        "rest.agentProviderRequest": {
-            "type": "object",
-            "properties": {
-                "llm_provider_id": {
-                    "type": "string"
-                },
-                "priority": {
-                    "type": "integer"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "rest.agentProviderResponse": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "llm_provider_id": {
-                    "type": "string"
-                },
-                "priority": {
-                    "type": "integer"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "rest.agentResponse": {
-            "type": "object",
-            "properties": {
-                "budget_limit": {
-                    "type": "integer"
-                },
-                "budget_used": {
-                    "type": "integer"
-                },
                 "created_at": {
                     "type": "string"
                 },
+                "expires_at": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
-                "kind": {
-                    "type": "string"
-                },
-                "max_tokens": {
-                    "type": "integer"
-                },
-                "metadata_json": {
-                    "type": "string"
-                },
-                "model_override": {
+                "last_used_at": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
-                "parent_agent_id": {
-                    "type": "string"
-                },
-                "providers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/rest.agentProviderResponse"
-                    }
-                },
-                "role": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "system_prompt": {
-                    "type": "string"
-                },
-                "temperature": {
-                    "type": "number"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "workspace_id": {
+                "user_id": {
                     "type": "string"
                 }
             }
         },
-        "rest.assignUserRoleRequest": {
+        "internal_handler_rest.assignUserRoleRequest": {
             "type": "object",
             "properties": {
                 "role_id": {
@@ -2709,13 +5028,83 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.channelListResponse": {
+        "internal_handler_rest.buildJobListResponse": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/rest.channelOperationResponse"
+                        "$ref": "#/definitions/internal_handler_rest.buildJobResponse"
+                    }
+                },
+                "page_index": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total_items": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handler_rest.buildJobResponse": {
+            "type": "object",
+            "properties": {
+                "archive_name": {
+                    "type": "string"
+                },
+                "build_mode": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "error_msg": {
+                    "type": "string"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "git_branch": {
+                    "type": "string"
+                },
+                "git_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "image_tag": {
+                    "type": "string"
+                },
+                "logs": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_rest.channelListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handler_rest.channelOperationResponse"
                     }
                 },
                 "pageIndex": {
@@ -2732,7 +5121,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.channelOperationResponse": {
+        "internal_handler_rest.channelOperationResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -2747,21 +5136,15 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "setup_mode": {
-                    "type": "string"
-                },
                 "status": {
                     "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
-                },
-                "workspace_id": {
-                    "type": "string"
                 }
             }
         },
-        "rest.channelQRCodeResponse": {
+        "internal_handler_rest.channelQRCodeResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -2772,283 +5155,227 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.chatCompletionChoice": {
+        "internal_handler_rest.channelTestConnectionResponse": {
             "type": "object",
             "properties": {
-                "delta": {
-                    "$ref": "#/definitions/rest.chatCompletionMessage"
-                },
-                "finish_reason": {
-                    "type": "string"
-                },
-                "index": {
-                    "type": "integer"
-                },
-                "message": {
-                    "$ref": "#/definitions/rest.chatCompletionMessage"
-                }
-            }
-        },
-        "rest.chatCompletionMessage": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                }
-            }
-        },
-        "rest.chatCompletionRequest": {
-            "type": "object",
-            "properties": {
-                "conversation_id": {
-                    "type": "string"
-                },
-                "messages": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/rest.chatCompletionMessage"
-                    }
-                },
-                "model": {
-                    "type": "string"
-                },
-                "stream": {
-                    "type": "boolean"
-                },
-                "workspace_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "rest.chatCompletionResponse": {
-            "type": "object",
-            "properties": {
-                "choices": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/rest.chatCompletionChoice"
-                    }
-                },
-                "conversation_id": {
-                    "type": "string"
-                },
-                "created": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "model": {
-                    "type": "string"
-                },
-                "object": {
-                    "type": "string"
-                }
-            }
-        },
-        "rest.conversationListResponse": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/rest.conversationResponse"
-                    }
-                },
-                "pageIndex": {
-                    "type": "integer"
-                },
-                "pageSize": {
-                    "type": "integer"
-                },
-                "totalItems": {
-                    "type": "integer"
-                },
-                "totalPage": {
-                    "type": "integer"
-                }
-            }
-        },
-        "rest.conversationMessageResponse": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "conversation_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "error_message": {
-                    "type": "string"
-                },
-                "finish_reason": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "message_kind": {
-                    "type": "string"
-                },
-                "model": {
-                    "type": "string"
-                },
-                "provider": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                },
-                "sender_id": {
-                    "type": "string"
-                },
-                "sender_type": {
-                    "type": "string"
-                },
-                "sequence": {
-                    "type": "integer"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "rest.conversationResponse": {
-            "type": "object",
-            "properties": {
-                "channel_id": {
-                    "type": "string"
-                },
-                "channel_kind": {
-                    "type": "string"
-                },
-                "conversation_type": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "external_chat_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "last_message_at": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                },
-                "workspace_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "rest.createAgentRequest": {
-            "type": "object",
-            "properties": {
-                "budget_limit": {
-                    "type": "integer"
-                },
-                "budget_used": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
+                "details": {
+                    "type": "object",
+                    "additionalProperties": {}
                 },
                 "kind": {
                     "type": "string"
                 },
-                "max_tokens": {
+                "message": {
+                    "type": "string"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_handler_rest.checkRepoResponse": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "branch_exists": {
+                    "type": "boolean"
+                },
+                "default_branch": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_rest.containerPortResponse": {
+            "type": "object",
+            "properties": {
+                "ip": {
+                    "type": "string"
+                },
+                "private_port": {
                     "type": "integer"
                 },
-                "metadata_json": {
+                "public_port": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_rest.containerResponse": {
+            "type": "object",
+            "properties": {
+                "command": {
                     "type": "string"
                 },
-                "model_override": {
+                "id": {
                     "type": "string"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "image_id": {
+                    "type": "string"
+                },
+                "labels": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "name": {
                     "type": "string"
                 },
-                "parent_agent_id": {
-                    "type": "string"
-                },
-                "providers": {
+                "ports": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/rest.agentProviderRequest"
+                        "$ref": "#/definitions/internal_handler_rest.containerPortResponse"
                     }
                 },
-                "role": {
+                "short_id": {
+                    "type": "string"
+                },
+                "state": {
                     "type": "string"
                 },
                 "status": {
                     "type": "string"
-                },
-                "system_prompt": {
+                }
+            }
+        },
+        "internal_handler_rest.createAPIKeyRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "expires_at": {
+                    "description": "RFC3339, omit for no expiry",
                     "type": "string"
                 },
-                "temperature": {
-                    "type": "number"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "workspace_id": {
+                "name": {
                     "type": "string"
                 }
             }
         },
-        "rest.createChannelRequest": {
-            "type": "object"
-        },
-        "rest.createLLMProviderRequest": {
+        "internal_handler_rest.createAPIKeyResponse": {
             "type": "object",
             "properties": {
-                "active": {
-                    "type": "boolean"
-                },
-                "api_key": {
+                "created_at": {
                     "type": "string"
                 },
-                "base_url": {
+                "expires_at": {
                     "type": "string"
                 },
-                "model": {
+                "id": {
+                    "type": "string"
+                },
+                "key": {
+                    "description": "shown once only",
+                    "type": "string"
+                },
+                "last_used_at": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
-                "primary": {
-                    "type": "boolean"
-                },
-                "provider": {
+                "user_id": {
                     "type": "string"
                 }
             }
         },
-        "rest.createRoleRequest": {
+        "internal_handler_rest.createBuildRequest": {
+            "type": "object",
+            "required": [
+                "git_url",
+                "image_tag"
+            ],
+            "properties": {
+                "build_mode": {
+                    "description": "\"auto\" | \"dockerfile\"",
+                    "type": "string"
+                },
+                "git_branch": {
+                    "type": "string"
+                },
+                "git_url": {
+                    "type": "string"
+                },
+                "image_tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_rest.createChannelRequest": {
+            "type": "object",
+            "properties": {
+                "credentials": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "settings": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "internal_handler_rest.createContainerRequest": {
+            "type": "object",
+            "properties": {
+                "auto_remove": {
+                    "type": "boolean"
+                },
+                "cmd": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "env": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "image": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "port_bindings": {
+                    "description": "containerPort -\u003e hostPort, e.g. \"80\" -\u003e \"8080\"",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "volumes": {
+                    "description": "bind mounts, e.g. \"/host:/container\"",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handler_rest.createRoleRequest": {
             "type": "object",
             "properties": {
                 "description": {
@@ -3059,7 +5386,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.createUserRequest": {
+        "internal_handler_rest.createUserRequest": {
             "type": "object",
             "properties": {
                 "address": {
@@ -3088,27 +5415,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.createWorkspaceRequest": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "metadata_json": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "rest.discordRuntimeRequest": {
+        "internal_handler_rest.discordRuntimeRequest": {
             "type": "object",
             "properties": {
                 "allowed_user_ids": {
@@ -3131,7 +5438,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.discordRuntimeResponse": {
+        "internal_handler_rest.discordRuntimeResponse": {
             "type": "object",
             "properties": {
                 "allowed_user_ids": {
@@ -3160,7 +5467,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.errorResponse": {
+        "internal_handler_rest.errorResponse": {
             "type": "object",
             "properties": {
                 "error": {
@@ -3168,74 +5475,94 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.llmProviderListResponse": {
+        "internal_handler_rest.imageResponse": {
             "type": "object",
             "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/rest.llmProviderResponse"
-                    }
-                },
-                "pageIndex": {
-                    "type": "integer"
-                },
-                "pageSize": {
-                    "type": "integer"
-                },
-                "totalItems": {
-                    "type": "integer"
-                },
-                "totalPage": {
-                    "type": "integer"
-                }
-            }
-        },
-        "rest.llmProviderResponse": {
-            "type": "object",
-            "properties": {
-                "active": {
-                    "type": "boolean"
-                },
-                "base_url": {
+                "created": {
                     "type": "string"
                 },
-                "created_at": {
+                "digest": {
                     "type": "string"
-                },
-                "has_api_key": {
-                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"
                 },
-                "model": {
+                "in_use": {
+                    "type": "integer"
+                },
+                "short_id": {
                     "type": "string"
                 },
-                "name": {
+                "size": {
                     "type": "string"
                 },
-                "primary": {
-                    "type": "boolean"
+                "size_bytes": {
+                    "type": "integer"
                 },
-                "provider": {
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handler_rest.logEntryResponse": {
+            "type": "object",
+            "properties": {
+                "client_ip": {
                     "type": "string"
                 },
-                "token_preview": {
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "level": {
                     "type": "string"
                 },
-                "updated_at": {
+                "message": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "query": {
+                    "type": "string"
+                },
+                "raw": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "time": {
+                    "type": "string"
+                },
+                "trace_id": {
                     "type": "string"
                 }
             }
         },
-        "rest.roleListResponse": {
+        "internal_handler_rest.pullImageRequest": {
+            "type": "object",
+            "properties": {
+                "reference": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_rest.roleListResponse": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/rest.roleResponse"
+                        "$ref": "#/definitions/internal_handler_rest.roleResponse"
                     }
                 },
                 "pageIndex": {
@@ -3252,7 +5579,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.roleResponse": {
+        "internal_handler_rest.roleResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -3275,89 +5602,80 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.updateAgentRequest": {
+        "internal_handler_rest.swaggerGenericRequest": {
             "type": "object",
             "properties": {
-                "budget_limit": {
-                    "type": "integer"
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler_rest.tailLogsResponse": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string"
                 },
-                "budget_used": {
-                    "type": "integer"
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handler_rest.logEntryResponse"
+                    }
+                },
+                "lines": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handler_rest.testChannelConnectionRequestDoc": {
+            "type": "object",
+            "properties": {
+                "credentials": {
+                    "type": "object",
+                    "additionalProperties": {}
                 },
                 "kind": {
                     "type": "string"
                 },
-                "max_tokens": {
-                    "type": "integer"
+                "settings": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
+        "internal_handler_rest.updateChannelRequest": {
+            "type": "object",
+            "properties": {
+                "credentials": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
-                "metadata_json": {
-                    "type": "string"
-                },
-                "model_override": {
+                "kind": {
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
-                "parent_agent_id": {
-                    "type": "string"
+                "replace_credentials": {
+                    "type": "boolean"
                 },
-                "providers": {
+                "settings": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/rest.agentProviderRequest"
+                        "type": "integer"
                     }
-                },
-                "role": {
-                    "type": "string"
                 },
                 "status": {
                     "type": "string"
-                },
-                "system_prompt": {
-                    "type": "string"
-                },
-                "temperature": {
-                    "type": "number"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "workspace_id": {
-                    "type": "string"
                 }
             }
         },
-        "rest.updateChannelRequest": {
-            "type": "object"
-        },
-        "rest.updateLLMProviderRequest": {
-            "type": "object",
-            "properties": {
-                "active": {
-                    "type": "boolean"
-                },
-                "api_key": {
-                    "type": "string"
-                },
-                "base_url": {
-                    "type": "string"
-                },
-                "model": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "primary": {
-                    "type": "boolean"
-                },
-                "provider": {
-                    "type": "string"
-                }
-            }
-        },
-        "rest.updateRoleRequest": {
+        "internal_handler_rest.updateRoleRequest": {
             "type": "object",
             "properties": {
                 "description": {
@@ -3368,7 +5686,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.updateUserRequest": {
+        "internal_handler_rest.updateUserRequest": {
             "type": "object",
             "properties": {
                 "address": {
@@ -3388,24 +5706,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.updateWorkspaceRequest": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "metadata_json": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "rest.userResponse": {
+        "internal_handler_rest.userResponse": {
             "type": "object",
             "properties": {
                 "address": {
@@ -3437,7 +5738,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.userRoleResponse": {
+        "internal_handler_rest.userRoleResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -3453,77 +5754,6 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "name": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "rest.workspaceAgentIDsRequest": {
-            "type": "object",
-            "properties": {
-                "agent_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "rest.workspaceChannelIDsRequest": {
-            "type": "object",
-            "properties": {
-                "channel_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "rest.workspaceListResponse": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/rest.workspaceResponse"
-                    }
-                },
-                "pageIndex": {
-                    "type": "integer"
-                },
-                "pageSize": {
-                    "type": "integer"
-                },
-                "totalItems": {
-                    "type": "integer"
-                },
-                "totalPage": {
-                    "type": "integer"
-                }
-            }
-        },
-        "rest.workspaceResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "metadata_json": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
                     "type": "string"
                 },
                 "updated_at": {

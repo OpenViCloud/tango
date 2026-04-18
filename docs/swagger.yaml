@@ -1,11 +1,23 @@
 basePath: /api
 definitions:
-  auth.ErrorResponse:
+  internal_auth.ChangePasswordRequest:
+    properties:
+      current_password:
+        minLength: 6
+        type: string
+      new_password:
+        minLength: 6
+        type: string
+    required:
+    - current_password
+    - new_password
+    type: object
+  internal_auth.ErrorResponse:
     properties:
       error:
         type: string
     type: object
-  auth.LoginRequest:
+  internal_auth.LoginRequest:
     properties:
       email:
         type: string
@@ -16,102 +28,87 @@ definitions:
     - email
     - password
     type: object
-  auth.MessageResponse:
+  internal_auth.MessageResponse:
     properties:
       message:
         type: string
     type: object
-  auth.TokenResponse:
+  internal_auth.TokenResponse:
     properties:
       access_token:
         type: string
     type: object
-  rest.agentListResponse:
+  internal_handler_rest.apiKeyResponse:
     properties:
-      items:
-        items:
-          $ref: '#/definitions/rest.agentResponse'
-        type: array
-      pageIndex:
-        type: integer
-      pageSize:
-        type: integer
-      totalItems:
-        type: integer
-      totalPage:
-        type: integer
-    type: object
-  rest.agentProviderRequest:
-    properties:
-      llm_provider_id:
-        type: string
-      priority:
-        type: integer
-      status:
-        type: string
-    type: object
-  rest.agentProviderResponse:
-    properties:
-      id:
-        type: string
-      llm_provider_id:
-        type: string
-      priority:
-        type: integer
-      status:
-        type: string
-    type: object
-  rest.agentResponse:
-    properties:
-      budget_limit:
-        type: integer
-      budget_used:
-        type: integer
       created_at:
         type: string
+      expires_at:
+        type: string
       id:
         type: string
-      kind:
-        type: string
-      max_tokens:
-        type: integer
-      metadata_json:
-        type: string
-      model_override:
+      last_used_at:
         type: string
       name:
         type: string
-      parent_agent_id:
-        type: string
-      providers:
-        items:
-          $ref: '#/definitions/rest.agentProviderResponse'
-        type: array
-      role:
-        type: string
-      status:
-        type: string
-      system_prompt:
-        type: string
-      temperature:
-        type: number
-      type:
-        type: string
-      updated_at:
-        type: string
-      workspace_id:
+      user_id:
         type: string
     type: object
-  rest.assignUserRoleRequest:
+  internal_handler_rest.assignUserRoleRequest:
     properties:
       role_id:
         type: string
     type: object
-  rest.channelListResponse:
+  internal_handler_rest.buildJobListResponse:
     properties:
       items:
         items:
-          $ref: '#/definitions/rest.channelOperationResponse'
+          $ref: '#/definitions/internal_handler_rest.buildJobResponse'
+        type: array
+      page_index:
+        type: integer
+      page_size:
+        type: integer
+      total_items:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  internal_handler_rest.buildJobResponse:
+    properties:
+      archive_name:
+        type: string
+      build_mode:
+        type: string
+      created_at:
+        type: string
+      error_msg:
+        type: string
+      finished_at:
+        type: string
+      git_branch:
+        type: string
+      git_url:
+        type: string
+      id:
+        type: string
+      image_tag:
+        type: string
+      logs:
+        type: string
+      source_type:
+        type: string
+      started_at:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_handler_rest.channelListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/internal_handler_rest.channelOperationResponse'
         type: array
       pageIndex:
         type: integer
@@ -122,7 +119,7 @@ definitions:
       totalPage:
         type: integer
     type: object
-  rest.channelOperationResponse:
+  internal_handler_rest.channelOperationResponse:
     properties:
       created_at:
         type: string
@@ -132,211 +129,172 @@ definitions:
         type: string
       name:
         type: string
-      setup_mode:
-        type: string
       status:
         type: string
       updated_at:
         type: string
-      workspace_id:
-        type: string
     type: object
-  rest.channelQRCodeResponse:
+  internal_handler_rest.channelQRCodeResponse:
     properties:
       id:
         type: string
       qr_code:
         type: string
     type: object
-  rest.chatCompletionChoice:
+  internal_handler_rest.channelTestConnectionResponse:
     properties:
-      delta:
-        $ref: '#/definitions/rest.chatCompletionMessage'
-      finish_reason:
+      details:
+        additionalProperties: {}
+        type: object
+      kind:
         type: string
-      index:
-        type: integer
       message:
-        $ref: '#/definitions/rest.chatCompletionMessage'
-    type: object
-  rest.chatCompletionMessage:
-    properties:
-      content:
         type: string
-      role:
-        type: string
-    type: object
-  rest.chatCompletionRequest:
-    properties:
-      conversation_id:
-        type: string
-      messages:
-        items:
-          $ref: '#/definitions/rest.chatCompletionMessage'
-        type: array
-      model:
-        type: string
-      stream:
+      ok:
         type: boolean
-      workspace_id:
+    type: object
+  internal_handler_rest.checkRepoResponse:
+    properties:
+      available:
+        type: boolean
+      branch_exists:
+        type: boolean
+      default_branch:
+        type: string
+      error:
         type: string
     type: object
-  rest.chatCompletionResponse:
+  internal_handler_rest.containerPortResponse:
     properties:
-      choices:
+      ip:
+        type: string
+      private_port:
+        type: integer
+      public_port:
+        type: integer
+      type:
+        type: string
+    type: object
+  internal_handler_rest.containerResponse:
+    properties:
+      command:
+        type: string
+      id:
+        type: string
+      image:
+        type: string
+      image_id:
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      ports:
         items:
-          $ref: '#/definitions/rest.chatCompletionChoice'
+          $ref: '#/definitions/internal_handler_rest.containerPortResponse'
         type: array
-      conversation_id:
+      short_id:
         type: string
-      created:
-        type: integer
-      id:
-        type: string
-      model:
-        type: string
-      object:
-        type: string
-    type: object
-  rest.conversationListResponse:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/rest.conversationResponse'
-        type: array
-      pageIndex:
-        type: integer
-      pageSize:
-        type: integer
-      totalItems:
-        type: integer
-      totalPage:
-        type: integer
-    type: object
-  rest.conversationMessageResponse:
-    properties:
-      content:
-        type: string
-      conversation_id:
-        type: string
-      created_at:
-        type: string
-      error_message:
-        type: string
-      finish_reason:
-        type: string
-      id:
-        type: string
-      message_kind:
-        type: string
-      model:
-        type: string
-      provider:
-        type: string
-      role:
-        type: string
-      sender_id:
-        type: string
-      sender_type:
-        type: string
-      sequence:
-        type: integer
-      status:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  rest.conversationResponse:
-    properties:
-      channel_id:
-        type: string
-      channel_kind:
-        type: string
-      conversation_type:
-        type: string
-      created_at:
-        type: string
-      external_chat_id:
-        type: string
-      id:
-        type: string
-      last_message_at:
+      state:
         type: string
       status:
         type: string
-      title:
+    type: object
+  internal_handler_rest.createAPIKeyRequest:
+    properties:
+      expires_at:
+        description: RFC3339, omit for no expiry
         type: string
-      updated_at:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  internal_handler_rest.createAPIKeyResponse:
+    properties:
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      key:
+        description: shown once only
+        type: string
+      last_used_at:
+        type: string
+      name:
         type: string
       user_id:
         type: string
-      workspace_id:
-        type: string
     type: object
-  rest.createAgentRequest:
+  internal_handler_rest.createBuildRequest:
     properties:
-      budget_limit:
-        type: integer
-      budget_used:
-        type: integer
-      id:
+      build_mode:
+        description: '"auto" | "dockerfile"'
         type: string
+      git_branch:
+        type: string
+      git_url:
+        type: string
+      image_tag:
+        type: string
+    required:
+    - git_url
+    - image_tag
+    type: object
+  internal_handler_rest.createChannelRequest:
+    properties:
+      credentials:
+        items:
+          type: integer
+        type: array
       kind:
         type: string
-      max_tokens:
-        type: integer
-      metadata_json:
-        type: string
-      model_override:
-        type: string
       name:
         type: string
-      parent_agent_id:
-        type: string
-      providers:
+      settings:
         items:
-          $ref: '#/definitions/rest.agentProviderRequest'
+          type: integer
         type: array
-      role:
-        type: string
-      status:
-        type: string
-      system_prompt:
-        type: string
-      temperature:
-        type: number
-      type:
-        type: string
-      workspace_id:
-        type: string
     type: object
-  rest.createChannelRequest:
-    type: object
-  rest.createLLMProviderRequest:
+  internal_handler_rest.createContainerRequest:
     properties:
-      active:
+      auto_remove:
         type: boolean
-      api_key:
-        type: string
-      base_url:
-        type: string
-      model:
+      cmd:
+        items:
+          type: string
+        type: array
+      env:
+        additionalProperties:
+          type: string
+        type: object
+      image:
         type: string
       name:
         type: string
-      primary:
-        type: boolean
-      provider:
-        type: string
+      port_bindings:
+        additionalProperties:
+          type: string
+        description: containerPort -> hostPort, e.g. "80" -> "8080"
+        type: object
+      volumes:
+        description: bind mounts, e.g. "/host:/container"
+        items:
+          type: string
+        type: array
     type: object
-  rest.createRoleRequest:
+  internal_handler_rest.createRoleRequest:
     properties:
       description:
         type: string
       name:
         type: string
     type: object
-  rest.createUserRequest:
+  internal_handler_rest.createUserRequest:
     properties:
       address:
         type: string
@@ -355,20 +313,7 @@ definitions:
       phone:
         type: string
     type: object
-  rest.createWorkspaceRequest:
-    properties:
-      description:
-        type: string
-      id:
-        type: string
-      metadata_json:
-        type: string
-      name:
-        type: string
-      status:
-        type: string
-    type: object
-  rest.discordRuntimeRequest:
+  internal_handler_rest.discordRuntimeRequest:
     properties:
       allowed_user_ids:
         items:
@@ -383,7 +328,7 @@ definitions:
       token:
         type: string
     type: object
-  rest.discordRuntimeResponse:
+  internal_handler_rest.discordRuntimeResponse:
     properties:
       allowed_user_ids:
         items:
@@ -402,56 +347,69 @@ definitions:
       token_configured:
         type: boolean
     type: object
-  rest.errorResponse:
+  internal_handler_rest.errorResponse:
     properties:
       error:
         type: string
     type: object
-  rest.llmProviderListResponse:
+  internal_handler_rest.imageResponse:
     properties:
-      items:
-        items:
-          $ref: '#/definitions/rest.llmProviderResponse'
-        type: array
-      pageIndex:
-        type: integer
-      pageSize:
-        type: integer
-      totalItems:
-        type: integer
-      totalPage:
-        type: integer
-    type: object
-  rest.llmProviderResponse:
-    properties:
-      active:
-        type: boolean
-      base_url:
+      created:
         type: string
-      created_at:
+      digest:
         type: string
-      has_api_key:
-        type: boolean
       id:
         type: string
-      model:
+      in_use:
+        type: integer
+      short_id:
         type: string
-      name:
+      size:
         type: string
-      primary:
-        type: boolean
-      provider:
+      size_bytes:
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_handler_rest.logEntryResponse:
+    properties:
+      client_ip:
         type: string
-      token_preview:
+      fields:
+        additionalProperties:
+          type: string
+        type: object
+      level:
         type: string
-      updated_at:
+      message:
+        type: string
+      method:
+        type: string
+      path:
+        type: string
+      query:
+        type: string
+      raw:
+        type: string
+      status:
+        type: integer
+      time:
+        type: string
+      trace_id:
         type: string
     type: object
-  rest.roleListResponse:
+  internal_handler_rest.pullImageRequest:
+    properties:
+      reference:
+        type: string
+    type: object
+  internal_handler_rest.roleListResponse:
     properties:
       items:
         items:
-          $ref: '#/definitions/rest.roleResponse'
+          $ref: '#/definitions/internal_handler_rest.roleResponse'
         type: array
       pageIndex:
         type: integer
@@ -462,7 +420,7 @@ definitions:
       totalPage:
         type: integer
     type: object
-  rest.roleResponse:
+  internal_handler_rest.roleResponse:
     properties:
       created_at:
         type: string
@@ -477,68 +435,62 @@ definitions:
       updated_at:
         type: string
     type: object
-  rest.updateAgentRequest:
+  internal_handler_rest.swaggerGenericRequest:
     properties:
-      budget_limit:
-        type: integer
-      budget_used:
-        type: integer
+      name:
+        type: string
+    type: object
+  internal_handler_rest.tailLogsResponse:
+    properties:
+      file_path:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/internal_handler_rest.logEntryResponse'
+        type: array
+      lines:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_handler_rest.testChannelConnectionRequestDoc:
+    properties:
+      credentials:
+        additionalProperties: {}
+        type: object
       kind:
         type: string
-      max_tokens:
-        type: integer
-      metadata_json:
-        type: string
-      model_override:
+      settings:
+        additionalProperties: {}
+        type: object
+    type: object
+  internal_handler_rest.updateChannelRequest:
+    properties:
+      credentials:
+        items:
+          type: integer
+        type: array
+      kind:
         type: string
       name:
         type: string
-      parent_agent_id:
-        type: string
-      providers:
+      replace_credentials:
+        type: boolean
+      settings:
         items:
-          $ref: '#/definitions/rest.agentProviderRequest'
+          type: integer
         type: array
-      role:
-        type: string
       status:
         type: string
-      system_prompt:
-        type: string
-      temperature:
-        type: number
-      type:
-        type: string
-      workspace_id:
-        type: string
     type: object
-  rest.updateChannelRequest:
-    type: object
-  rest.updateLLMProviderRequest:
-    properties:
-      active:
-        type: boolean
-      api_key:
-        type: string
-      base_url:
-        type: string
-      model:
-        type: string
-      name:
-        type: string
-      primary:
-        type: boolean
-      provider:
-        type: string
-    type: object
-  rest.updateRoleRequest:
+  internal_handler_rest.updateRoleRequest:
     properties:
       description:
         type: string
       name:
         type: string
     type: object
-  rest.updateUserRequest:
+  internal_handler_rest.updateUserRequest:
     properties:
       address:
         type: string
@@ -551,18 +503,7 @@ definitions:
       phone:
         type: string
     type: object
-  rest.updateWorkspaceRequest:
-    properties:
-      description:
-        type: string
-      metadata_json:
-        type: string
-      name:
-        type: string
-      status:
-        type: string
-    type: object
-  rest.userResponse:
+  internal_handler_rest.userResponse:
     properties:
       address:
         type: string
@@ -583,7 +524,7 @@ definitions:
       status:
         type: string
     type: object
-  rest.userRoleResponse:
+  internal_handler_rest.userRoleResponse:
     properties:
       created_at:
         type: string
@@ -598,110 +539,78 @@ definitions:
       updated_at:
         type: string
     type: object
-  rest.workspaceAgentIDsRequest:
-    properties:
-      agent_ids:
-        items:
-          type: string
-        type: array
-    type: object
-  rest.workspaceChannelIDsRequest:
-    properties:
-      channel_ids:
-        items:
-          type: string
-        type: array
-    type: object
-  rest.workspaceListResponse:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/rest.workspaceResponse'
-        type: array
-      pageIndex:
-        type: integer
-      pageSize:
-        type: integer
-      totalItems:
-        type: integer
-      totalPage:
-        type: integer
-    type: object
-  rest.workspaceResponse:
-    properties:
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      metadata_json:
-        type: string
-      name:
-        type: string
-      status:
-        type: string
-      updated_at:
-        type: string
-    type: object
 info:
   contact: {}
   description: REST API for Tango authentication, users, and streaming endpoints.
   title: Tango API
   version: 0.1.0
 paths:
-  /agents:
+  /api-keys:
     get:
+      description: Lists all API keys belonging to the authenticated user. Key values
+        are not returned.
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.agentListResponse'
-        "500":
-          description: Internal Server Error
+            items:
+              $ref: '#/definitions/internal_handler_rest.apiKeyResponse'
+            type: array
+        "401":
+          description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            additionalProperties:
+              type: string
+            type: object
       security:
       - BearerAuth: []
-      summary: List agents
+      summary: List API keys
       tags:
-      - agents
+      - api-keys
     post:
       consumes:
       - application/json
+      description: Creates a new API key for the authenticated user. The key is shown
+        once and cannot be retrieved again.
       parameters:
-      - description: Agent payload
+      - description: API key options
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.createAgentRequest'
+          $ref: '#/definitions/internal_handler_rest.createAPIKeyRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/rest.agentResponse'
+            $ref: '#/definitions/internal_handler_rest.createAPIKeyResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            additionalProperties:
+              type: string
+            type: object
       security:
       - BearerAuth: []
-      summary: Create agent
+      summary: Create API key
       tags:
-      - agents
-  /agents/{id}:
+      - api-keys
+  /api-keys/{id}:
     delete:
+      description: Permanently deletes an API key. Only the owner can revoke their
+        own keys.
       parameters:
-      - description: Agent ID
+      - description: API key ID
         in: path
         name: id
         required: true
@@ -711,85 +620,60 @@ paths:
       responses:
         "204":
           description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
+            additionalProperties:
+              type: string
+            type: object
       security:
       - BearerAuth: []
-      summary: Delete agent
+      summary: Revoke API key
       tags:
-      - agents
-    get:
-      parameters:
-      - description: Agent ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/rest.agentResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-      security:
-      - BearerAuth: []
-      summary: Get agent by ID
-      tags:
-      - agents
-    put:
+      - api-keys
+  /auth/change-password:
+    post:
       consumes:
       - application/json
+      description: Changes the current user's password and clears auth cookies so
+        they must log in again.
       parameters:
-      - description: Agent ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Agent payload
+      - description: Password change payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.updateAgentRequest'
+          $ref: '#/definitions/internal_auth.ChangePasswordRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.agentResponse'
+            $ref: '#/definitions/internal_auth.MessageResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "404":
-          description: Not Found
+            $ref: '#/definitions/internal_auth.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Update agent
+      summary: Change password
       tags:
-      - agents
+      - auth
   /auth/login:
     post:
       consumes:
@@ -802,39 +686,39 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.LoginRequest'
+          $ref: '#/definitions/internal_auth.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.TokenResponse'
+            $ref: '#/definitions/internal_auth.TokenResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
       summary: Login
       tags:
       - auth
   /auth/logout:
     post:
-      description: Clears the refresh token cookie.
+      description: Clears auth cookies.
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.MessageResponse'
+            $ref: '#/definitions/internal_auth.MessageResponse'
       summary: Logout
       tags:
       - auth
@@ -847,14 +731,359 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/auth.TokenResponse'
+            $ref: '#/definitions/internal_auth.TokenResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/internal_auth.ErrorResponse'
       summary: Refresh access token
       tags:
       - auth
+  /backup-configs:
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /backup-configs
+      tags:
+      - backup-configs
+  /backup-configs/{id}:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /backup-configs/{id}
+      tags:
+      - backup-configs
+    put:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: PUT /backup-configs/{id}
+      tags:
+      - backup-configs
+  /backup-sources:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /backup-sources
+      tags:
+      - backup-sources
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /backup-sources
+      tags:
+      - backup-sources
+  /backup-sources/{id}:
+    delete:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: DELETE /backup-sources/{id}
+      tags:
+      - backup-sources
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /backup-sources/{id}
+      tags:
+      - backup-sources
+    put:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: PUT /backup-sources/{id}
+      tags:
+      - backup-sources
+  /backup-sources/{id}/backup-config:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /backup-sources/{id}/backup-config
+      tags:
+      - backup-sources
+  /backup-sources/{id}/backups:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /backup-sources/{id}/backups
+      tags:
+      - backup-sources
+    post:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /backup-sources/{id}/backups
+      tags:
+      - backup-sources
+  /backups/{id}:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /backups/{id}
+      tags:
+      - backups
+  /backups/{id}/restore:
+    post:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /backups/{id}/restore
+      tags:
+      - backups
+  /builds:
+    get:
+      parameters:
+      - description: Page index (0-based)
+        in: query
+        name: pageIndex
+        type: integer
+      - description: Page size
+        in: query
+        name: pageSize
+        type: integer
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_rest.buildJobListResponse'
+      security:
+      - BearerAuth: []
+      summary: List build jobs
+      tags:
+      - builds
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Build request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.createBuildRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/internal_handler_rest.buildJobResponse'
+      security:
+      - BearerAuth: []
+      summary: Submit a new build job from a Git URL
+      tags:
+      - builds
+  /builds/{id}:
+    get:
+      parameters:
+      - description: Build job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_rest.buildJobResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a build job by ID
+      tags:
+      - builds
+  /builds/{id}/cancel:
+    post:
+      parameters:
+      - description: Build job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_rest.buildJobResponse'
+      security:
+      - BearerAuth: []
+      summary: Cancel a running build job
+      tags:
+      - builds
+  /builds/check-repo:
+    get:
+      parameters:
+      - description: Git repository URL
+        in: query
+        name: url
+        required: true
+        type: string
+      - description: Branch to verify (optional)
+        in: query
+        name: branch
+        type: string
+      - description: Access token for private repos (optional)
+        in: query
+        name: token
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_rest.checkRepoResponse'
+      security:
+      - BearerAuth: []
+      summary: Check if a git repository is accessible and optionally verify a branch
+      tags:
+      - builds
+  /builds/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Source archive (.tar.gz, .tgz, or .zip)
+        in: formData
+        name: archive
+        required: true
+        type: file
+      - description: Image tag to push
+        in: formData
+        name: image_tag
+        required: true
+        type: string
+      - description: 'Build mode: auto (default) or dockerfile'
+        in: formData
+        name: build_mode
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/internal_handler_rest.buildJobResponse'
+      security:
+      - BearerAuth: []
+      summary: Submit a new build job from an uploaded archive (.tar.gz or .zip)
+      tags:
+      - builds
   /channels:
     get:
       produces:
@@ -863,15 +1092,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.channelListResponse'
+            $ref: '#/definitions/internal_handler_rest.channelListResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: List channels
@@ -886,26 +1115,26 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.createChannelRequest'
+          $ref: '#/definitions/internal_handler_rest.createChannelRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/rest.channelOperationResponse'
+            $ref: '#/definitions/internal_handler_rest.channelOperationResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Create channel
@@ -927,11 +1156,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Delete channel
@@ -950,15 +1179,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.channelOperationResponse'
+            $ref: '#/definitions/internal_handler_rest.channelOperationResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Get channel by ID
@@ -978,30 +1207,30 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.updateChannelRequest'
+          $ref: '#/definitions/internal_handler_rest.updateChannelRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.channelOperationResponse'
+            $ref: '#/definitions/internal_handler_rest.channelOperationResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Update channel
@@ -1021,19 +1250,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.channelQRCodeResponse'
+            $ref: '#/definitions/internal_handler_rest.channelQRCodeResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Get channel QR code
@@ -1053,19 +1282,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.channelOperationResponse'
+            $ref: '#/definitions/internal_handler_rest.channelOperationResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Restart channel runtime
@@ -1085,19 +1314,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.channelOperationResponse'
+            $ref: '#/definitions/internal_handler_rest.channelOperationResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Start channel runtime
@@ -1117,87 +1346,419 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.channelOperationResponse'
+            $ref: '#/definitions/internal_handler_rest.channelOperationResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Stop channel runtime
       tags:
       - channels
-  /chat/completions:
+  /channels/test-connection:
     post:
       consumes:
       - application/json
-      description: Returns a normal completion or streams assistant deltas over SSE
-        when stream=true.
       parameters:
-      - description: Chat completion payload
+      - description: Channel connection payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.chatCompletionRequest'
+          $ref: '#/definitions/internal_handler_rest.testChannelConnectionRequestDoc'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.chatCompletionResponse'
+            $ref: '#/definitions/internal_handler_rest.channelTestConnectionResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
-      summary: Create chat completion
+      summary: Test channel connection
       tags:
-      - chat
-  /conversations:
+      - channels
+  /cloudflare/connections:
     get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/rest.conversationListResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
+      responses: {}
       security:
       - BearerAuth: []
-      summary: List conversations
+      summary: GET /cloudflare/connections
       tags:
-      - chat
-  /conversations/{id}/messages:
+      - cloudflare
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /cloudflare/connections
+      tags:
+      - cloudflare
+  /cloudflare/connections/{id}:
     get:
       parameters:
-      - description: Conversation ID
+      - description: id
         in: path
         name: id
         required: true
         type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /cloudflare/connections/{id}
+      tags:
+      - cloudflare
+    put:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: PUT /cloudflare/connections/{id}
+      tags:
+      - cloudflare
+  /clusters:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /clusters
+      tags:
+      - clusters
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /clusters
+      tags:
+      - clusters
+  /clusters/{id}:
+    delete:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: DELETE /clusters/{id}
+      tags:
+      - clusters
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /clusters/{id}
+      tags:
+      - clusters
+  /clusters/{id}/inventory-preview:
+    post:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /clusters/{id}/inventory-preview
+      tags:
+      - clusters
+  /clusters/{id}/kubeconfig:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /clusters/{id}/kubeconfig
+      tags:
+      - clusters
+  /clusters/{id}/namespaces:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /clusters/{id}/namespaces
+      tags:
+      - clusters
+  /clusters/{id}/pods:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /clusters/{id}/pods
+      tags:
+      - clusters
+    post:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /clusters/{id}/pods
+      tags:
+      - clusters
+  /clusters/{id}/pods/{name}:
+    delete:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: name
+        in: path
+        name: name
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: DELETE /clusters/{id}/pods/{name}
+      tags:
+      - clusters
+  /clusters/{id}/services:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /clusters/{id}/services
+      tags:
+      - clusters
+    post:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /clusters/{id}/services
+      tags:
+      - clusters
+  /clusters/{id}/services/{name}:
+    delete:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: name
+        in: path
+        name: name
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: DELETE /clusters/{id}/services/{name}
+      tags:
+      - clusters
+  /clusters/{id}/tunnels:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /clusters/{id}/tunnels
+      tags:
+      - clusters
+  /clusters/{id}/tunnels/expose:
+    delete:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: DELETE /clusters/{id}/tunnels/expose
+      tags:
+      - clusters
+    post:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /clusters/{id}/tunnels/expose
+      tags:
+      - clusters
+  /clusters/{id}/tunnels/import:
+    post:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /clusters/{id}/tunnels/import
+      tags:
+      - clusters
+  /clusters/{id}/volume-claims:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /clusters/{id}/volume-claims
+      tags:
+      - clusters
+  /clusters/{id}/volumes:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /clusters/{id}/volumes
+      tags:
+      - clusters
+  /docker/containers:
+    get:
+      parameters:
+      - description: Include stopped containers
+        in: query
+        name: all
+        type: boolean
       produces:
       - application/json
       responses:
@@ -1205,85 +1766,94 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/rest.conversationMessageResponse'
+              $ref: '#/definitions/internal_handler_rest.containerResponse'
             type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
-      summary: List conversation messages
+      summary: List containers
       tags:
-      - chat
-  /llm/providers:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/rest.llmProviderListResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-      security:
-      - BearerAuth: []
-      summary: List LLM providers
-      tags:
-      - llm
+      - docker
     post:
       consumes:
       - application/json
       parameters:
-      - description: LLM provider payload
+      - description: Container config
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.createLLMProviderRequest'
+          $ref: '#/definitions/internal_handler_rest.createContainerRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/rest.llmProviderResponse'
+            $ref: '#/definitions/internal_handler_rest.containerResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
-      summary: Create LLM provider
+      summary: Create a container
       tags:
-      - llm
-  /llm/providers/{id}:
+      - docker
+  /docker/containers/{id}:
     delete:
       parameters:
-      - description: Provider ID
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Force remove running container
+        in: query
+        name: force
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove a container
+      tags:
+      - docker
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /docker/containers/{id}
+      tags:
+      - docker
+  /docker/containers/{id}/start:
+    post:
+      parameters:
+      - description: Container ID
         in: path
         name: id
         required: true
@@ -1296,19 +1866,34 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
-      summary: Delete LLM provider
+      summary: Start a container
       tags:
-      - llm
+      - docker
+  /docker/containers/{id}/stats:
     get:
       parameters:
-      - description: Provider ID
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /docker/containers/{id}/stats
+      tags:
+      - docker
+  /docker/containers/{id}/stop:
+    post:
+      parameters:
+      - description: Container ID
         in: path
         name: id
         required: true
@@ -1316,66 +1901,682 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/rest.llmProviderResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
+        "204":
+          description: No Content
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
-      summary: Get LLM provider by ID
+      summary: Stop a container
       tags:
-      - llm
-    put:
-      consumes:
+      - docker
+  /docker/images:
+    get:
+      produces:
       - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_handler_rest.imageResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List images
+      tags:
+      - docker
+  /docker/images/{id}:
+    delete:
       parameters:
-      - description: Provider ID
+      - description: Image ID or tag
         in: path
         name: id
         required: true
         type: string
-      - description: LLM provider payload
+      - description: Force remove
+        in: query
+        name: force
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove an image
+      tags:
+      - docker
+  /docker/images/pull:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Image reference
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.updateLLMProviderRequest'
+          $ref: '#/definitions/internal_handler_rest.pullImageRequest'
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/rest.llmProviderResponse'
+        "204":
+          description: No Content
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
-      summary: Update LLM provider
+      summary: Pull an image from a registry
       tags:
-      - llm
+      - docker
+  /domains/check:
+    get:
+      parameters:
+      - description: domain
+        in: query
+        name: domain
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /domains/check
+      tags:
+      - domains
+  /environments/{envId}:
+    delete:
+      parameters:
+      - description: envId
+        in: path
+        name: envId
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: DELETE /environments/{envId}
+      tags:
+      - environments
+  /environments/{envId}/fork:
+    post:
+      parameters:
+      - description: envId
+        in: path
+        name: envId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /environments/{envId}/fork
+      tags:
+      - environments
+  /environments/{envId}/resource-stacks:
+    post:
+      parameters:
+      - description: envId
+        in: path
+        name: envId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /environments/{envId}/resource-stacks
+      tags:
+      - environments
+  /environments/{envId}/resources:
+    get:
+      parameters:
+      - description: envId
+        in: path
+        name: envId
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /environments/{envId}/resources
+      tags:
+      - environments
+    post:
+      parameters:
+      - description: envId
+        in: path
+        name: envId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /environments/{envId}/resources
+      tags:
+      - environments
+  /environments/{envId}/resources/from-git:
+    post:
+      parameters:
+      - description: envId
+        in: path
+        name: envId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /environments/{envId}/resources/from-git
+      tags:
+      - environments
+  /projects:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /projects
+      tags:
+      - projects
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /projects
+      tags:
+      - projects
+  /projects/{id}:
+    delete:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: DELETE /projects/{id}
+      tags:
+      - projects
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /projects/{id}
+      tags:
+      - projects
+    put:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: PUT /projects/{id}
+      tags:
+      - projects
+  /projects/{id}/environments:
+    post:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /projects/{id}/environments
+      tags:
+      - projects
+  /resource-stack-templates:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /resource-stack-templates
+      tags:
+      - resources
+  /resource-templates:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /resource-templates
+      tags:
+      - resources
+  /resources/{resourceId}:
+    delete:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: DELETE /resources/{resourceId}
+      tags:
+      - resources
+    get:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /resources/{resourceId}
+      tags:
+      - resources
+    put:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: PUT /resources/{resourceId}
+      tags:
+      - resources
+  /resources/{resourceId}/build:
+    post:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /resources/{resourceId}/build
+      tags:
+      - resources
+  /resources/{resourceId}/connection-info:
+    get:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /resources/{resourceId}/connection-info
+      tags:
+      - resources
+  /resources/{resourceId}/domains:
+    get:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /resources/{resourceId}/domains
+      tags:
+      - resources
+    post:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /resources/{resourceId}/domains
+      tags:
+      - resources
+  /resources/{resourceId}/domains/{domainId}:
+    delete:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      - description: domainId
+        in: path
+        name: domainId
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: DELETE /resources/{resourceId}/domains/{domainId}
+      tags:
+      - resources
+    patch:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      - description: domainId
+        in: path
+        name: domainId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: PATCH /resources/{resourceId}/domains/{domainId}
+      tags:
+      - resources
+  /resources/{resourceId}/domains/{domainId}/verify:
+    post:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      - description: domainId
+        in: path
+        name: domainId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /resources/{resourceId}/domains/{domainId}/verify
+      tags:
+      - resources
+  /resources/{resourceId}/env-vars:
+    get:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /resources/{resourceId}/env-vars
+      tags:
+      - resources
+    put:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: PUT /resources/{resourceId}/env-vars
+      tags:
+      - resources
+  /resources/{resourceId}/logs:
+    get:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /resources/{resourceId}/logs
+      tags:
+      - resources
+  /resources/{resourceId}/reconcile:
+    post:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /resources/{resourceId}/reconcile
+      tags:
+      - resources
+  /resources/{resourceId}/restart:
+    post:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /resources/{resourceId}/restart
+      tags:
+      - resources
+  /resources/{resourceId}/scale:
+    post:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /resources/{resourceId}/scale
+      tags:
+      - resources
+  /resources/{resourceId}/start:
+    post:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /resources/{resourceId}/start
+      tags:
+      - resources
+  /resources/{resourceId}/stop:
+    post:
+      parameters:
+      - description: resourceId
+        in: path
+        name: resourceId
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /resources/{resourceId}/stop
+      tags:
+      - resources
+  /resources/reconcile:
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /resources/reconcile
+      tags:
+      - resources
+  /restores/{id}:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /restores/{id}
+      tags:
+      - restores
   /roles:
     get:
       produces:
@@ -1384,15 +2585,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.roleListResponse'
+            $ref: '#/definitions/internal_handler_rest.roleListResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: List roles
@@ -1407,26 +2608,26 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.createRoleRequest'
+          $ref: '#/definitions/internal_handler_rest.createRoleRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/rest.roleResponse'
+            $ref: '#/definitions/internal_handler_rest.roleResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Create role
@@ -1448,15 +2649,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Delete role
@@ -1475,15 +2676,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.roleResponse'
+            $ref: '#/definitions/internal_handler_rest.roleResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Get role by ID
@@ -1503,30 +2704,30 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.updateRoleRequest'
+          $ref: '#/definitions/internal_handler_rest.updateRoleRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.roleResponse'
+            $ref: '#/definitions/internal_handler_rest.roleResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Update role
@@ -1540,15 +2741,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.discordRuntimeResponse'
+            $ref: '#/definitions/internal_handler_rest.discordRuntimeResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Restart Discord runtime with current config
@@ -1564,22 +2765,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.discordRuntimeRequest'
+          $ref: '#/definitions/internal_handler_rest.discordRuntimeRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.discordRuntimeResponse'
+            $ref: '#/definitions/internal_handler_rest.discordRuntimeResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Start or reload Discord runtime
@@ -1593,11 +2794,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.discordRuntimeResponse'
+            $ref: '#/definitions/internal_handler_rest.discordRuntimeResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Get Discord runtime status
@@ -1611,16 +2812,400 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.discordRuntimeResponse'
+            $ref: '#/definitions/internal_handler_rest.discordRuntimeResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Stop Discord runtime
       tags:
       - discord
+  /runtime/logs:
+    get:
+      parameters:
+      - description: Maximum lines to return
+        in: query
+        name: lines
+        type: integer
+      - description: Optional trace ID filter
+        in: query
+        name: traceId
+        type: string
+      - description: Optional date filter in YYYY-MM-DD
+        in: query
+        name: date
+        type: string
+      - description: 'Optional level filter: error, warn, info, debug'
+        in: query
+        name: level
+        type: string
+      - description: Optional substring filter
+        in: query
+        name: contains
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler_rest.tailLogsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Tail runtime logs
+      tags:
+      - system
+  /servers:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /servers
+      tags:
+      - servers
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /servers
+      tags:
+      - servers
+  /servers/{id}:
+    delete:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: DELETE /servers/{id}
+      tags:
+      - servers
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /servers/{id}
+      tags:
+      - servers
+  /servers/{id}/ping:
+    post:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /servers/{id}/ping
+      tags:
+      - servers
+  /servers/ssh-public-key:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /servers/ssh-public-key
+      tags:
+      - servers
+  /settings:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /settings
+      tags:
+      - settings
+    patch:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: PATCH /settings
+      tags:
+      - settings
+  /settings/base-domains:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /settings/base-domains
+      tags:
+      - settings
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /settings/base-domains
+      tags:
+      - settings
+  /settings/base-domains/{id}:
+    delete:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: DELETE /settings/base-domains/{id}
+      tags:
+      - settings
+  /settings/traefik/restart:
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /settings/traefik/restart
+      tags:
+      - settings
+  /source-connections:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /source-connections
+      tags:
+      - source-connections
+  /source-connections/{id}/repos:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /source-connections/{id}/repos
+      tags:
+      - source-connections
+  /source-connections/{id}/repos/{owner}/{repo}/branches:
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: owner
+        in: path
+        name: owner
+        required: true
+        type: string
+      - description: repo
+        in: path
+        name: repo
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /source-connections/{id}/repos/{owner}/{repo}/branches
+      tags:
+      - source-connections
+  /source-connections/github/apps:
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /source-connections/github/apps
+      tags:
+      - source-connections
+  /source-connections/github/callback:
+    get:
+      responses: {}
+      summary: GET /source-connections/github/callback
+      tags:
+      - source-connections
+  /source-connections/github/setup:
+    get:
+      responses: {}
+      summary: GET /source-connections/github/setup
+      tags:
+      - source-connections
+  /source-connections/github/webhook:
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      summary: POST /source-connections/github/webhook
+      tags:
+      - source-connections
+  /source-connections/pat:
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /source-connections/pat
+      tags:
+      - source-connections
+  /status:
+    get:
+      responses: {}
+      summary: GET /status
+      tags:
+      - status
+  /storages:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /storages
+      tags:
+      - storages
+    post:
+      parameters:
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: POST /storages
+      tags:
+      - storages
+  /storages/{id}:
+    delete:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: DELETE /storages/{id}
+      tags:
+      - storages
+    get:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /storages/{id}
+      tags:
+      - storages
+    put:
+      parameters:
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler_rest.swaggerGenericRequest'
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: PUT /storages/{id}
+      tags:
+      - storages
+  /swarm/nodes:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /swarm/nodes
+      tags:
+      - swarm
+  /swarm/status:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: GET /swarm/status
+      tags:
+      - swarm
   /user/{id}:
     get:
       parameters:
@@ -1635,19 +3220,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.userResponse'
+            $ref: '#/definitions/internal_handler_rest.userResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Get user by ID
@@ -1661,19 +3246,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.userResponse'
+            $ref: '#/definitions/internal_handler_rest.userResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Get current user
@@ -1688,16 +3273,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/rest.userResponse'
+              $ref: '#/definitions/internal_handler_rest.userResponse'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: List users
@@ -1712,30 +3297,30 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.createUserRequest'
+          $ref: '#/definitions/internal_handler_rest.createUserRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/rest.userResponse'
+            $ref: '#/definitions/internal_handler_rest.userResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Create user
@@ -1757,15 +3342,15 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Delete user
@@ -1785,30 +3370,30 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.updateUserRequest'
+          $ref: '#/definitions/internal_handler_rest.updateUserRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/rest.userResponse'
+            $ref: '#/definitions/internal_handler_rest.userResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Update user
@@ -1830,19 +3415,19 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Ban user
@@ -1863,20 +3448,20 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/rest.userRoleResponse'
+              $ref: '#/definitions/internal_handler_rest.userRoleResponse'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: List roles assigned to a user
@@ -1896,7 +3481,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.assignUserRoleRequest'
+          $ref: '#/definitions/internal_handler_rest.assignUserRoleRequest'
       produces:
       - application/json
       responses:
@@ -1905,19 +3490,19 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Assign role to user
@@ -1944,302 +3529,84 @@ paths:
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            $ref: '#/definitions/internal_handler_rest.errorResponse'
       security:
       - BearerAuth: []
       summary: Remove role from user
       tags:
       - users
-  /workspaces:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/rest.workspaceListResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-      security:
-      - BearerAuth: []
-      summary: List workspaces
-      tags:
-      - workspaces
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Workspace payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/rest.createWorkspaceRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/rest.workspaceResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-      security:
-      - BearerAuth: []
-      summary: Create workspace
-      tags:
-      - workspaces
-  /workspaces/{id}:
-    delete:
-      parameters:
-      - description: Workspace ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-      security:
-      - BearerAuth: []
-      summary: Delete workspace
-      tags:
-      - workspaces
+  /ws/builds/{id}/logs:
     get:
       parameters:
-      - description: Workspace ID
+      - description: id
         in: path
         name: id
         required: true
         type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/rest.workspaceResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
+      responses: {}
       security:
       - BearerAuth: []
-      summary: Get workspace by ID
+      summary: GET /ws/builds/{id}/logs
       tags:
-      - workspaces
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Workspace ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Workspace payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/rest.updateWorkspaceRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/rest.workspaceResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-      security:
-      - BearerAuth: []
-      summary: Update workspace
-      tags:
-      - workspaces
-  /workspaces/{id}/agents:
+      - websocket
+  /ws/clusters/{id}/logs:
     get:
       parameters:
-      - description: Workspace ID
+      - description: id
         in: path
         name: id
         required: true
         type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/rest.agentResponse'
-            type: array
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
+      responses: {}
       security:
       - BearerAuth: []
-      summary: List workspace agents
+      summary: GET /ws/clusters/{id}/logs
       tags:
-      - workspaces
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Workspace ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Workspace agent IDs payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/rest.workspaceAgentIDsRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/rest.agentResponse'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
+      - websocket
+  /ws/docker/images/pull:
+    get:
+      responses: {}
       security:
       - BearerAuth: []
-      summary: Sync workspace agents
+      summary: GET /ws/docker/images/pull
       tags:
-      - workspaces
-  /workspaces/{id}/channels:
+      - websocket
+  /ws/resource-runs/{id}/logs:
     get:
       parameters:
-      - description: Workspace ID
+      - description: id
         in: path
         name: id
         required: true
         type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/rest.channelOperationResponse'
-            type: array
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
+      responses: {}
       security:
       - BearerAuth: []
-      summary: List workspace channels
+      summary: GET /ws/resource-runs/{id}/logs
       tags:
-      - workspaces
-    put:
-      consumes:
-      - application/json
+      - websocket
+  /ws/resources/{resourceId}/terminal:
+    get:
       parameters:
-      - description: Workspace ID
+      - description: resourceId
         in: path
-        name: id
+        name: resourceId
         required: true
         type: string
-      - description: Workspace channel IDs payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/rest.workspaceChannelIDsRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/rest.channelOperationResponse'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/rest.errorResponse'
+      responses: {}
       security:
       - BearerAuth: []
-      summary: Sync workspace channels
+      summary: GET /ws/resources/{resourceId}/terminal
       tags:
-      - workspaces
+      - websocket
 securityDefinitions:
   BearerAuth:
     in: header

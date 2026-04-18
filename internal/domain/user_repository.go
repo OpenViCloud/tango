@@ -23,4 +23,5 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	GetByID(ctx context.Context, id string) (*User, error)
 	GetAll(ctx context.Context, opts UserListOptions) (*UserListResult, error)
+	HasAnyUser(ctx context.Context) (bool, error)
 }

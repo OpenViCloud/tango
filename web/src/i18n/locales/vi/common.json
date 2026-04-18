@@ -24,7 +24,18 @@
     "passwordHelp": "Mật khẩu phải có ít nhất 6 ký tự.",
     "loginFailed": "Đăng nhập thất bại",
     "noAccount": "Chưa có tài khoản?",
-    "contactAdmin": "Liên hệ quản trị viên"
+    "contactAdmin": "Liên hệ quản trị viên",
+    "register": "Tạo tài khoản",
+    "registerInProgress": "Đang tạo tài khoản...",
+    "registerDescription": "Tạo tài khoản quản trị đầu tiên để bắt đầu.",
+    "firstName": "Tên",
+    "lastName": "Họ",
+    "firstNamePlaceholder": "Nguyễn",
+    "lastNamePlaceholder": "Văn A",
+    "alreadyHaveAccount": "Đã có tài khoản?",
+    "signIn": "Đăng nhập",
+    "registrationClosed": "Đăng ký đã đóng. Tài khoản quản trị đã tồn tại.",
+    "setupRequired": "Thiết lập tài khoản"
   },
   "dashboard": {
     "section": "Xây dựng ứng dụng của bạn",

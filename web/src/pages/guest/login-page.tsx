@@ -141,10 +141,10 @@ export default function LoginPage() {
           <p className="text-center text-sm text-muted-foreground">
             {t("auth.noAccount")}{" "}
             <Link
-              to="/"
+              to="/register"
               className="font-medium text-foreground underline-offset-4 hover:underline"
             >
-              {t("auth.contactAdmin")}
+              {t("auth.register")}
             </Link>
           </p>
         </CardFooter>

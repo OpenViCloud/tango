@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as GuestRouteImport } from './routes/_guest'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GuestRegisterRouteImport } from './routes/_guest/register'
 import { Route as GuestLoginRouteImport } from './routes/_guest/login'
 import { Route as AuthSettingsRouteImport } from './routes/_auth/settings'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
@@ -51,6 +52,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const GuestRegisterRoute = GuestRegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => GuestRoute,
 } as any)
 const GuestLoginRoute = GuestLoginRouteImport.update({
   id: '/login',
@@ -191,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthDashboardRoute
   '/settings': typeof AuthSettingsRoute
   '/login': typeof GuestLoginRoute
+  '/register': typeof GuestRegisterRoute
   '/channels/create': typeof AuthChannelsCreateRoute
   '/clusters/$clusterId': typeof AuthClustersClusterIdRoute
   '/clusters/new': typeof AuthClustersNewRoute
@@ -220,6 +227,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthDashboardRoute
   '/settings': typeof AuthSettingsRoute
   '/login': typeof GuestLoginRoute
+  '/register': typeof GuestRegisterRoute
   '/channels/create': typeof AuthChannelsCreateRoute
   '/clusters/$clusterId': typeof AuthClustersClusterIdRoute
   '/clusters/new': typeof AuthClustersNewRoute
@@ -252,6 +260,7 @@ export interface FileRoutesById {
   '/_auth/dashboard': typeof AuthDashboardRoute
   '/_auth/settings': typeof AuthSettingsRoute
   '/_guest/login': typeof GuestLoginRoute
+  '/_guest/register': typeof GuestRegisterRoute
   '/_auth/channels/create': typeof AuthChannelsCreateRoute
   '/_auth/clusters/$clusterId': typeof AuthClustersClusterIdRoute
   '/_auth/clusters/new': typeof AuthClustersNewRoute
@@ -283,6 +292,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings'
     | '/login'
+    | '/register'
     | '/channels/create'
     | '/clusters/$clusterId'
     | '/clusters/new'
@@ -312,6 +322,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings'
     | '/login'
+    | '/register'
     | '/channels/create'
     | '/clusters/$clusterId'
     | '/clusters/new'
@@ -343,6 +354,7 @@ export interface FileRouteTypes {
     | '/_auth/dashboard'
     | '/_auth/settings'
     | '/_guest/login'
+    | '/_guest/register'
     | '/_auth/channels/create'
     | '/_auth/clusters/$clusterId'
     | '/_auth/clusters/new'
@@ -395,6 +407,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_guest/register': {
+      id: '/_guest/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof GuestRegisterRouteImport
+      parentRoute: typeof GuestRoute
     }
     '/_guest/login': {
       id: '/_guest/login'
@@ -642,10 +661,12 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface GuestRouteChildren {
   GuestLoginRoute: typeof GuestLoginRoute
+  GuestRegisterRoute: typeof GuestRegisterRoute
 }
 
 const GuestRouteChildren: GuestRouteChildren = {
   GuestLoginRoute: GuestLoginRoute,
+  GuestRegisterRoute: GuestRegisterRoute,
 }
 
 const GuestRouteWithChildren = GuestRoute._addFileChildren(GuestRouteChildren)

@@ -2,6 +2,8 @@ package command
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 
 	"tango/internal/domain"
@@ -174,4 +176,61 @@ func (h *DeleteUserHandler) Handle(ctx context.Context, cmd DeleteUserCommand) e
 		return err
 	}
 	return h.repo.Delete(ctx, cmd.ID)
+}
+
+type RegisterUserCommand struct {
+	Email     string
+	FirstName string
+	LastName  string
+	Password  string
+}
+
+type RegisterUserHandler struct {
+	userRepo domain.UserRepository
+	roleRepo domain.RoleRepository
+}
+
+func NewRegisterUserHandler(userRepo domain.UserRepository, roleRepo domain.RoleRepository) *RegisterUserHandler {
+	return &RegisterUserHandler{userRepo: userRepo, roleRepo: roleRepo}
+}
+
+func (h *RegisterUserHandler) Handle(ctx context.Context, cmd RegisterUserCommand) (*domain.User, error) {
+	has, err := h.userRepo.HasAnyUser(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("check existing users: %w", err)
+	}
+	if has {
+		return nil, domain.ErrRegistrationClosed
+	}
+
+	idBytes := make([]byte, 8)
+	if _, err := rand.Read(idBytes); err != nil {
+		return nil, fmt.Errorf("generate user id: %w", err)
+	}
+	id := "user_" + hex.EncodeToString(idBytes)
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(cmd.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+
+	user, err := domain.NewUser(id, cmd.Email, cmd.Email, cmd.FirstName, cmd.LastName, "", "", string(passwordHash))
+	if err != nil {
+		return nil, err
+	}
+
+	saved, err := h.userRepo.Save(ctx, user)
+	if err != nil {
+		return nil, fmt.Errorf("save user: %w", err)
+	}
+
+	adminRole, err := h.roleRepo.GetByName(ctx, "admin")
+	if err != nil {
+		return nil, fmt.Errorf("get admin role: %w", err)
+	}
+	if err := h.roleRepo.AssignRoleToUser(ctx, saved.ID, adminRole.ID); err != nil {
+		return nil, fmt.Errorf("assign admin role: %w", err)
+	}
+
+	return saved, nil
 }

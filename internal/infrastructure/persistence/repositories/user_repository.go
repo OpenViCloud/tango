@@ -124,6 +124,14 @@ func (r *UserRepository) GetAll(ctx context.Context, opts domain.UserListOptions
 	}, nil
 }
 
+func (r *UserRepository) HasAnyUser(ctx context.Context) (bool, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&models.UserRecord{}).Where("deleted_at IS NULL").Limit(1).Count(&count).Error; err != nil {
+		return false, fmt.Errorf("has any user: %w", err)
+	}
+	return count > 0, nil
+}
+
 func (r *UserRepository) queryOne(ctx context.Context, required bool, scope func(*gorm.DB) *gorm.DB) (*domain.User, error) {
 	var record models.UserRecord
 	query := scope(r.db.WithContext(ctx).Model(&models.UserRecord{}))

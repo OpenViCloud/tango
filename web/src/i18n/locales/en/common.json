@@ -24,7 +24,18 @@
     "passwordHelp": "Password must be at least 6 characters.",
     "loginFailed": "Login failed",
     "noAccount": "Need an account?",
-    "contactAdmin": "Contact an administrator"
+    "contactAdmin": "Contact an administrator",
+    "register": "Create account",
+    "registerInProgress": "Creating account...",
+    "registerDescription": "Set up the first administrator account to get started.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "firstNamePlaceholder": "John",
+    "lastNamePlaceholder": "Doe",
+    "alreadyHaveAccount": "Already have an account?",
+    "signIn": "Sign in",
+    "registrationClosed": "Registration is closed. An admin account already exists.",
+    "setupRequired": "Set up your account"
   },
   "dashboard": {
     "section": "Build Your Application",

@@ -284,7 +284,8 @@ func main() {
 	getRestoreHandler := query.NewGetRestoreHandler(restoreRepo)
 
 	// HTTP handlers
-	authHandler := auth.NewHandler(userRepo, changePasswordHandler)
+	registerUserHandler := command.NewRegisterUserHandler(userRepo, roleRepo)
+	authHandler := auth.NewHandler(userRepo, changePasswordHandler, registerUserHandler)
 	apiKeyHandler := rest.NewAPIKeyHandler(createAPIKeyHandler, revokeAPIKeyHandler, listAPIKeysHandler)
 	userHandler := rest.NewUserHandler(
 		createUserHandler,
@@ -520,6 +521,8 @@ func main() {
 			c.JSON(200, statusHandler.Handle(c.Request.Context()))
 		})
 
+		api.GET("/auth/setup-status", authHandler.SetupStatus)
+		api.POST("/auth/register", authHandler.Register)
 		api.POST("/auth/login", authHandler.Login)
 		api.POST("/auth/refresh", authHandler.Refresh)
 		api.POST("/auth/logout", authHandler.Logout)

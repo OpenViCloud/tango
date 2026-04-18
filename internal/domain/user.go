@@ -14,10 +14,11 @@ const (
 )
 
 var (
-	ErrUserNotFound      = errors.New("user not found")
-	ErrUserAlreadyExists = errors.New("user already exists")
-	ErrInvalidInput      = errors.New("invalid input")
-	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrUserNotFound        = errors.New("user not found")
+	ErrUserAlreadyExists   = errors.New("user already exists")
+	ErrInvalidInput        = errors.New("invalid input")
+	ErrInvalidCredentials  = errors.New("invalid credentials")
+	ErrRegistrationClosed  = errors.New("registration is closed")
 )
 
 type User struct {

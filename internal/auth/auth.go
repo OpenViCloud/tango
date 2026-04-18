@@ -40,13 +40,25 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+type SetupStatusResponse struct {
+	SetupRequired bool `json:"setup_required"`
+}
+
+type RegisterRequest struct {
+	Email     string `json:"email" binding:"required,email"`
+	FirstName string `json:"first_name" binding:"required"`
+	LastName  string `json:"last_name" binding:"required"`
+	Password  string `json:"password" binding:"required,min=6"`
+}
+
 type Handler struct {
 	repo           domain.UserRepository
 	changePassword *command.ChangePasswordHandler
+	registerUser   *command.RegisterUserHandler
 }
 
-func NewHandler(repo domain.UserRepository, changePassword *command.ChangePasswordHandler) *Handler {
-	return &Handler{repo: repo, changePassword: changePassword}
+func NewHandler(repo domain.UserRepository, changePassword *command.ChangePasswordHandler, registerUser *command.RegisterUserHandler) *Handler {
+	return &Handler{repo: repo, changePassword: changePassword, registerUser: registerUser}
 }
 
 // ── Password ─────────────────────────────────────
@@ -231,6 +243,79 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 
 	clearAuthCookies(c)
 	response.OK(c, MessageResponse{Message: "Password changed. Please log in again."})
+}
+
+// SetupStatus godoc
+// @Summary Check if initial setup is required
+// @Description Returns whether the system has any users. Used by the frontend to show the register page.
+// @Tags auth
+// @Produce json
+// @Success 200 {object} SetupStatusResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /auth/setup-status [get]
+func (h *Handler) SetupStatus(c *gin.Context) {
+	has, err := h.repo.HasAnyUser(c.Request.Context())
+	if err != nil {
+		_ = c.Error(response.Internal(""))
+		return
+	}
+	response.OK(c, SetupStatusResponse{SetupRequired: !has})
+}
+
+// Register godoc
+// @Summary Register the first admin account
+// @Description Creates the initial admin account. Fails if any user already exists.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body RegisterRequest true "Registration payload"
+// @Success 201 {object} TokenResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 409 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /auth/register [post]
+func (h *Handler) Register(c *gin.Context) {
+	var req RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(response.Validation(nil, err.Error()))
+		return
+	}
+
+	user, err := h.registerUser.Handle(c.Request.Context(), command.RegisterUserCommand{
+		Email:     req.Email,
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Password:  req.Password,
+	})
+	if err != nil {
+		switch err {
+		case domain.ErrRegistrationClosed:
+			_ = c.Error(response.New(http.StatusConflict, "REGISTRATION_CLOSED", "Registration is closed"))
+		case domain.ErrUserAlreadyExists:
+			_ = c.Error(response.New(http.StatusConflict, "USER_ALREADY_EXISTS", "Email is already taken"))
+		case domain.ErrInvalidInput:
+			_ = c.Error(response.BadRequest("Invalid registration payload"))
+		default:
+			_ = c.Error(response.Internal(""))
+		}
+		return
+	}
+
+	accessToken, err := GenerateAccessToken(user.ID)
+	if err != nil {
+		_ = c.Error(response.Internal("Token generation failed"))
+		return
+	}
+	refreshToken, err := GenerateRefreshToken(user.ID)
+	if err != nil {
+		_ = c.Error(response.Internal("Token generation failed"))
+		return
+	}
+
+	c.SetCookie("access_token", accessToken, 900, "/", "", false, true)
+	c.SetCookie("refresh_token", refreshToken, 7*24*3600, "/api/auth", "", false, true)
+	c.Status(http.StatusCreated)
+	response.OK(c, TokenResponse{AccessToken: accessToken})
 }
 
 // ── Middleware ───────────────────────────────────

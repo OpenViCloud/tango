@@ -369,6 +369,8 @@ export function ResourceCreationPage({
     {
       id: string
       type: string
+      image: string
+      tag: string
       cmd: string
       port: string
       volumes: string[]
@@ -513,6 +515,8 @@ export function ResourceCreationPage({
       stack.components.map((c) => ({
         id: c.id,
         type: c.type,
+        image: c.image ?? "",
+        tag: c.tag ?? "",
         cmd: (c.cmd ?? []).join(" "),
         port:
           c.ports.length > 0
@@ -590,6 +594,8 @@ export function ResourceCreationPage({
               return {
                 id: c.id.trim(),
                 type: c.type || "service",
+                image: c.image?.trim() || undefined,
+                tag: c.tag?.trim() || undefined,
                 cmd,
                 ports: portMatch
                   ? [
@@ -1084,6 +1090,8 @@ export function ResourceCreationPage({
                       {
                         id: "",
                         type: "service",
+                        image: "",
+                        tag: "",
                         cmd: "",
                         port: "",
                         volumes: [],
@@ -1172,6 +1180,37 @@ export function ResourceCreationPage({
                       {/* Expanded section — env & volumes */}
                       {comp.expanded && (
                         <div className="space-y-4 border-t bg-muted/20 p-3">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Image Override
+                              </span>
+                              <Input
+                                className="font-mono text-xs"
+                                placeholder={stackImage}
+                                value={comp.image ?? ""}
+                                onChange={(e) =>
+                                  update({ image: e.target.value })
+                                }
+                                disabled={busy}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Tag Override
+                              </span>
+                              <Input
+                                className="font-mono text-xs"
+                                placeholder={stackTag}
+                                value={comp.tag ?? ""}
+                                onChange={(e) =>
+                                  update({ tag: e.target.value })
+                                }
+                                disabled={busy}
+                              />
+                            </div>
+                          </div>
+
                           {/* Volumes */}
                           <div className="flex flex-col gap-1.5">
                             <span className="text-xs font-medium text-muted-foreground">

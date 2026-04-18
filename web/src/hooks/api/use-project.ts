@@ -204,6 +204,17 @@ export const useStopResource = () => {
   })
 }
 
+export const useRestartResource = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (resourceId: string) => projectService.restartResource(resourceId),
+    onSuccess: (_data, resourceId) => {
+      queryClient.invalidateQueries({ queryKey: PROJECT_QUERY_KEYS.resource(resourceId) })
+      queryClient.invalidateQueries({ queryKey: PROJECT_QUERY_KEYS.resourceConnectionInfo(resourceId) })
+    },
+  })
+}
+
 export const useScaleResource = () => {
   const queryClient = useQueryClient()
   return useMutation({

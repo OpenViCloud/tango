@@ -12,7 +12,9 @@ import (
 
 type CustomComponentInput struct {
 	ID          string
-	Type        string // "service" | "job"
+	Type        string // "db" | "app" | "service" | "job"
+	Image       string
+	Tag         string
 	Cmd         []string
 	Ports       []ResourcePortInput
 	Volumes     []string
@@ -94,15 +96,27 @@ func (h *CreateResourceStackHandler) Handle(ctx context.Context, cmd CreateResou
 		if id == "" {
 			return nil, nil
 		}
+		compImage := strings.TrimSpace(comp.Image)
+		if compImage == "" {
+			compImage = image
+		}
+		compTag := strings.TrimSpace(comp.Tag)
+		if compTag == "" {
+			compTag = tag
+		}
+		compVolumes, compVolumeFiles, err := ApplyRandomVolumePrefix(comp.Volumes, comp.VolumeFiles)
+		if err != nil {
+			return nil, fmt.Errorf("prefix storage for component %s: %w", id, err)
+		}
 		config := map[string]any{}
 		if len(comp.Cmd) > 0 {
 			config["cmd"] = comp.Cmd
 		}
-		if len(comp.Volumes) > 0 {
-			config["volumes"] = comp.Volumes
+		if len(compVolumes) > 0 {
+			config["volumes"] = compVolumes
 		}
-		if len(comp.VolumeFiles) > 0 {
-			config["volume_files"] = comp.VolumeFiles
+		if len(compVolumeFiles) > 0 {
+			config["volume_files"] = compVolumeFiles
 		}
 		if len(config) == 0 {
 			config = nil
@@ -112,8 +126,8 @@ func (h *CreateResourceStackHandler) Handle(ctx context.Context, cmd CreateResou
 			ID:            newResourceID(),
 			Name:          buildStackResourceName(namePrefix, id),
 			Type:          compType,
-			Image:         image,
-			Tag:           tag,
+			Image:         compImage,
+			Tag:           compTag,
 			Config:        config,
 			EnvironmentID: cmd.EnvironmentID,
 			CreatedBy:     cmd.CreatedBy,
@@ -151,7 +165,13 @@ func (h *CreateResourceStackHandler) Handle(ctx context.Context, cmd CreateResou
 		if comp.Type == domain.ResourceTypeJob {
 			continue
 		}
-		resource, err := createComp(comp, domain.ResourceTypeService)
+		compType := strings.TrimSpace(comp.Type)
+		switch compType {
+		case domain.ResourceTypeDB, domain.ResourceTypeApp, domain.ResourceTypeService:
+		default:
+			compType = domain.ResourceTypeService
+		}
+		resource, err := createComp(comp, compType)
 		if err != nil {
 			return nil, fmt.Errorf("create stack component %s: %w", comp.ID, err)
 		}

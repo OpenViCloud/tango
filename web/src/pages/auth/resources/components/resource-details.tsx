@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ChevronRight, Hammer, Menu, Play, Square, X, ChevronsUpDown } from "lucide-react"
+import { ChevronRight, Hammer, Menu, Play, RotateCw, Square, X, ChevronsUpDown } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useNavigate } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
@@ -29,6 +29,7 @@ type ResourceDetailsProps = {
   ) => void
   onStart: () => void
   onStop: () => void
+  onRestart: () => void
   onBuild?: () => void
   onScale?: (replicas: number) => void
   isSwarmManager?: boolean
@@ -45,6 +46,7 @@ export default function ResourceDetails({
   onSave,
   onStart,
   onStop,
+  onRestart,
   onBuild,
   onScale,
   isSwarmManager = false,
@@ -201,16 +203,28 @@ export default function ResourceDetails({
               </div>
             )}
             {isRunning ? (
-              <Button
-                type="button"
-                size="sm"
-                disabled={actionPending}
-                onClick={onStop}
-                className="gap-2 border border-border bg-transparent text-foreground hover:bg-secondary"
-              >
-                <Square className="h-4 w-4" />
-                {t("projects.resource.stop")}
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={actionPending}
+                  onClick={onRestart}
+                  className="gap-2 border border-border bg-transparent text-foreground hover:bg-secondary"
+                >
+                  <RotateCw className="h-4 w-4" />
+                  {t("projects.resource.restart")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={actionPending}
+                  onClick={onStop}
+                  className="gap-2 border border-border bg-transparent text-foreground hover:bg-secondary"
+                >
+                  <Square className="h-4 w-4" />
+                  {t("projects.resource.stop")}
+                </Button>
+              </>
             ) : (
               <Button
                 type="button"

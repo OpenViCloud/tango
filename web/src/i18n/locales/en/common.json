@@ -943,11 +943,13 @@
     "deployResource": "Deploy Resource",
     "resource": {
       "start": "Start",
+      "restart": "Restart",
       "stop": "Stop",
       "save": "Save",
       "saving": "Saving...",
       "delete": "Delete",
       "started": "Resource started.",
+      "restarted": "Resource restarted.",
       "stopped": "Resource stopped.",
       "deleted": "Resource deleted.",
       "updated": "Resource updated.",

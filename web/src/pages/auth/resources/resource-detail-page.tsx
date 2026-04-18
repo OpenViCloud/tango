@@ -14,6 +14,7 @@ import {
   useBuildResource,
   useGetResource,
   useGetResourceEnvVars,
+  useRestartResource,
   useSetResourceEnvVars,
   useUpdateResource,
   useStartResource,
@@ -61,12 +62,14 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
   const updateResourceMutation = useUpdateResource(resourceId)
   const startMutation = useStartResource()
   const stopMutation = useStopResource()
+  const restartMutation = useRestartResource()
   const scaleMutation = useScaleResource()
   const { data: swarmStatus } = useSwarmStatus()
   const isSwarmManager = swarmStatus?.is_manager ?? false
   const buildMutation = useBuildResource(resourceId)
   const [activeRun, setActiveRun] = useState<ResourceRunModel | null>(null)
   const [activeBuildJobId, setActiveBuildJobId] = useState<string | null>(null)
+  const [runSuccessMessageKey, setRunSuccessMessageKey] = useState("projects.resource.started")
 
   const initialEnvEntries = useMemo<EnvEntry[]>(
     () =>
@@ -131,6 +134,7 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
   }
 
   const handleStart = () => {
+    setRunSuccessMessageKey("projects.resource.started")
     startMutation.mutate(resourceId, {
       onSuccess: (run) => setActiveRun(run),
     })
@@ -153,6 +157,13 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
           queryKey: PROJECT_QUERY_KEYS.resourceEnvVars(resourceId),
         })
       },
+    })
+  }
+
+  const handleRestart = () => {
+    setRunSuccessMessageKey("projects.resource.restarted")
+    restartMutation.mutate(resourceId, {
+      onSuccess: (run) => setActiveRun(run),
     })
   }
 
@@ -197,13 +208,18 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
         onSave={handleSave}
         onStart={handleStart}
         onStop={handleStop}
+        onRestart={handleRestart}
         onBuild={handleBuild}
         onScale={handleScale}
         isSwarmManager={isSwarmManager}
         scalePending={scaleMutation.isPending}
         pending={setEnvVarsMutation.isPending || updateResourceMutation.isPending}
         actionPending={
-          startMutation.isPending || stopMutation.isPending || buildMutation.isPending || activeRun !== null
+          startMutation.isPending ||
+          stopMutation.isPending ||
+          restartMutation.isPending ||
+          buildMutation.isPending ||
+          activeRun !== null
         }
         isLoadingEnvVars={isLoadingEnvVars}
         isEnvVarsError={isEnvVarsError}
@@ -220,6 +236,7 @@ export default function ResourceDetailPage({ resourceId }: ResourceDetailPagePro
       <ResourceRunLogSheet
         run={activeRun}
         resourceName={resource.name}
+        successMessageKey={runSuccessMessageKey}
         onClose={() => setActiveRun(null)}
         onCompleted={async () => {
           await queryClient.invalidateQueries({ queryKey: ["resource", resourceId] })
@@ -330,11 +347,13 @@ function BuildLogSheet({
 function ResourceRunLogSheet({
   run,
   resourceName,
+  successMessageKey,
   onClose,
   onCompleted,
 }: {
   run: ResourceRunModel | null
   resourceName: string | null
+  successMessageKey: string
   onClose: () => void
   onCompleted: () => void | Promise<void>
 }) {
@@ -356,7 +375,7 @@ function ResourceRunLogSheet({
     if (notifiedStatusRef.current === status) return
     notifiedStatusRef.current = status
     if (status === "done") {
-      toast.success(t("projects.resource.started"))
+      toast.success(t(successMessageKey))
       void onCompleted()
       return
     }
@@ -364,7 +383,7 @@ function ResourceRunLogSheet({
       toast.error(run?.error_msg || t("projects.resource.runFailed"))
       void onCompleted()
     }
-  }, [onCompleted, run?.error_msg, status, t])
+  }, [onCompleted, run?.error_msg, status, successMessageKey, t])
 
   const displayStatus = status ?? run?.status
   const isEmpty = !logs && !connected

@@ -943,11 +943,13 @@
     "deployResource": "Triển khai tài nguyên",
     "resource": {
       "start": "Khởi động",
+      "restart": "Khởi động lại",
       "stop": "Dừng",
       "save": "Lưu",
       "saving": "Đang lưu...",
       "delete": "Xóa",
       "started": "Đã khởi động tài nguyên.",
+      "restarted": "Đã khởi động lại tài nguyên.",
       "stopped": "Đã dừng tài nguyên.",
       "deleted": "Đã xóa tài nguyên.",
       "updated": "Đã cập nhật tài nguyên.",

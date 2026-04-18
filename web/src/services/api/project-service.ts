@@ -139,6 +139,11 @@ export const projectService = {
 
   stopResource: (resourceId: string) => api.post(`/resources/${resourceId}/stop`),
 
+  restartResource: (resourceId: string) =>
+    api
+      .post<ApiResponse<ResourceRunModel>>(`/resources/${resourceId}/restart`)
+      .then((res) => unwrapApiResponse(res.data)),
+
   scaleResource: (resourceId: string, replicas: number) =>
     api.post(`/resources/${resourceId}/scale`, { replicas }),
 

@@ -142,6 +142,7 @@ func (h *ProjectHandler) Register(rg *gin.RouterGroup) {
 	rg.DELETE("/resources/:resourceId", h.DeleteResource)
 	rg.POST("/resources/:resourceId/start", h.StartResource)
 	rg.POST("/resources/:resourceId/stop", h.StopResource)
+	rg.POST("/resources/:resourceId/restart", h.RestartResource)
 	rg.POST("/resources/:resourceId/scale", h.ScaleResource)
 	rg.GET("/resources/:resourceId/logs", h.GetResourceLogs)
 	rg.GET("/resources/:resourceId/env-vars", h.GetEnvVars)
@@ -212,7 +213,9 @@ type createResourceFromGitRequest struct {
 
 type createCustomStackComponentRequest struct {
 	ID          string                        `json:"id"`
-	Type        string                        `json:"type,omitempty"` // "service" | "job"
+	Type        string                        `json:"type,omitempty"` // "db" | "app" | "service" | "job"
+	Image       string                        `json:"image,omitempty"`
+	Tag         string                        `json:"tag,omitempty"`
 	Cmd         []string                      `json:"cmd"`
 	Ports       []createResourcePortRequest   `json:"ports,omitempty"`
 	Volumes     []string                      `json:"volumes,omitempty"`
@@ -759,6 +762,8 @@ func (h *ProjectHandler) CreateResourceStack(c *gin.Context) {
 		customComponents = append(customComponents, command.CustomComponentInput{
 			ID:          cc.ID,
 			Type:        cc.Type,
+			Image:       cc.Image,
+			Tag:         cc.Tag,
 			Cmd:         cc.Cmd,
 			Ports:       ports,
 			Volumes:     cc.Volumes,
@@ -936,6 +941,29 @@ func (h *ProjectHandler) StopResource(c *gin.Context) {
 	}
 	h.invalidateResourceConnectionCache(c.Request.Context(), resourceID)
 	response.NoContent(c)
+}
+
+func (h *ProjectHandler) RestartResource(c *gin.Context) {
+	resourceID := c.Param("resourceId")
+	if err := h.stopResource.Handle(c.Request.Context(), command.StopResourceCommand{ID: resourceID}); err != nil {
+		writeProjectError(c, err)
+		return
+	}
+
+	run, err := h.startResourceRun.Handle(c.Request.Context(), command.CreateStartResourceRunCommand{
+		ResourceID: resourceID,
+	})
+	if err != nil {
+		writeProjectError(c, err)
+		return
+	}
+
+	h.invalidateResourceConnectionCache(c.Request.Context(), resourceID)
+	c.JSON(202, response.SuccessEnvelope[resourceRunResponse]{
+		Success: true,
+		TraceID: response.TraceID(c),
+		Data:    toResourceRunResponse(run),
+	})
 }
 
 func (h *ProjectHandler) ScaleResource(c *gin.Context) {

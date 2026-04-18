@@ -17,7 +17,7 @@ export function ResourceConnectionTab({ resource }: Props) {
   return (
     <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col gap-4">
-        <SectionCard>
+        <SectionCard>a
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <DatabaseIcon className="h-4 w-4 text-muted-foreground" />

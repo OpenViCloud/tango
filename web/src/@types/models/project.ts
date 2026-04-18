@@ -107,6 +107,8 @@ export const resourceStackTemplateComponentSchema = z.object({
   name: z.string(),
   description: z.string(),
   type: z.string(),
+  image: z.string().optional(),
+  tag: z.string().optional(),
   required: z.boolean(),
   default_enabled: z.boolean(),
   ports: z.array(
@@ -221,6 +223,8 @@ export const createResourceStackSchema = z.object({
     z.object({
       id: z.string(),
       type: z.string().optional(), // "service" | "job"
+      image: z.string().optional(),
+      tag: z.string().optional(),
       cmd: z.array(z.string()),
       ports: z
         .array(

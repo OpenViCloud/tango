@@ -16,6 +16,8 @@ type ResourceStackTemplateComponent struct {
 	Name           string                        `json:"name"`
 	Description    string                        `json:"description"`
 	Type           string                        `json:"type"`
+	Image          string                        `json:"image,omitempty"`
+	Tag            string                        `json:"tag,omitempty"`
 	Required       bool                          `json:"required"`
 	DefaultEnabled bool                          `json:"default_enabled"`
 	Ports          []ResourceStackTemplatePort   `json:"ports"`

@@ -132,6 +132,65 @@
     ]
   },
   {
+    "id": "n8n",
+    "name": "n8n",
+    "icon_url": "/images/resource-templates/n8n.jpeg",
+    "image": "n8nio/n8n",
+    "description": "n8n workflow automation stack with a dedicated PostgreSQL database.",
+    "color": "#EA4B71",
+    "abbr": "N8",
+    "tags": ["latest", "1.44.1"],
+    "shared_env": [],
+    "components": [
+      {
+        "id": "postgres",
+        "name": "PostgreSQL",
+        "description": "Persistent PostgreSQL database for n8n workflows and credentials.",
+        "type": "db",
+        "image": "postgres",
+        "tag": "latest",
+        "required": true,
+        "default_enabled": true,
+        "ports": [{ "host": "5432", "container": "5432" }],
+        "env": [
+          { "key": "POSTGRES_PASSWORD", "value": "postgres" },
+          { "key": "POSTGRES_USER", "value": "postgres" },
+          { "key": "POSTGRES_DB", "value": "postgres" }
+        ],
+        "volumes": ["n8n-postgres-data:/var/lib/postgresql/data"]
+      },
+      {
+        "id": "app",
+        "name": "n8n",
+        "description": "n8n editor and webhook runtime connected to the bundled PostgreSQL service.",
+        "type": "app",
+        "image": "n8nio/n8n",
+        "tag": "latest",
+        "required": true,
+        "default_enabled": true,
+        "ports": [{ "host": "5678", "container": "5678" }],
+        "env": [
+          { "key": "DB_TYPE", "value": "postgresdb" },
+          { "key": "DB_POSTGRESDB_HOST", "value": "postgres" },
+          { "key": "DB_POSTGRESDB_PORT", "value": "5432" },
+          { "key": "DB_POSTGRESDB_DATABASE", "value": "postgres" },
+          { "key": "DB_POSTGRESDB_USER", "value": "postgres" },
+          { "key": "DB_POSTGRESDB_PASSWORD", "value": "postgres" },
+          { "key": "N8N_BASIC_AUTH_ACTIVE", "value": "true" },
+          { "key": "N8N_BASIC_AUTH_USER", "value": "n8n.admin@gmail.com" },
+          { "key": "N8N_BASIC_AUTH_PASSWORD", "value": "PaSSVV0RD123Xyz" },
+          { "key": "N8N_HOST", "value": "localhost:5678" },
+          { "key": "N8N_EDITOR_BASE_URL", "value": "https://localhost:5678" },
+          { "key": "N8N_PORT", "value": "5678" },
+          { "key": "N8N_PROTOCOL", "value": "https" },
+          { "key": "WEBHOOK_URL", "value": "https://localhost:5678" },
+          { "key": "N8N_PROXY_HOPS", "value": "1" }
+        ],
+        "volumes": ["n8n-data:/home/node/.n8n"]
+      }
+    ]
+  },
+  {
     "id": "openclaw",
     "name": "OpenClaw AI Gateway",
     "icon_url": "/images/resource-templates/openclaw.png",

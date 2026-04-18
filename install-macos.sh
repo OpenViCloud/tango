@@ -30,7 +30,7 @@ COMPOSE_FILE="$BASE_DIR/docker-compose.yml"
 PROJECT_NAME="tango"
 HEALTH_URL="http://localhost:8080/api/status"
 CLI_RELEASE_TAG="${CLI_RELEASE_TAG:-cli-latest}"
-CLI_DOWNLOAD_BASE_URL="${CLI_DOWNLOAD_BASE_URL:-https://github.com/time-groups/tango-cloud/releases/download/$CLI_RELEASE_TAG}"
+CLI_DOWNLOAD_BASE_URL="${CLI_DOWNLOAD_BASE_URL:-https://github.com/OpenViCloud/tango/releases/download/$CLI_RELEASE_TAG}"
 
 EMAIL=""
 DOMAIN=""
@@ -50,10 +50,10 @@ usage() {
   echo "Usage: install-macos.sh [--email your@email.com] [--domain app.example.com] [--https]"
   echo ""
   echo "Quick install:"
-  echo "  curl -fsSL https://raw.githubusercontent.com/time-groups/tango-cloud/main/install-macos.sh | sudo bash"
+  echo "  curl -fsSL https://raw.githubusercontent.com/OpenViCloud/tango/main/install-macos.sh | sudo bash"
   echo ""
   echo "With options (pass args after -s --):"
-  echo "  curl -fsSL https://raw.githubusercontent.com/time-groups/tango-cloud/main/install-macos.sh | sudo bash -s -- --domain app.example.com --email you@example.com --https"
+  echo "  curl -fsSL https://raw.githubusercontent.com/OpenViCloud/tango/main/install-macos.sh | sudo bash -s -- --domain app.example.com --email you@example.com --https"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -107,14 +107,14 @@ resolve_cli_version() {
 
   echo "→ Fetching latest CLI release tag from GitHub..."
   local fetched
-  fetched=$(curl -fsSL "https://api.github.com/repos/time-groups/tango-cloud/releases?per_page=50" \
+  fetched=$(curl -fsSL "https://api.github.com/repos/OpenViCloud/tango/releases?per_page=50" \
     | grep '"tag_name": "cli-' \
     | head -1 \
     | sed 's/.*"tag_name": "\([^"]*\)".*/\1/' || true)
 
   if [[ -n "$fetched" ]]; then
     CLI_RELEASE_TAG="$fetched"
-    CLI_DOWNLOAD_BASE_URL="https://github.com/time-groups/tango-cloud/releases/download/$CLI_RELEASE_TAG"
+    CLI_DOWNLOAD_BASE_URL="https://github.com/OpenViCloud/tango/releases/download/$CLI_RELEASE_TAG"
     echo "CLI version (resolved) : $CLI_RELEASE_TAG"
   else
     echo "Warning: Could not resolve CLI version from GitHub API. Using fallback: $CLI_RELEASE_TAG"
@@ -127,7 +127,7 @@ check_macos() {
   if [[ "$(uname -s)" != "Darwin" ]]; then
     echo "Error: This script is for macOS only."
     echo "For Linux, use:"
-    echo "  curl -fsSL https://raw.githubusercontent.com/time-groups/tango-cloud/main/install.sh | sudo bash"
+    echo "  curl -fsSL https://raw.githubusercontent.com/OpenViCloud/tango/main/install.sh | sudo bash"
     exit 1
   fi
 }
@@ -242,7 +242,7 @@ install_cli() {
   echo "❌ CLI binary download failed."
   echo "   URL tried   : $cli_download_url"
   echo "   Release tag : $CLI_RELEASE_TAG"
-  echo "   Available   : https://github.com/time-groups/tango-cloud/releases"
+  echo "   Available   : https://github.com/OpenViCloud/tango/releases"
 
   if command -v go >/dev/null 2>&1; then
     echo "Building CLI from source for darwin/$arch..."
@@ -331,7 +331,7 @@ if [ -n "$SCRIPT_DIR" ] \
   cp "$SCRIPT_DIR/docker-compose.yml" "$COMPOSE_FILE"
 elif [ ! -f "$COMPOSE_FILE" ]; then
   echo "Downloading docker-compose.yml from GitHub..."
-  curl -fsSL "https://raw.githubusercontent.com/time-groups/tango-cloud/main/docker-compose.yml" \
+  curl -fsSL "https://raw.githubusercontent.com/OpenViCloud/tango/main/docker-compose.yml" \
     -o "$COMPOSE_FILE"
 else
   echo "Using existing $COMPOSE_FILE"

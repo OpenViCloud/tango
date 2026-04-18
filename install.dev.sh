@@ -21,7 +21,7 @@ TTL_IMAGE="${TTL_IMAGE:-ttl.sh/tango-cloud:24h}"   # ← dev: image từ ttl.sh
 PROJECT_NAME="tango"
 HEALTH_URL="http://localhost:8080/api/status"
 CLI_RELEASE_TAG="${CLI_RELEASE_TAG:-cli-latest}"
-CLI_DOWNLOAD_BASE_URL="${CLI_DOWNLOAD_BASE_URL:-https://github.com/time-groups/tango-cloud/releases/download/$CLI_RELEASE_TAG}"
+CLI_DOWNLOAD_BASE_URL="${CLI_DOWNLOAD_BASE_URL:-https://github.com/OpenViCloud/tango/releases/download/$CLI_RELEASE_TAG}"
 
 EMAIL=""
 DOMAIN=""
@@ -219,7 +219,7 @@ if [ -f "$SCRIPT_DIR/docker-compose.test.yml" ] && [ "$SCRIPT_DIR" != "$BASE_DIR
   cp "$SCRIPT_DIR/docker-compose.test.yml" "$COMPOSE_FILE"
 elif [ ! -f "$COMPOSE_FILE" ]; then
   echo "Downloading docker-compose.test.yml from GitHub..."
-  curl -fsSL "https://raw.githubusercontent.com/time-groups/tango-cloud/main/docker-compose.test.yml" \
+  curl -fsSL "https://raw.githubusercontent.com/OpenViCloud/tango/main/docker-compose.test.yml" \
     -o "$COMPOSE_FILE"
 else
   echo "Using existing $COMPOSE_FILE"

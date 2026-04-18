@@ -98,16 +98,16 @@ HTTPS/Let's Encrypt cannot be tested locally — a publicly reachable domain is 
 
 ```bash
 # Basic install (HTTP only)
-curl -fsSL https://raw.githubusercontent.com/time-groups/tango-cloud/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/OpenViCloud/tango/main/install.sh | sudo bash
 
 # With admin credentials
 sudo ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=yourpassword \
-  bash -c "$(curl -fsSL https://raw.githubusercontent.com/time-groups/tango-cloud/main/install.sh)"
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/OpenViCloud/tango/main/install.sh)"
 
 # With HTTPS via Let's Encrypt + admin credentials
 sudo ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=yourpassword \
   bash -s -- --email you@example.com --domain app.example.com --https \
-  < <(curl -fsSL https://raw.githubusercontent.com/time-groups/tango-cloud/main/install.sh)
+  < <(curl -fsSL https://raw.githubusercontent.com/OpenViCloud/tango/main/install.sh)
 ```
 
 `install.sh` installs Docker if missing, creates required directories, downloads `docker-compose.yml`, generates `traefik/traefik.yml`, writes `/opt/tango/.env`, installs the CLI daemon as a system service, and starts the full stack.
@@ -137,7 +137,7 @@ After deployment, HTTPS settings (email, domain, TLS toggle) can also be changed
 ### Install CLI
 
 ```bash
-curl -fsSL https://github.com/time-groups/tango-cloud/releases/download/cli-latest/tango-linux-amd64 -o tango
+curl -fsSL https://github.com/OpenViCloud/tango/releases/download/cli-latest/tango-linux-amd64 -o tango
 chmod +x tango
 sudo install -m 0755 tango /usr/local/bin/tango
 ```

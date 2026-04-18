@@ -29,7 +29,7 @@ The API and all workloads run inside Docker. The CLI runs outside Docker as the 
 go install tango/cmd/cli@latest
 
 # Option 2: Download binary from GitHub Releases
-curl -fsSL https://github.com/time-groups/tango-cloud/releases/latest/download/tango-linux-amd64 -o tango
+curl -fsSL https://github.com/OpenViCloud/tango/releases/latest/download/tango-linux-amd64 -o tango
 chmod +x tango
 sudo install -m 0755 tango /usr/local/bin/tango
 
@@ -60,22 +60,22 @@ The CLI stores all its files under `~/.config/tango/`:
 
 ### File reference
 
-| File | Written by | Read by | Purpose |
-|------|-----------|---------|---------|
-| `daemon.json` | User (manual edit) | `tango daemon run` | Check interval, max retries, compose file path, monitored services |
-| `daemon.pid` | `tango daemon run` | `tango daemon start/stop/status` | Track daemon process lifecycle |
-| `daemon-status.json` | `tango daemon run` (every check cycle) | `tango daemon status` | Service health table: state, health, restart count, exhausted flag |
-| `daemon.log` | `tango daemon run` | Admin (manual `cat`/`tail`) | Debug log for daemon actions: restarts, errors, Docker connectivity |
+| File                 | Written by                             | Read by                          | Purpose                                                             |
+| -------------------- | -------------------------------------- | -------------------------------- | ------------------------------------------------------------------- |
+| `daemon.json`        | User (manual edit)                     | `tango daemon run`               | Check interval, max retries, compose file path, monitored services  |
+| `daemon.pid`         | `tango daemon run`                     | `tango daemon start/stop/status` | Track daemon process lifecycle                                      |
+| `daemon-status.json` | `tango daemon run` (every check cycle) | `tango daemon status`            | Service health table: state, health, restart count, exhausted flag  |
+| `daemon.log`         | `tango daemon run`                     | Admin (manual `cat`/`tail`)      | Debug log for daemon actions: restarts, errors, Docker connectivity |
 
 ### Log sources
 
 There are three separate log streams. They come from different sources and serve different purposes:
 
-| What | Source | How to view | Rotation |
-|------|--------|-------------|----------|
-| **App/service logs** | Docker container stdout/stderr | `tango service logs <name>` | Docker `json-file` driver: `max-size` + `max-file` in docker-compose.yml |
-| **Daemon log** | Daemon health check process | `cat ~/.config/tango/daemon.log` | Manual or logrotate (daemon writes JSON lines) |
-| **API server log** | Go app inside container | Web dashboard or `docker compose logs app` | Configured via `LOG_*` env vars (see [Configuration](configuration.md)) |
+| What                 | Source                         | How to view                                | Rotation                                                                 |
+| -------------------- | ------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------ |
+| **App/service logs** | Docker container stdout/stderr | `tango service logs <name>`                | Docker `json-file` driver: `max-size` + `max-file` in docker-compose.yml |
+| **Daemon log**       | Daemon health check process    | `cat ~/.config/tango/daemon.log`           | Manual or logrotate (daemon writes JSON lines)                           |
+| **API server log**   | Go app inside container        | Web dashboard or `docker compose logs app` | Configured via `LOG_*` env vars (see [Configuration](configuration.md))  |
 
 `tango service logs` and `tango daemon status` read from completely independent sources:
 
@@ -306,27 +306,27 @@ tango uninstall --purge   # also remove Docker resources and /opt/tango runtime 
 }
 ```
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `driver` | `compose` | Orchestrator backend. Future: `k3s`, `swarm`, `nomad` |
-| `check_interval` | `30s` | How often the daemon checks service health |
-| `max_retries` | `3` | Max restart attempts per service within the cooldown window |
-| `retry_backoff` | `10s` | Wait time between restart attempts |
-| `retry_cooldown` | `5m` | Window for retry counter. Resets if service stays healthy beyond this |
-| `compose_file` | `""` | Path to docker-compose.yml. Empty = Docker Compose default |
-| `project_name` | `""` | Compose project name. Empty = directory name |
-| `health_url` | `http://localhost:8080/api/status` | HTTP endpoint for app-level health check |
-| `services` | `[]` | Services to monitor. Empty = all services in compose file |
+| Field            | Default                            | Description                                                           |
+| ---------------- | ---------------------------------- | --------------------------------------------------------------------- |
+| `driver`         | `compose`                          | Orchestrator backend. Future: `k3s`, `swarm`, `nomad`                 |
+| `check_interval` | `30s`                              | How often the daemon checks service health                            |
+| `max_retries`    | `3`                                | Max restart attempts per service within the cooldown window           |
+| `retry_backoff`  | `10s`                              | Wait time between restart attempts                                    |
+| `retry_cooldown` | `5m`                               | Window for retry counter. Resets if service stays healthy beyond this |
+| `compose_file`   | `""`                               | Path to docker-compose.yml. Empty = Docker Compose default            |
+| `project_name`   | `""`                               | Compose project name. Empty = directory name                          |
+| `health_url`     | `http://localhost:8080/api/status` | HTTP endpoint for app-level health check                              |
+| `services`       | `[]`                               | Services to monitor. Empty = all services in compose file             |
 
 ### Environment variable overrides
 
-| Variable | Overrides |
-|----------|-----------|
-| `TANGO_DRIVER` | `driver` |
+| Variable               | Overrides        |
+| ---------------------- | ---------------- |
+| `TANGO_DRIVER`         | `driver`         |
 | `TANGO_CHECK_INTERVAL` | `check_interval` |
-| `TANGO_COMPOSE_FILE` | `compose_file` |
-| `TANGO_PROJECT_NAME` | `project_name` |
-| `TANGO_HEALTH_URL` | `health_url` |
+| `TANGO_COMPOSE_FILE`   | `compose_file`   |
+| `TANGO_PROJECT_NAME`   | `project_name`   |
+| `TANGO_HEALTH_URL`     | `health_url`     |
 
 ### System service
 
@@ -370,6 +370,7 @@ type Driver interface {
 ## Troubleshooting
 
 **Daemon won't start**
+
 ```bash
 # Check if already running
 tango daemon status
@@ -382,6 +383,7 @@ tail -20 ~/.config/tango/daemon.log
 ```
 
 **Service keeps restarting (exhausted retries)**
+
 ```bash
 # Check why the service is crashing
 tango service logs <name> --tail 100
@@ -392,6 +394,7 @@ tango daemon start
 ```
 
 **Docker daemon not reachable**
+
 ```bash
 # Verify Docker is running
 docker info
